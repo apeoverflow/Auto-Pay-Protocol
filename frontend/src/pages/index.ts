@@ -1,0 +1,4 @@
+export { DashboardPage } from './DashboardPage'
+export { SubscriptionsPage } from './SubscriptionsPage'
+export { ActivityPage } from './ActivityPage'
+export { SettingsPage } from './SettingsPage'
