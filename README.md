@@ -2,14 +2,14 @@
 
 **Non-custodial crypto subscription payments. 50% cheaper than Stripe.**
 
-AutoPay is a decentralized subscription payment protocol built on USDC. Users maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Cross-chain settlements via Circle CCTP make it seamless for merchants to receive payments on their preferred chain.
+AutoPay is a decentralized subscription payment protocol built on USDC. Users maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Cross-chain settlements via Circle CCTP bridge payments from any supported chain to Arc, where merchants receive funds.
 
 ## Features
 
 - **Non-Custodial**: Funds stay in user wallets until charged. No intermediary custody.
 - **Policy-Based**: Users set spending limits, intervals, and caps. Full control.
-- **Multi-Chain**: Pay from Polygon, Arbitrum, or Arc. Settle anywhere.
-- **Gasless**: Users pay fees in USDC via Circle Paymaster. No ETH needed.
+- **Multi-Chain**: Pay from Polygon, Arbitrum, or Arc. All settlements on Arc.
+- **Simple UX**: Users only need USDC. No complex token management.
 - **Passkey Auth**: Circle Modular Wallets enable passwordless, seedless onboarding.
 - **Low Fees**: 2.5% protocol fee vs 5%+ for traditional processors.
 
