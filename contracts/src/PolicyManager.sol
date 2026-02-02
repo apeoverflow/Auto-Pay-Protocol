@@ -45,8 +45,8 @@ contract PolicyManager is ReentrancyGuard, Ownable {
 
     // <--------------- Immutables ---------------->
 
-    IERC20 public immutable usdc;
-    ITokenMessengerV2 public immutable tokenMessenger;
+    IERC20 public immutable USDC;
+    ITokenMessengerV2 public immutable TOKEN_MESSENGER;
 
     // <--------------- State -------------------->
 
@@ -108,8 +108,8 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         address _tokenMessenger,
         address _feeRecipient
     ) Ownable(msg.sender) {
-        usdc = IERC20(_usdc);
-        tokenMessenger = ITokenMessengerV2(_tokenMessenger);
+        USDC = IERC20(_usdc);
+        TOKEN_MESSENGER = ITokenMessengerV2(_tokenMessenger);
         feeRecipient = _feeRecipient;
     }
 
