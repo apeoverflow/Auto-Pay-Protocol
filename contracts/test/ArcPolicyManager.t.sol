@@ -1,0 +1,351 @@
+// SPDX-License-Identifier: Apache 2.0
+pragma solidity ^0.8.20;
+
+import {Test, console} from "forge-std/Test.sol";
+import {ArcPolicyManager} from "../src/ArcPolicyManager.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
+
+contract ArcPolicyManagerTest is Test {
+    ArcPolicyManager public manager;
+    MockUSDC public usdc;
+
+    address public owner = address(this);
+    address public feeRecipient = makeAddr("feeRecipient");
+    address public payer = makeAddr("payer");
+    address public merchant = makeAddr("merchant");
+
+    uint128 public constant CHARGE_AMOUNT = 10e6; // 10 USDC
+    uint32 public constant INTERVAL = 30 days;
+    uint128 public constant SPENDING_CAP = 100e6; // 100 USDC
+
+    function setUp() public {
+        usdc = new MockUSDC();
+        manager = new ArcPolicyManager(address(usdc), feeRecipient);
+
+        // give payer some usdc
+        usdc.mint(payer, 1000e6);
+    }
+
+    // --- Constructor ---
+
+    function test_Constructor() public view {
+        assertEq(address(manager.USDC()), address(usdc));
+        assertEq(manager.feeRecipient(), feeRecipient);
+        assertEq(manager.owner(), owner);
+    }
+
+    // --- createPolicy ---
+
+    function test_CreatePolicy_Success() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+
+        bytes32 policyId = manager.createPolicy(
+            merchant,
+            CHARGE_AMOUNT,
+            INTERVAL,
+            SPENDING_CAP,
+            "https://example.com/plan"
+        );
+        vm.stopPrank();
+
+        assertTrue(policyId != bytes32(0));
+        assertEq(manager.policyCount(), 1);
+
+        // check the policy was stored correctly
+        (
+            address storedPayer,
+            address storedMerchant,
+            uint128 chargeAmount,
+            uint128 spendingCap,
+            uint128 totalSpent,
+            uint32 interval,
+            uint32 lastCharged,
+            uint32 chargeCount,
+            uint32 endTime,
+            bool active,
+        ) = manager.policies(policyId);
+
+        assertEq(storedPayer, payer);
+        assertEq(storedMerchant, merchant);
+        assertEq(chargeAmount, CHARGE_AMOUNT);
+        assertEq(spendingCap, SPENDING_CAP);
+        assertEq(totalSpent, 0);
+        assertEq(interval, INTERVAL);
+        assertEq(lastCharged, 0);
+        assertEq(chargeCount, 0);
+        assertEq(endTime, 0);
+        assertTrue(active);
+    }
+
+    function test_CreatePolicy_RevertInvalidMerchant() public {
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSignature("InvalidMerchant()"));
+        manager.createPolicy(address(0), CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+    }
+
+    function test_CreatePolicy_RevertInvalidAmount() public {
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSignature("InvalidAmount()"));
+        manager.createPolicy(merchant, 0, INTERVAL, SPENDING_CAP, "");
+    }
+
+    function test_CreatePolicy_RevertInvalidInterval_TooShort() public {
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSignature("InvalidInterval()"));
+        manager.createPolicy(merchant, CHARGE_AMOUNT, 30 minutes, SPENDING_CAP, "");
+    }
+
+    function test_CreatePolicy_RevertInvalidInterval_TooLong() public {
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSignature("InvalidInterval()"));
+        manager.createPolicy(merchant, CHARGE_AMOUNT, 366 days, SPENDING_CAP, "");
+    }
+
+    function test_CreatePolicy_RevertPolicyAlreadyExists() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+
+        vm.expectRevert(abi.encodeWithSignature("PolicyAlreadyExists()"));
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+    }
+
+    // --- revokePolicy ---
+
+    function test_RevokePolicy_Success() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        manager.revokePolicy(policyId);
+        vm.stopPrank();
+
+        (,,,,,,,, uint32 endTime, bool active,) = manager.policies(policyId);
+        assertFalse(active);
+        assertEq(endTime, block.timestamp);
+    }
+
+    function test_RevokePolicy_RevertNotPolicyOwner() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // merchant tries to revoke payer's policy
+        vm.prank(merchant);
+        vm.expectRevert(abi.encodeWithSignature("NotPolicyOwner()"));
+        manager.revokePolicy(policyId);
+    }
+
+    function test_RevokePolicy_RevertPolicyNotActive() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        manager.revokePolicy(policyId);
+
+        // can't revoke twice
+        vm.expectRevert(abi.encodeWithSignature("PolicyNotActive()"));
+        manager.revokePolicy(policyId);
+        vm.stopPrank();
+    }
+
+    // --- charge ---
+
+    function test_Charge_Success() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        uint256 payerBalanceBefore = usdc.balanceOf(payer);
+        uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
+
+        manager.charge(policyId);
+
+        uint256 protocolFee = (CHARGE_AMOUNT * manager.PROTOCOL_FEE_BPS()) / manager.BPS_DENOMINATOR();
+        uint256 merchantAmount = CHARGE_AMOUNT - protocolFee;
+
+        assertEq(usdc.balanceOf(payer), payerBalanceBefore - CHARGE_AMOUNT);
+        assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + merchantAmount);
+        assertEq(manager.accumulatedFees(), protocolFee);
+
+        (,,,, uint128 totalSpent,, uint32 lastCharged, uint32 chargeCount,,,) = manager.policies(policyId);
+        assertEq(totalSpent, CHARGE_AMOUNT);
+        assertEq(lastCharged, block.timestamp);
+        assertEq(chargeCount, 1);
+    }
+
+    function test_Charge_RevertPolicyNotActive() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        manager.revokePolicy(policyId);
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSignature("PolicyNotActive()"));
+        manager.charge(policyId);
+    }
+
+    function test_Charge_RevertTooSoonToCharge() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        manager.charge(policyId);
+
+        // immediate second charge should fail
+        vm.expectRevert(abi.encodeWithSignature("TooSoonToCharge()"));
+        manager.charge(policyId);
+    }
+
+    function test_Charge_SuccessAfterInterval() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        manager.charge(policyId);
+
+        // skip ahead
+        vm.warp(block.timestamp + INTERVAL);
+
+        // now it should work
+        manager.charge(policyId);
+
+        (,,,, uint128 totalSpent,,, uint32 chargeCount,,,) = manager.policies(policyId);
+        assertEq(totalSpent, CHARGE_AMOUNT * 2);
+        assertEq(chargeCount, 2);
+    }
+
+    function test_Charge_RevertSpendingCapExceeded() public {
+        uint128 smallCap = 15e6; // 15 USDC cap, 10 USDC per charge
+
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, smallCap, "");
+        vm.stopPrank();
+
+        manager.charge(policyId); // 10 usdc
+
+        vm.warp(block.timestamp + INTERVAL);
+
+        // 10 + 10 = 20 > 15 cap
+        vm.expectRevert(abi.encodeWithSignature("SpendingCapExceeded()"));
+        manager.charge(policyId);
+    }
+
+    function test_Charge_RevertInsufficientAllowance() public {
+        vm.prank(payer);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+
+        // no approval
+        vm.expectRevert(abi.encodeWithSignature("InsufficientAllowance()"));
+        manager.charge(policyId);
+    }
+
+    function test_Charge_RevertInsufficientBalance() public {
+        address brokePayer = makeAddr("brokePayer");
+
+        vm.startPrank(brokePayer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSignature("InsufficientBalance()"));
+        manager.charge(policyId);
+    }
+
+    // --- View Functions ---
+
+    function test_CanCharge_ReturnsTrue() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        (bool canChargeResult, string memory reason) = manager.canCharge(policyId);
+        assertTrue(canChargeResult);
+        assertEq(reason, "");
+    }
+
+    function test_CanCharge_ReturnsFalse_NotActive() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        manager.revokePolicy(policyId);
+        vm.stopPrank();
+
+        (bool canChargeResult, string memory reason) = manager.canCharge(policyId);
+        assertFalse(canChargeResult);
+        assertEq(reason, "Policy not active");
+    }
+
+    function test_GetPayerPolicies() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId1 = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+
+        address merchant2 = makeAddr("merchant2");
+        bytes32 policyId2 = manager.createPolicy(merchant2, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        bytes32[] memory policies = manager.getPayerPolicies(payer);
+        assertEq(policies.length, 2);
+        assertEq(policies[0], policyId1);
+        assertEq(policies[1], policyId2);
+    }
+
+    function test_GetMerchantPolicies() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        bytes32[] memory policies = manager.getMerchantPolicies(merchant);
+        assertEq(policies.length, 1);
+        assertEq(policies[0], policyId);
+    }
+
+    // --- Admin ---
+
+    function test_WithdrawFees_Success() public {
+        // charge a policy to accumulate some fees
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        manager.charge(policyId);
+
+        uint256 fees = manager.accumulatedFees();
+        assertTrue(fees > 0);
+
+        uint256 recipientBalanceBefore = usdc.balanceOf(feeRecipient);
+
+        manager.withdrawFees();
+
+        assertEq(usdc.balanceOf(feeRecipient), recipientBalanceBefore + fees);
+        assertEq(manager.accumulatedFees(), 0);
+    }
+
+    function test_WithdrawFees_RevertNothingToWithdraw() public {
+        vm.expectRevert(abi.encodeWithSignature("NothingToWithdraw()"));
+        manager.withdrawFees();
+    }
+
+    function test_SetFeeRecipient() public {
+        address newRecipient = makeAddr("newRecipient");
+        manager.setFeeRecipient(newRecipient);
+        assertEq(manager.feeRecipient(), newRecipient);
+    }
+
+    function test_SetFeeRecipient_RevertNotOwner() public {
+        address newRecipient = makeAddr("newRecipient");
+
+        vm.prank(payer);
+        vm.expectRevert();
+        manager.setFeeRecipient(newRecipient);
+    }
+}
