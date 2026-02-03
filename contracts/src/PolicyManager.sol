@@ -1,5 +1,51 @@
-// SPDX-License-Identifier: Apache 2.0
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
+
+/*
+                          ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                     ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                  ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+               ÆÆÆÆÆÆÆÆÆÆÆÆÆ            ÆÆÆÆÆÆÆÆÆÆÆÆÆ
+             ÆÆÆÆÆÆÆÆÆÆ                      ÆÆÆÆÆÆÆÆÆÆ   ÆÆ
+           ÆÆÆÆÆÆÆÆÆ                            ÆÆÆÆÆÆÆÆÆÆÆÆ
+          ÆÆÆÆÆÆÆÆ                                ÆÆÆÆÆÆÆÆÆÆ
+         ÆÆÆÆÆÆÆ                                ÆÆÆÆÆÆÆÆÆÆÆÆ
+        ÆÆÆÆÆÆÆ          ÆÆÆÆ                              ÆÆÆÆÆ
+       ÆÆÆÆÆÆÆ           ÆÆÆÆÆÆÆ                      ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+      ÆÆÆÆÆÆÆ            ÆÆÆÆÆÆÆÆÆÆ                 ÆÆÆÆ   ÆÆÆÆÆ   ÆÆÆÆ
+      ÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆ            ÆÆÆ  ÆÆÆÆÆÆÆÆÆÆÆÆÆ  ÆÆÆ
+     ÆÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ        ÆÆÆ ÆÆÆÆÆÆÆ   ÆÆÆÆÆÆ  ÆÆÆ
+     ÆÆÆÆÆÆ              ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ    ÆÆ  ÆÆÆÆÆ  ÆÆÆ ÆÆÆÆÆÆ  ÆÆ
+     ÆÆÆÆÆÆ              ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ ÆÆÆ ÆÆÆÆÆÆ  ÆÆÆÆÆÆÆÆÆÆÆ ÆÆÆ
+     ÆÆÆÆÆÆ              ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ   ÆÆÆ ÆÆÆÆÆÆÆÆ    ÆÆÆÆÆÆÆ ÆÆÆ
+     ÆÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ       ÆÆ ÆÆÆÆÆÆÆÆÆÆÆ  ÆÆÆÆÆÆ ÆÆ
+      ÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆÆ          ÆÆ  ÆÆÆÆÆ      ÆÆÆÆÆÆ ÆÆÆ
+      ÆÆÆÆÆÆÆ            ÆÆÆÆÆÆÆÆÆÆ               ÆÆÆ ÆÆÆÆÆÆÆ ÆÆÆÆÆÆ  ÆÆÆ
+       ÆÆÆÆÆÆÆ           ÆÆÆÆÆÆÆ                   ÆÆÆÆ  ÆÆÆÆÆÆÆÆÆ   ÆÆÆ
+       ÆÆÆÆÆÆÆÆ          ÆÆÆÆ                        ÆÆÆÆ  ÆÆÆÆ   ÆÆÆÆ
+        ÆÆÆÆÆÆÆÆ                                    Æ    ÆÆÆÆÆÆÆÆÆÆ
+         ÆÆÆÆÆÆÆÆÆ                                ÆÆÆÆÆÆÆ
+           ÆÆÆÆÆÆÆÆÆ                            ÆÆÆÆÆÆÆÆÆ
+             ÆÆÆÆÆÆÆÆÆÆ                      ÆÆÆÆÆÆÆÆÆÆ
+               ÆÆÆÆÆÆÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                 ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                    ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                         ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+
+                ╔══════════════════════════════╗
+                ║       AutoPay Protocol       ║
+                ╚══════════════════════════════╝
+*/
+
+/**
+ * @title PolicyManager
+ * @author AutoPay Protocol
+ * @notice Manages subscription policies on source chains (Polygon, Arbitrum)
+ * @dev Charges are bridged to Arc via Circle CCTP V2. Users create policies
+ *      that authorize recurring charges. Relayers execute charges when due,
+ *      burning USDC on the source chain and minting on Arc for the merchant.
+ */
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -142,16 +188,16 @@ contract PolicyManager is ReentrancyGuard, Ownable {
 
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <---------- Relayer Functions ------------->
+    // <---------- Relayer Functions ------------>
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function charge(bytes32 policyId) external nonReentrant returns (uint64 cctpNonce) {}
 
     function batchCharge(bytes32[] calldata policyIds) external returns (uint256 successCount) {}
 
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <------------ View Functions --------------->
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
+    // >>>>>>>>>>>------------------<<<<<<<<<<<<<<
+    // <----------- View Functions -------------->
+    // >>>>>>>>>>>------------------<<<<<<<<<<<<<<
 
     function canCharge(bytes32 policyId) external view returns (bool, string memory) {}
     
@@ -166,7 +212,7 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     function getRemainingAllowance(bytes32 policyId) external view returns (uint128) {}
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <----------- Admin Functions -------------->
+    // <----------- Admin Functions ------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function withdrawFees() external {}
@@ -176,7 +222,7 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <-------------- Internal ------------------>
+    // <--------------- Internal ---------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function _findActivePolicy(address payer, bytes32 merchantOnArc) internal view returns (bytes32) {}

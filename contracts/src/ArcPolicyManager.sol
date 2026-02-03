@@ -1,5 +1,53 @@
-// SPDX-License-Identifier: Apache 2.0
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
+
+/*
+
+    
+                          ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                     ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                  ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+               ÆÆÆÆÆÆÆÆÆÆÆÆÆ            ÆÆÆÆÆÆÆÆÆÆÆÆÆ
+             ÆÆÆÆÆÆÆÆÆÆ                      ÆÆÆÆÆÆÆÆÆÆ   ÆÆ
+           ÆÆÆÆÆÆÆÆÆ                            ÆÆÆÆÆÆÆÆÆÆÆÆ
+          ÆÆÆÆÆÆÆÆ                                ÆÆÆÆÆÆÆÆÆÆ
+         ÆÆÆÆÆÆÆ                                ÆÆÆÆÆÆÆÆÆÆÆÆ
+        ÆÆÆÆÆÆÆ          ÆÆÆÆ                              ÆÆÆÆÆ
+       ÆÆÆÆÆÆÆ           ÆÆÆÆÆÆÆ                      ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+      ÆÆÆÆÆÆÆ            ÆÆÆÆÆÆÆÆÆÆ                 ÆÆÆÆ   ÆÆÆÆÆ   ÆÆÆÆ
+      ÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆ            ÆÆÆ  ÆÆÆÆÆÆÆÆÆÆÆÆÆ  ÆÆÆ
+     ÆÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ        ÆÆÆ ÆÆÆÆÆÆÆ   ÆÆÆÆÆÆ  ÆÆÆ
+     ÆÆÆÆÆÆ              ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ    ÆÆ  ÆÆÆÆÆ  ÆÆÆ ÆÆÆÆÆÆ  ÆÆ
+     ÆÆÆÆÆÆ              ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ ÆÆÆ ÆÆÆÆÆÆ  ÆÆÆÆÆÆÆÆÆÆÆ ÆÆÆ
+     ÆÆÆÆÆÆ              ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ   ÆÆÆ ÆÆÆÆÆÆÆÆ    ÆÆÆÆÆÆÆ ÆÆÆ
+     ÆÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ       ÆÆ ÆÆÆÆÆÆÆÆÆÆÆ  ÆÆÆÆÆÆ ÆÆ
+      ÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆÆ          ÆÆ  ÆÆÆÆÆ      ÆÆÆÆÆÆ ÆÆÆ
+      ÆÆÆÆÆÆÆ            ÆÆÆÆÆÆÆÆÆÆ               ÆÆÆ ÆÆÆÆÆÆÆ ÆÆÆÆÆÆ  ÆÆÆ
+       ÆÆÆÆÆÆÆ           ÆÆÆÆÆÆÆ                   ÆÆÆÆ  ÆÆÆÆÆÆÆÆÆ   ÆÆÆ
+       ÆÆÆÆÆÆÆÆ          ÆÆÆÆ                        ÆÆÆÆ  ÆÆÆÆ   ÆÆÆÆ
+        ÆÆÆÆÆÆÆÆ                                    Æ    ÆÆÆÆÆÆÆÆÆÆ
+         ÆÆÆÆÆÆÆÆÆ                                ÆÆÆÆÆÆÆ
+           ÆÆÆÆÆÆÆÆÆ                            ÆÆÆÆÆÆÆÆÆ
+             ÆÆÆÆÆÆÆÆÆÆ                      ÆÆÆÆÆÆÆÆÆÆ
+               ÆÆÆÆÆÆÆÆÆÆÆÆ             ÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                 ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                    ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+                         ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ
+
+
+                  ╔══════════════════════════════╗
+                  ║       AutoPay Protocol       ║
+                  ╚══════════════════════════════╝
+*/
+
+/**
+ * @title ArcPolicyManager
+ * @author AutoPay Protocol
+ * @notice Manages subscription policies on Arc (settlement chain)
+ * @dev Arc-native version with direct USDC transfers (no CCTP bridging).
+ *      Users create policies that authorize recurring charges. Relayers
+ *      execute charges when due, transferring USDC directly to merchants.
+ */
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -126,7 +174,15 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         uint32 interval,
         uint128 spendingCap,
         string calldata metadataUrl
-    ) external returns (bytes32 policyId) {}
+    ) external returns (bytes32 policyId) {
+        if (merchant == address(0)) revert InvalidMerchant();
+        if (chargeAmount == 0) revert InvalidAmount();
+        if (interval < MIN_INTERVAL || interval > MAX_INTERVAL) revert InvalidInterval();
+
+        policyId = keccak256(abi.encodePacked(msg.sender, merchant, block.timestamp, policyCount++));
+
+        bytes32 existingId = _findActivePolicy(msg.sender, merchant);
+    }
 
     function revokePolicy(bytes32 policyId) external {}
 
