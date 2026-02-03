@@ -1,22 +1,10 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.20;
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
-
-interface ITokenMessengerV2 {
-    function depositForBurn(
-        uint256 amount,
-        uint32 destinationDomain,
-        bytes32 mintRecipient,
-        address burnToken,
-        bytes32 destinationCaller,  // bytes32(0) = anyone can call receiveMessage
-        uint256 maxFee,             // max fee in burn token units (e.g., 1000 = 0.001 USDC)
-        uint32 minFinalityThreshold // 1000 = Fast Transfer, 2000 = Standard Transfer
-    ) external returns (uint64 nonce);
-}
 
 // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 // <--------------- Errors ------------------>
@@ -34,14 +22,13 @@ error InsufficientBalance();
 error NotPolicyOwner();
 error NothingToWithdraw();
 
-contract PolicyManager is ReentrancyGuard, Ownable {
+contract ArcPolicyManager is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <--------------- Constants --------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    uint32 public constant ARC_DOMAIN = 26;
     uint256 public constant MIN_INTERVAL = 1 hours;
     uint256 public constant MAX_INTERVAL = 365 days;
     uint256 public constant PROTOCOL_FEE_BPS = 250; // 2.5%
@@ -52,7 +39,6 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     IERC20 public immutable USDC;
-    ITokenMessengerV2 public immutable TOKEN_MESSENGER;
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <--------------- State ------------------->
@@ -60,32 +46,39 @@ contract PolicyManager is ReentrancyGuard, Ownable {
 
     struct Policy {
         address payer;           // Who gets charged
-        bytes32 merchantOnArc;   // Recipient on Arc (CCTP bytes32 format)
+        address merchant;        // Recipient on Arc (native address)
         uint128 chargeAmount;    // Amount per charge (6 decimals)
         uint128 spendingCap;     // Max total policy lifetime spend (0 = unlimited)
         uint128 totalSpent;      // Running total charged
         uint32 interval;         // Seconds between charges
         uint32 lastCharged;      // Timestamp of last charge
+        uint32 chargeCount;      // Number of successful charges
+        uint32 endTime;          // 0 = active, non-zero = timestamp when policy ended
         bool active;             // Can be charged
         string metadataUrl;      // Off-chain metadata (plan details, terms, etc.)
     }
 
-    mapping(bytes32 => Policy) public policies; // policyId -> policy
+    mapping(bytes32 => Policy) public policies;
     mapping(address => bytes32[]) public payerPolicyIds;
-    mapping(bytes32 => bytes32[]) public merchantPolicyIds; // CCTP recipient -> policyIds
+    mapping(address => bytes32[]) public merchantPolicyIds;
 
     uint256 public policyCount;
     uint256 public accumulatedFees;
     address public feeRecipient;
 
+    // Stats
+    uint256 public totalPoliciesCreated;
+    uint256 public totalChargesProcessed;
+    uint256 public totalVolumeProcessed;
+
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <--------------- Events ------------------>
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    event Policycreated(
+    event PolicyCreated(
         bytes32 indexed policyId,
         address indexed payer,
-        bytes32 indexed merchantOnArc,
+        address indexed merchant,
         uint128 chargeAmount,
         uint32 interval,
         uint128 spendingCap,
@@ -95,16 +88,16 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     event PolicyRevoked(
         bytes32 indexed policyId,
         address indexed payer,
-        bytes23 indexed merchantOnArc
+        address indexed merchant,
+        uint32 endTime
     );
 
     event ChargeSucceeded(
         bytes32 indexed policyId,
         address indexed payer,
-        bytes32 indexed merchantOnArc,
+        address indexed merchant,
         uint128 amount,
-        uint128 protocolFee,
-        uint64 cctpNonce
+        uint128 protocolFee
     );
 
     event ChargeFailed(bytes32 indexed policyId, string reason);
@@ -112,26 +105,23 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     event FeesWithdrawn(address indexed recipient, uint256 amount);
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <-------------- Constructor -------------->
+    // <------------- Constructor --------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    constructor (
+    constructor(
         address _usdc,
-        address _tokenMessenger,
         address _feeRecipient
     ) Ownable(msg.sender) {
         USDC = IERC20(_usdc);
-        TOKEN_MESSENGER = ITokenMessengerV2(_tokenMessenger);
         feeRecipient = _feeRecipient;
     }
-
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <----------- Payer Functions ------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function createPolicy(
-        bytes32 merchantOnArc,
+        address merchant,
         uint128 chargeAmount,
         uint32 interval,
         uint128 spendingCap,
@@ -140,33 +130,34 @@ contract PolicyManager is ReentrancyGuard, Ownable {
 
     function revokePolicy(bytes32 policyId) external {}
 
+    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
+    // <---------- Relayer Functions ------------>
+    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
+
+    function charge(bytes32 policyId) external nonReentrant {}
+
+    function batchCharge(bytes32[] calldata policyIds) external returns (bool[] memory results) {}
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <---------- Relayer Functions ------------->
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-
-    function charge(bytes32 policyId) external nonReentrant returns (uint64 cctpNonce) {}
-
-    function batchCharge(bytes32[] calldata policyIds) external returns (uint256 successCount) {}
-
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <------------ View Functions --------------->
+    // <----------- View Functions -------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function canCharge(bytes32 policyId) external view returns (bool, string memory) {}
-    
-    function getChargeablePolicies(bytes32 merchantOnArc) external view returns (bytes32[] memory) {}
+
+    function getChargeablePolicies(address merchant) external view returns (bytes32[] memory) {}
 
     function getPayerPolicies(address payer) external view returns (bytes32[] memory) {}
 
-    function getMerchantPolicies(bytes32 merchantOnArc) external view returns (bytes32[] memory) {}
+    function getMerchantPolicies(address merchant) external view returns (bytes32[] memory) {}
 
     function getNextChargeTime(bytes32 policyId) external view returns (uint256) {}
 
     function getRemainingAllowance(bytes32 policyId) external view returns (uint128) {}
 
+    function getStats() external view returns (uint256, uint256, uint256) {}
+
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <----------- Admin Functions -------------->
+    // <----------- Admin Functions ------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function withdrawFees() external {}
@@ -176,17 +167,8 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <-------------- Internal ------------------>
+    // <-------------- Internal ----------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    function _findActivePolicy(address payer, bytes32 merchantOnArc) internal view returns (bytes32) {}
-
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <---------------- Utils ------------------>
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-
-    function addressToBytes32(address addr) external pure returns (bytes32) {}
-
-    function bytes32ToAddress(bytes32 b) external pure returns (address) {}
-
+    function _findActivePolicy(address payer, address merchant) internal view returns (bytes32) {}
 }
