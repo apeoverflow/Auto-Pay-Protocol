@@ -1,6 +1,6 @@
 -include .env
 
-.PHONY: help test deploy-arc verify-arc generate-abis sync build-and-sync clean
+.PHONY: help test deploy-arc verify-arc verify-arc-check generate-abis sync clean
 
 help:
 	@echo ""
@@ -39,15 +39,30 @@ verify-arc:
 		echo "Error: No deployment found. Run 'make deploy-arc' first."; \
 		exit 1; \
 	fi
-	@forge verify-contract \
-		--rpc-url $(ARC_TESTNET_RPC) \
+	@CONTRACT=$$(jq -r '.contracts.arcPolicyManager' deployments/5042002.json) && \
+	FEE_RECV=$$(jq -r '.addresses.feeRecipient' deployments/5042002.json) && \
+	forge verify-contract \
+		--chain-id 5042002 \
 		--verifier blockscout \
 		--verifier-url 'https://testnet.arcscan.app/api/' \
 		--constructor-args $$(cast abi-encode "constructor(address,address)" \
 			0x3600000000000000000000000000000000000000 \
-			$(FEE_RECIPIENT)) \
-		$$(cat deployments/5042002.json | jq -r '.contracts.arcPolicyManager') \
+			$$FEE_RECV) \
+		$$CONTRACT \
 		src/ArcPolicyManager.sol:ArcPolicyManager
+
+verify-arc-check:
+	@if [ ! -f "deployments/5042002.json" ]; then \
+		echo "Error: No deployment found. Run 'make deploy-arc' first."; \
+		exit 1; \
+	fi
+	@CONTRACT=$$(jq -r '.contracts.arcPolicyManager' deployments/5042002.json) && \
+	echo "Checking verification for $$CONTRACT..." && \
+	forge verify-check \
+		--chain-id 5042002 \
+		--verifier blockscout \
+		--verifier-url 'https://testnet.arcscan.app/api/' \
+		$${CONTRACT}6982a7c9
 
 # ==================== Sync ====================
 
@@ -62,8 +77,6 @@ generate-abis:
 sync: generate-abis
 	@./scripts/sync.sh
 
-build-and-sync: test sync
-	@echo "\033[0;32m✓ Build and sync complete!\033[0m"
 
 # ==================== Utils ====================
 
