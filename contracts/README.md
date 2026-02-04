@@ -121,9 +121,9 @@ ARC_TESTNET_RPC=https://rpc.testnet.arc.network
 
 | Chain | Contract | Address | Block |
 |-------|----------|---------|-------|
-| Arc Testnet (5042002) | ArcPolicyManager | `0x1a448bBe108828E60717d37A4BE652C0C6871438` | 25204215 |
+| Arc Testnet (5042002) | ArcPolicyManager | `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a` | 25285303 |
 
-Explorer: https://testnet.arcscan.app/address/0x1a448bBe108828E60717d37A4BE652C0C6871438
+Explorer: https://testnet.arcscan.app/address/0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a
 
 ## Testing
 
@@ -145,7 +145,7 @@ forge test --gas-report
 
 ```solidity
 PROTOCOL_FEE_BPS = 250      // 2.5%
-MIN_INTERVAL = 1 hours
+MIN_INTERVAL = 1 minutes    // For demo/testing
 MAX_INTERVAL = 365 days
 ```
 
