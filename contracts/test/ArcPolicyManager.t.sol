@@ -110,7 +110,7 @@ contract ArcPolicyManagerTest is Test {
         vm.startPrank(payer);
         usdc.approve(address(manager), type(uint256).max);
         vm.expectRevert(abi.encodeWithSignature("InvalidInterval()"));
-        manager.createPolicy(merchant, CHARGE_AMOUNT, 30 minutes, SPENDING_CAP, "");
+        manager.createPolicy(merchant, CHARGE_AMOUNT, 30 seconds, SPENDING_CAP, "");
         vm.stopPrank();
     }
 

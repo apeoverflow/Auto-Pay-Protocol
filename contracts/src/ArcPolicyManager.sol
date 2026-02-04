@@ -76,7 +76,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
     // <--------------- Constants --------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    uint256 public constant MIN_INTERVAL = 1 hours;
+    uint256 public constant MIN_INTERVAL = 1 minutes;
     uint256 public constant MAX_INTERVAL = 365 days;
     uint256 public constant PROTOCOL_FEE_BPS = 250; // 2.5%
     uint256 public constant BPS_DENOMINATOR = 10_000;
