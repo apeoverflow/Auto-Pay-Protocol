@@ -72,7 +72,6 @@ error InvalidMerchant();
 error InvalidAmount();
 error InvalidInterval();
 error PolicyNotActive();
-error PolicyAlreadyExists();
 error TooSoonToCharge();
 error SpendingCapExceeded();
 error InsufficientAllowance();
@@ -116,9 +115,7 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         string metadataUrl;      // Off-chain metadata (plan details, terms, etc.)
     }
 
-    mapping(bytes32 => Policy) public policies; // policyId -> policy
-    mapping(address => bytes32[]) public payerPolicyIds;
-    mapping(bytes32 => bytes32[]) public merchantPolicyIds; // CCTP recipient -> policyIds
+    mapping(bytes32 => Policy) public policies;
 
     uint256 public policyCount;
     uint256 public accumulatedFees;
@@ -195,17 +192,11 @@ contract PolicyManager is ReentrancyGuard, Ownable {
 
     function batchCharge(bytes32[] calldata policyIds) external returns (uint256 successCount) {}
 
-    // >>>>>>>>>>>------------------<<<<<<<<<<<<<<
+    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <----------- View Functions -------------->
-    // >>>>>>>>>>>------------------<<<<<<<<<<<<<<
+    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function canCharge(bytes32 policyId) external view returns (bool, string memory) {}
-    
-    function getChargeablePolicies(bytes32 merchantOnArc) external view returns (bytes32[] memory) {}
-
-    function getPayerPolicies(address payer) external view returns (bytes32[] memory) {}
-
-    function getMerchantPolicies(bytes32 merchantOnArc) external view returns (bytes32[] memory) {}
 
     function getNextChargeTime(bytes32 policyId) external view returns (uint256) {}
 
@@ -222,17 +213,10 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <--------------- Internal ---------------->
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-
-    function _findActivePolicy(address payer, bytes32 merchantOnArc) internal view returns (bytes32) {}
-
-    // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <---------------- Utils ------------------>
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
     function addressToBytes32(address addr) external pure returns (bytes32) {}
 
     function bytes32ToAddress(bytes32 b) external pure returns (address) {}
-
 }
