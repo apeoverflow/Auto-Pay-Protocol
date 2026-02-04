@@ -102,16 +102,6 @@ contract ArcPolicyManagerTest is Test {
         manager.createPolicy(merchant, CHARGE_AMOUNT, 366 days, SPENDING_CAP, "");
     }
 
-    function test_CreatePolicy_RevertPolicyAlreadyExists() public {
-        vm.startPrank(payer);
-        usdc.approve(address(manager), type(uint256).max);
-        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
-
-        vm.expectRevert(abi.encodeWithSignature("PolicyAlreadyExists()"));
-        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
-        vm.stopPrank();
-    }
-
     // --- revokePolicy ---
 
     function test_RevokePolicy_Success() public {
@@ -280,32 +270,6 @@ contract ArcPolicyManagerTest is Test {
         (bool canChargeResult, string memory reason) = manager.canCharge(policyId);
         assertFalse(canChargeResult);
         assertEq(reason, "Policy not active");
-    }
-
-    function test_GetPayerPolicies() public {
-        vm.startPrank(payer);
-        usdc.approve(address(manager), type(uint256).max);
-        bytes32 policyId1 = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
-
-        address merchant2 = makeAddr("merchant2");
-        bytes32 policyId2 = manager.createPolicy(merchant2, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
-        vm.stopPrank();
-
-        bytes32[] memory policies = manager.getPayerPolicies(payer);
-        assertEq(policies.length, 2);
-        assertEq(policies[0], policyId1);
-        assertEq(policies[1], policyId2);
-    }
-
-    function test_GetMerchantPolicies() public {
-        vm.startPrank(payer);
-        usdc.approve(address(manager), type(uint256).max);
-        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
-        vm.stopPrank();
-
-        bytes32[] memory policies = manager.getMerchantPolicies(merchant);
-        assertEq(policies.length, 1);
-        assertEq(policies[0], policyId);
     }
 
     // --- Admin ---

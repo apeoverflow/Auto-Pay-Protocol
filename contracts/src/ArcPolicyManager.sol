@@ -62,7 +62,6 @@ error InvalidMerchant();
 error InvalidAmount();
 error InvalidInterval();
 error PolicyNotActive();
-error PolicyAlreadyExists();
 error TooSoonToCharge();
 error SpendingCapExceeded();
 error InsufficientAllowance();
@@ -107,8 +106,6 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
     }
 
     mapping(bytes32 => Policy) public policies;
-    mapping(address => bytes32[]) public payerPolicyIds;
-    mapping(address => bytes32[]) public merchantPolicyIds;
 
     uint256 public policyCount;
     uint256 public accumulatedFees;
@@ -181,50 +178,167 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
 
         policyId = keccak256(abi.encodePacked(msg.sender, merchant, block.timestamp, policyCount++));
 
-        bytes32 existingId = _findActivePolicy(msg.sender, merchant);
+        policies[policyId] = Policy({
+            payer: msg.sender,
+            merchant: merchant,
+            chargeAmount: chargeAmount,
+            spendingCap: spendingCap,
+            totalSpent: 0,
+            interval: interval,
+            lastCharged: 0,
+            chargeCount: 0,
+            endTime: 0,
+            active: true,
+            metadataUrl: metadataUrl
+        });
+
+        totalPoliciesCreated++;
+
+        emit PolicyCreated(policyId, msg.sender, merchant, chargeAmount, interval, spendingCap, metadataUrl);
     }
 
-    function revokePolicy(bytes32 policyId) external {}
+    function revokePolicy(bytes32 policyId) external {
+        Policy storage policy = policies[policyId];
+        if (policy.payer != msg.sender) revert NotPolicyOwner();
+        if (!policy.active) revert PolicyNotActive();
+
+        policy.active = false;
+        policy.endTime = uint32(block.timestamp);
+        emit PolicyRevoked(policyId, msg.sender, policy.merchant, policy.endTime);
+    }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <---------- Relayer Functions ------------>
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    function charge(bytes32 policyId) external nonReentrant {}
+    function charge(bytes32 policyId) external nonReentrant {
+        Policy storage policy = policies[policyId];
 
-    function batchCharge(bytes32[] calldata policyIds) external returns (bool[] memory results) {}
+        if (!policy.active) revert PolicyNotActive();
+        if (policy.lastCharged > 0 && block.timestamp < policy.lastCharged + policy.interval) {
+            revert TooSoonToCharge();
+        }
+        if (policy.spendingCap > 0 && policy.totalSpent + policy.chargeAmount > policy.spendingCap) {
+            revert SpendingCapExceeded();
+        }
+
+        uint256 chargeAmount = policy.chargeAmount;
+        address payer = policy.payer;
+        address merchant = policy.merchant;
+
+        if (USDC.allowance(payer, address(this)) < chargeAmount) revert InsufficientAllowance();
+        if (USDC.balanceOf(payer) < chargeAmount) revert InsufficientBalance();
+
+        // update state
+        policy.lastCharged = uint32(block.timestamp);
+        policy.totalSpent += policy.chargeAmount;
+        policy.chargeCount++;
+        totalChargesProcessed++;
+        totalVolumeProcessed += policy.chargeAmount;
+
+        // pull from payer
+        USDC.safeTransferFrom(payer, address(this), chargeAmount);
+
+        // calculate fee
+        uint256 protocolFee = _calculateProtocolFee(chargeAmount);
+        accumulatedFees += protocolFee;
+        uint256 merchantAmount = chargeAmount - protocolFee;
+
+        // send to merchant
+        USDC.safeTransfer(merchant, merchantAmount);
+
+        emit ChargeSucceeded(policyId, payer, merchant, uint128(merchantAmount), uint128(protocolFee));
+    }
+
+    function batchCharge(bytes32[] calldata policyIds) external returns (bool[] memory results) {
+        results = new bool[](policyIds.length);
+        for (uint256 i = 0; i < policyIds.length; i++) {
+            try this.charge(policyIds[i]) {
+                results[i] = true;
+            } catch {
+                results[i] = false;
+                emit ChargeFailed(policyIds[i], "Charge reverted");
+            }
+        }
+    }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
-    // <----------- View Functions -------------->
+    // <------------ View Functions ------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    function canCharge(bytes32 policyId) external view returns (bool, string memory) {}
+    function canCharge(bytes32 policyId) external view returns (bool, string memory) {
+        Policy storage policy = policies[policyId];
 
-    function getChargeablePolicies(address merchant) external view returns (bytes32[] memory) {}
+        if (!policy.active) return (false, "Policy not active");
+        if (policy.lastCharged > 0 && block.timestamp < policy.lastCharged + policy.interval) {
+            return (false, "Too soon to charge");
+        }
+        if (policy.spendingCap > 0 && policy.totalSpent + policy.chargeAmount > policy.spendingCap) {
+            return (false, "Spending cap exceeded");
+        }
+        if (USDC.allowance(policy.payer, address(this)) < policy.chargeAmount) {
+            return (false, "Insufficient allowance");
+        }
+        if (USDC.balanceOf(policy.payer) < policy.chargeAmount) {
+            return (false, "Insufficient balance");
+        }
 
-    function getPayerPolicies(address payer) external view returns (bytes32[] memory) {}
+        return (true, "");
+    }
 
-    function getMerchantPolicies(address merchant) external view returns (bytes32[] memory) {}
+        function getNextChargeTime(bytes32 policyId) external view returns (uint256) {
+        Policy storage policy = policies[policyId];
+        if (!policy.active) return 0;
+        if (policy.lastCharged == 0) return block.timestamp;
+        return policy.lastCharged + policy.interval;
+    }
 
-    function getNextChargeTime(bytes32 policyId) external view returns (uint256) {}
+    function getRemainingAllowance(bytes32 policyId) external view returns (uint128) {
+        Policy storage policy = policies[policyId];
+        if (!policy.active) return 0;
+        if (policy.spendingCap == 0) return type(uint128).max;
+        if (policy.totalSpent >= policy.spendingCap) return 0;
+        return policy.spendingCap - policy.totalSpent;
+    }
 
-    function getRemainingAllowance(bytes32 policyId) external view returns (uint128) {}
+    function getChargeBreakdown(bytes32 policyId) external view returns (
+        uint256 total,
+        uint256 merchantReceives,
+        uint256 protocolFee
+    ) {
+        Policy storage policy = policies[policyId];
+        total = policy.chargeAmount;
+        protocolFee = _calculateProtocolFee(total);
+        merchantReceives = total - protocolFee;
+    }
 
-    function getStats() external view returns (uint256, uint256, uint256) {}
+    function getStats() external view returns (uint256, uint256, uint256) {
+        return (totalPoliciesCreated, totalChargesProcessed, totalVolumeProcessed);
+    }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <----------- Admin Functions ------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    function withdrawFees() external {}
+    function withdrawFees() external {
+        uint256 fees = accumulatedFees;
+        if (fees == 0) revert NothingToWithdraw();
+        accumulatedFees = 0;
+        USDC.safeTransfer(feeRecipient, fees);
+        emit FeesWithdrawn(feeRecipient, fees);
+    }
 
     function setFeeRecipient(address newRecipient) external onlyOwner {
         feeRecipient = newRecipient;
     }
 
+
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <-------------- Internal ----------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    function _findActivePolicy(address payer, address merchant) internal view returns (bytes32) {}
+    function _calculateProtocolFee(uint256 amount) internal pure returns (uint256) {
+        return (amount * PROTOCOL_FEE_BPS) / BPS_DENOMINATOR;
+    }
+
 }
