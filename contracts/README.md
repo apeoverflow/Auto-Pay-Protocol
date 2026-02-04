@@ -1,66 +1,164 @@
-## Foundry
+# AutoPay Protocol - Smart Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Non-custodial subscription payment contracts for recurring USDC payments.
 
-Foundry consists of:
+## Directory Structure
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```
+contracts/
+├── src/
+│   ├── ArcPolicyManager.sol    # Arc Testnet (settlement chain) - direct USDC transfers
+│   └── PolicyManager.sol       # Source chains (Polygon, Arbitrum) - CCTP bridging to Arc
+├── script/
+│   └── DeployArc.s.sol         # Forge deployment script for Arc
+├── scripts/
+│   ├── deploy-arc.sh           # Deploy + save deployment info
+│   ├── verify-arc.sh           # Verify on Blockscout
+│   ├── verify-arc-check.sh     # Check verification status
+│   ├── sync.sh                 # Sync ABIs/addresses to frontend
+│   └── generate-contracts-ts.js # Generate TypeScript config
+├── test/
+│   ├── ArcPolicyManager.t.sol  # Contract tests
+│   └── mocks/
+│       └── MockUSDC.sol        # Mock USDC for testing
+├── deployments/                # Deployment records (JSON per chain)
+├── abis/                       # Generated ABI files
+├── Makefile                    # All commands
+└── .env.example                # Environment template
 ```
 
-### Test
+## Contracts
 
-```shell
-$ forge test
+### ArcPolicyManager.sol (Settlement Chain)
+
+Deployed on Arc Testnet. Handles subscriptions where both payer and merchant are on Arc.
+
+**Key behavior:**
+- `createPolicy()` executes the **first charge immediately** within the same transaction
+- `charge()` is for subsequent recurring charges only (called by relayer)
+- 2.5% protocol fee on each charge
+
+**Functions:**
+- `createPolicy(merchant, chargeAmount, interval, spendingCap, metadataUrl)` - Create subscription + first charge
+- `revokePolicy(policyId)` - Cancel subscription (payer only)
+- `charge(policyId)` - Execute recurring charge (anyone can call when due)
+- `canCharge(policyId)` - Check if charge is possible
+- `batchCharge(policyIds)` - Charge multiple policies
+
+### PolicyManager.sol (Source Chains)
+
+For Polygon Amoy, Arbitrum Sepolia. Uses CCTP to bridge USDC to merchant on Arc.
+
+**Not yet deployed** - enables cross-chain subscriptions.
+
+## Quick Start
+
+```bash
+# Install Foundry
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Install dependencies
+forge install
+
+# Copy environment template
+cp .env.example .env
+# Edit .env with your values
+
+# Run tests
+make test
+
+# Deploy to Arc Testnet
+make deploy-arc
+
+# Verify contract
+make verify-arc
+
+# Sync to frontend
+make sync
 ```
 
-### Format
+## Makefile Commands
 
-```shell
-$ forge fmt
+```bash
+make help              # Show all commands
+
+# Development
+make test              # Run all tests with verbosity
+make clean             # Clean build artifacts
+
+# Deployment
+make deploy-arc        # Deploy ArcPolicyManager to Arc Testnet
+make verify-arc        # Submit verification to Blockscout
+make verify-arc-check  # Check if verification succeeded
+
+# Sync
+make generate-abis     # Generate ABI JSON files
+make sync              # Sync ABIs and addresses to frontend
+
+# Utils
+make wallet            # Show deployer address from PRIVATE_KEY
 ```
 
-### Gas Snapshots
+## Environment Variables
 
-```shell
-$ forge snapshot
+Create `.env` from `.env.example`:
+
+```bash
+# Required for deployment
+PRIVATE_KEY=0x...              # Deployer wallet (needs USDC for gas on Arc)
+FEE_RECIPIENT=0x...            # Address to collect protocol fees
+ARC_TESTNET_RPC=https://rpc.testnet.arc.network
+
+# Future: Source chain deployments
+# POLYGON_AMOY_RPC=https://rpc-amoy.polygon.technology
+# ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
 ```
 
-### Anvil
+**Get testnet USDC:** https://faucet.circle.com (Arc uses USDC as native gas token)
 
-```shell
-$ anvil
+## Current Deployment
+
+| Chain | Contract | Address | Block |
+|-------|----------|---------|-------|
+| Arc Testnet (5042002) | ArcPolicyManager | `0x1a448bBe108828E60717d37A4BE652C0C6871438` | 25204215 |
+
+Explorer: https://testnet.arcscan.app/address/0x1a448bBe108828E60717d37A4BE652C0C6871438
+
+## Testing
+
+```bash
+# Run all tests
+forge test
+
+# Run with verbosity
+forge test -vvv
+
+# Run specific test
+forge test --match-test testCreatePolicy
+
+# Gas report
+forge test --gas-report
 ```
 
-### Deploy
+## Contract Constants
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```solidity
+PROTOCOL_FEE_BPS = 250      // 2.5%
+MIN_INTERVAL = 1 hours
+MAX_INTERVAL = 365 days
 ```
 
-### Cast
+## Events
 
-```shell
-$ cast <subcommand>
-```
+| Event | Description |
+|-------|-------------|
+| `PolicyCreated` | New subscription created (includes first charge) |
+| `PolicyRevoked` | Subscription cancelled |
+| `ChargeSucceeded` | Payment processed successfully |
+| `ChargeFailed` | Payment failed (batch charge only) |
+| `FeesWithdrawn` | Protocol fees withdrawn |
 
-### Help
+## License
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Apache-2.0
