@@ -47,7 +47,7 @@ AutoPay is a decentralized subscription payment protocol built on USDC. Users ma
 | Frontend | React, Next.js, viem, wagmi, Tailwind CSS |
 | Wallets | Circle Modular Wallets (passkey auth) |
 | Bridging | Circle CCTP |
-| Relayer | Node.js, TypeScript, SQLite/Postgres |
+| Relayer | Node.js, TypeScript, PostgreSQL |
 
 ## Project Structure
 
@@ -115,11 +115,11 @@ cd relayer
 # Install dependencies
 npm install
 
-# Configure
-cp relayer.config.example.json relayer.config.json
+# Run with managed postgres (supabase, neon, etc.)
+DATABASE_URL=postgres://... RELAYER_PRIVATE_KEY=0x... npm run start
 
-# Run
-RELAYER_PRIVATE_KEY=0x... npm run start
+# Or use docker compose (includes postgres)
+docker compose up -d
 ```
 
 ## Smart Contract Interface
@@ -168,19 +168,19 @@ VITE_POLICY_MANAGER_ARC=0x...
 ### Relayer
 
 ```env
+DATABASE_URL=postgres://user:pass@host:5432/autopay
 RELAYER_PRIVATE_KEY=0x...
 POLYGON_AMOY_RPC=https://rpc-amoy.polygon.technology
 ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
 ARC_TESTNET_RPC=https://rpc-testnet.arc.network
-WEBHOOK_URL=https://your-app.com/webhooks
 ```
 
 ## Documentation
 
 - [Product Requirements (PRD)](./docs/PRD.md)
 - [Smart Contract Specification](./docs/SMART_CONTRACTS.md)
+- [Relayer Architecture](./docs/RELAYER.md)
 - [Business Plan](./docs/BUSINESS_PLAN.md)
-- [Frontend Architecture](./frontend/docs/README.md)
 
 ## Roadmap
 
