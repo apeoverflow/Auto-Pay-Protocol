@@ -22,10 +22,11 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
   "5042002": {
     "chainId": 5042002,
     "chainName": "arcTestnet",
-    "deployedAt": "2026-02-04T01:40:36Z",
+    "deployedAt": "2026-02-04T04:01:09Z",
     "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 25204215,
     "contracts": {
-      "arcPolicyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+      "arcPolicyManager": "0x1a448bBe108828E60717d37A4BE652C0C6871438"
     },
     "addresses": {
       "usdc": "0x3600000000000000000000000000000000000000",
@@ -40,6 +41,7 @@ export interface Deployment {
   chainName: string;
   deployedAt: string;
   deployer: string;
+  deployBlock?: number;
   contracts: {
     arcPolicyManager?: string;
     policyManager?: string;

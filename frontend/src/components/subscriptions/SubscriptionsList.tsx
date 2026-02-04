@@ -1,8 +1,7 @@
 import * as React from 'react'
 import { SubscriptionCard } from './SubscriptionCard'
-import { mockSubscriptions } from '../../mocks/data'
-import type { Subscription } from '../../types/subscriptions'
-import { CreditCard } from 'lucide-react'
+import { usePolicies, useRevokePolicy } from '../../hooks'
+import { CreditCard, Loader2 } from 'lucide-react'
 
 interface SubscriptionsListProps {
   showAll?: boolean
@@ -10,21 +9,35 @@ interface SubscriptionsListProps {
 }
 
 export function SubscriptionsList({ showAll = false, compact = false }: SubscriptionsListProps) {
-  const [subscriptions, setSubscriptions] = React.useState<Subscription[]>(mockSubscriptions)
+  const { policies, isLoading, refetch } = usePolicies()
+  const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
+  const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
 
-  const displaySubscriptions = showAll
-    ? subscriptions
-    : subscriptions.filter(s => s.status === 'active').slice(0, compact ? 5 : 3)
+  const displayPolicies = showAll
+    ? policies
+    : policies.filter(p => p.active).slice(0, compact ? 5 : 3)
 
-  const handleCancel = (id: string) => {
-    setSubscriptions(prev =>
-      prev.map(sub =>
-        sub.id === id ? { ...sub, status: 'cancelled' as const } : sub
-      )
+  const handleCancel = async (policyId: `0x${string}`) => {
+    try {
+      setRevokingId(policyId)
+      await revokePolicy(policyId)
+      await refetch()
+    } catch (err) {
+      console.error('Failed to cancel subscription:', err)
+    } finally {
+      setRevokingId(null)
+    }
+  }
+
+  if (isLoading && policies.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
     )
   }
 
-  if (subscriptions.length === 0) {
+  if (policies.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-6">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
@@ -40,11 +53,12 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
 
   return (
     <div className={compact ? 'space-y-0' : 'space-y-2.5 md:space-y-3'}>
-      {displaySubscriptions.map(subscription => (
+      {displayPolicies.map(policy => (
         <SubscriptionCard
-          key={subscription.id}
-          subscription={subscription}
+          key={policy.policyId}
+          policy={policy}
           onCancel={handleCancel}
+          isCancelling={revokingId === policy.policyId && isRevoking}
           compact={compact}
         />
       ))}

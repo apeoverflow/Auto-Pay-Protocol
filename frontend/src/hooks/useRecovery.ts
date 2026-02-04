@@ -7,8 +7,9 @@ import {
   toWebAuthnCredential,
   recoveryActions,
 } from '@circle-fin/modular-wallets-core'
-import { useWallet, bundlerClient } from '../contexts/WalletContext'
-import { publicClient, passkeyTransport } from '../lib/clients'
+import { useWallet } from '../contexts/WalletContext'
+import { useChain } from '../contexts/ChainContext'
+import { passkeyTransport } from '../lib/clients'
 import { STORAGE_KEYS } from '../config'
 
 interface UseRecoveryReturn {
@@ -27,6 +28,7 @@ interface UseRecoveryReturn {
 
 export function useRecovery(): UseRecoveryReturn {
   const { account } = useWallet()
+  const { publicClient, bundlerClient } = useChain()
 
   const [showRecovery, setShowRecovery] = React.useState(false)
   const [recoveryMnemonic, setRecoveryMnemonic] = React.useState<string | null>(null)
@@ -68,7 +70,7 @@ export function useRecovery(): UseRecoveryReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [account])
+  }, [account, bundlerClient])
 
   const validateRecoveryPhrase = React.useCallback(async (mnemonic: string) => {
     if (!publicClient) return
@@ -95,7 +97,7 @@ export function useRecovery(): UseRecoveryReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [publicClient])
 
   const confirmRecovery = React.useCallback(async () => {
     if (!passkeyTransport || !bundlerClient || !pendingRecoveryAccount) return
@@ -138,7 +140,7 @@ export function useRecovery(): UseRecoveryReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [pendingRecoveryAccount])
+  }, [pendingRecoveryAccount, bundlerClient])
 
   const clearRecovery = React.useCallback(() => {
     setRecoveryMnemonic(null)

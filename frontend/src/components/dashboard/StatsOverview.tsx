@@ -1,7 +1,6 @@
-import { formatUSDC, getRemainingTime } from '../../types/subscriptions'
-import { mockStats, mockSubscriptions } from '../../mocks/data'
+import { formatUSDC } from '../../types/subscriptions'
+import { usePolicies, useWallet, useChain } from '../../hooks'
 import { ArrowUpRight, Calendar, CreditCard, Wallet, Copy, Check, Send } from 'lucide-react'
-import { useWallet } from '../../hooks'
 
 interface StatCardProps {
   title: string
@@ -50,16 +49,13 @@ interface MobileHeroProps {
   copied: boolean
   onCopy: () => void
   onSend: () => void
+  activePoliciesCount: number
+  monthlySpend: bigint
+  nextChargeTime: string
 }
 
-function MobileHeroStats({ balance, formatBal, address, copied, onCopy, onSend }: MobileHeroProps) {
-  const activeSubscriptions = mockSubscriptions.filter(s => s.status === 'active')
-  const nextPayment = activeSubscriptions.length > 0
-    ? activeSubscriptions.reduce((earliest, sub) =>
-        sub.nextCharge < earliest.nextCharge ? sub : earliest
-      )
-    : null
-
+function MobileHeroStats({ balance, formatBal, address, copied, onCopy, onSend, activePoliciesCount, monthlySpend, nextChargeTime }: MobileHeroProps) {
+  const { chainConfig } = useChain()
   const formatAddr = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`
 
   return (
@@ -115,23 +111,23 @@ function MobileHeroStats({ balance, formatBal, address, copied, onCopy, onSend }
           <p className="text-[32px] font-bold text-white tracking-tight leading-none tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             {formatBal(balance)}
           </p>
-          <p className="text-[11px] text-slate-500 font-medium mt-1.5 tracking-wide">USDC on Polygon</p>
+          <p className="text-[11px] text-slate-500 font-medium mt-1.5 tracking-wide">USDC on {chainConfig.shortName}</p>
         </div>
 
         {/* Metric row inside hero */}
         <div className="relative flex items-stretch gap-0 mt-5 rounded-xl bg-white/[0.06] border border-white/[0.06]">
           <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
-            <span className="text-[13px] font-bold text-rose-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formatUSDC(mockStats.totalMonthlySpend)}</span>
+            <span className="text-[13px] font-bold text-rose-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formatUSDC(monthlySpend)}</span>
             <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest">Monthly</span>
           </div>
           <div className="w-px bg-white/[0.06] my-2" />
           <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
-            <span className="text-[13px] font-bold text-emerald-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>{mockStats.activeSubscriptions}</span>
+            <span className="text-[13px] font-bold text-emerald-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>{activePoliciesCount}</span>
             <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest">Active</span>
           </div>
           <div className="w-px bg-white/[0.06] my-2" />
           <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
-            <span className="text-[13px] font-bold text-amber-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>{nextPayment ? getRemainingTime(nextPayment.nextCharge) : '—'}</span>
+            <span className="text-[13px] font-bold text-amber-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>{nextChargeTime}</span>
             <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest">Next</span>
           </div>
         </div>
@@ -149,6 +145,7 @@ interface StatsOverviewProps {
 
 export function StatsOverview({ address, copied = false, onCopy, onSend }: StatsOverviewProps = {}) {
   const { balance } = useWallet()
+  const { policies } = usePolicies()
 
   const formatBalance = (bal: string | null) => {
     if (bal === null) return '$0.00'
@@ -168,13 +165,39 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
     })
   }
 
-  // Find the soonest upcoming charge
-  const activeSubscriptions = mockSubscriptions.filter(s => s.status === 'active')
-  const nextPayment = activeSubscriptions.length > 0
-    ? activeSubscriptions.reduce((earliest, sub) =>
-        sub.nextCharge < earliest.nextCharge ? sub : earliest
-      )
-    : null
+  // Calculate stats from real policies
+  const activePolicies = policies.filter(p => p.active)
+  const activePoliciesCount = activePolicies.length
+
+  // Calculate monthly spend (sum of all active policy charge amounts)
+  // This is an approximation - assumes monthly billing
+  const monthlySpend = activePolicies.reduce((sum, p) => {
+    // Convert interval to monthly equivalent
+    const monthlyMultiplier = (30 * 24 * 60 * 60) / p.interval
+    return sum + BigInt(Math.floor(Number(p.chargeAmount) * monthlyMultiplier))
+  }, 0n)
+
+  // Find the next charge time
+  const now = Math.floor(Date.now() / 1000)
+  const nextPolicy = activePolicies
+    .map(p => ({ policy: p, nextCharge: p.lastCharged + p.interval }))
+    .filter(p => p.nextCharge > now)
+    .sort((a, b) => a.nextCharge - b.nextCharge)[0]
+
+  const getNextChargeTime = (): string => {
+    if (!nextPolicy) return '—'
+    const diff = nextPolicy.nextCharge - now
+    const days = Math.floor(diff / 86400)
+    const hours = Math.floor((diff % 86400) / 3600)
+    const mins = Math.floor((diff % 3600) / 60)
+    if (days > 0) return `${days}d ${hours}h`
+    if (hours > 0) return `${hours}h ${mins}m`
+    if (mins > 0) return `~${mins}m`
+    return '<1m'
+  }
+
+  const nextChargeTime = getNextChargeTime()
+  const nextMerchant = nextPolicy ? `${nextPolicy.policy.merchant.slice(0, 6)}...` : 'No active subs'
 
   return (
     <>
@@ -186,6 +209,9 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
         copied={copied}
         onCopy={onCopy || (() => {})}
         onSend={onSend || (() => {})}
+        activePoliciesCount={activePoliciesCount}
+        monthlySpend={monthlySpend}
+        nextChargeTime={nextChargeTime}
       />
 
       {/* ── Desktop: full stat cards ── */}
@@ -203,7 +229,7 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
         />
         <StatCard
           title="Monthly Outgoing"
-          value={formatUSDC(mockStats.totalMonthlySpend)}
+          value={formatUSDC(monthlySpend)}
           subtitle="Total across all subs"
           icon={<ArrowUpRight className="h-[18px] w-[18px]" />}
           gradientFrom="from-rose-500"
@@ -214,7 +240,7 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
         />
         <StatCard
           title="Subscriptions"
-          value={mockStats.activeSubscriptions.toString()}
+          value={activePoliciesCount.toString()}
           subtitle="Active"
           icon={<CreditCard className="h-[18px] w-[18px]" />}
           gradientFrom="from-emerald-500"
@@ -225,8 +251,8 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
         />
         <StatCard
           title="Next Payment"
-          value={nextPayment ? getRemainingTime(nextPayment.nextCharge) : 'None'}
-          subtitle={nextPayment ? nextPayment.plan.merchantName : 'No active subs'}
+          value={nextChargeTime}
+          subtitle={nextMerchant}
           icon={<Calendar className="h-[18px] w-[18px]" />}
           gradientFrom="from-amber-500"
           gradientTo="to-yellow-400"

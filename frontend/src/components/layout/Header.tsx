@@ -1,5 +1,6 @@
 import { useWallet } from '../../hooks'
 import { Button } from '../ui/button'
+import { ChainSelector } from '../chain/ChainSelector'
 import { Copy, Check, RefreshCw, Menu } from 'lucide-react'
 import * as React from 'react'
 import type { NavItem } from './Sidebar'
@@ -13,6 +14,7 @@ const pageTitles: Record<NavItem, string> = {
   dashboard: 'Dashboard',
   subscriptions: 'Subscriptions',
   activity: 'Activity',
+  demo: 'SDK Demo',
   settings: 'Settings',
 }
 
@@ -49,7 +51,7 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
   }
 
   return (
-    <header className="flex h-14 md:h-16 items-center justify-between border-b border-border/50 bg-white/80 backdrop-blur-sm px-3 md:px-6">
+    <header className="relative z-50 flex h-14 md:h-16 items-center justify-between border-b border-border/50 bg-white/80 backdrop-blur-sm px-3 md:px-6">
       <div className="flex items-center gap-2 md:gap-4">
         <button
           onClick={onMenuToggle}
@@ -61,6 +63,9 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-3">
+        {/* Chain selector */}
+        <ChainSelector />
+
         {/* Balance pill — compact on mobile, full on desktop */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/60 px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm shadow-blue-500/5">
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">

@@ -1,6 +1,7 @@
 import { Badge } from '../ui/badge'
 import { formatUSDC } from '../../types/subscriptions'
 import type { ActivityItem as ActivityItemType } from '../../types/subscriptions'
+import { useChain } from '../../hooks'
 import {
   CreditCard,
   Plus,
@@ -53,6 +54,7 @@ const statusVariants: Record<ActivityItemType['status'], 'success' | 'warning' |
 }
 
 export function ActivityItemRow({ item, compact = false }: ActivityItemProps) {
+  const { chainConfig } = useChain()
   const config = typeConfig[item.type]
 
   const formatDate = (date: Date) => {
@@ -71,7 +73,7 @@ export function ActivityItemRow({ item, compact = false }: ActivityItemProps) {
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`
   }
 
-  const explorerUrl = `https://amoy.polygonscan.com/tx/${item.txHash}`
+  const explorerUrl = `${chainConfig.explorer}/tx/${item.txHash}`
 
   if (compact) {
     return (

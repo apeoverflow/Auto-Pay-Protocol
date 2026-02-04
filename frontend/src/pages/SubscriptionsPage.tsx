@@ -1,12 +1,12 @@
 import * as React from 'react'
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard'
-import { mockSubscriptions } from '../mocks/data'
-import type { Subscription } from '../types/subscriptions'
-import { Search, CreditCard } from 'lucide-react'
+import { usePolicies, useRevokePolicy, useChain } from '../hooks'
+import type { OnChainPolicy } from '../types/policy'
+import { Search, CreditCard, Loader2, ExternalLink } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 
-type StatusFilter = 'all' | 'active' | 'paused' | 'cancelled' | 'failed'
+type StatusFilter = 'all' | 'active' | 'cancelled'
 
 const filterLabels: { key: StatusFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -15,55 +15,96 @@ const filterLabels: { key: StatusFilter; label: string }[] = [
 ]
 
 export function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = React.useState<Subscription[]>(mockSubscriptions)
+  const { policies, isLoading, error, refetch } = usePolicies()
+  const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
+  const { chainConfig } = useChain()
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [search, setSearch] = React.useState('')
+  const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
 
-  const handleCancel = (id: string) => {
-    setSubscriptions(prev =>
-      prev.map(sub =>
-        sub.id === id ? { ...sub, status: 'cancelled' as const } : sub
-      )
-    )
+  const handleCancel = async (policyId: `0x${string}`) => {
+    try {
+      setRevokingId(policyId)
+      await revokePolicy(policyId)
+      await refetch()
+    } catch (err) {
+      console.error('Failed to cancel subscription:', err)
+    } finally {
+      setRevokingId(null)
+    }
   }
 
   const filtered = React.useMemo(() => {
-    let result = subscriptions
+    let result = policies
 
     // Status filter
-    if (filter === 'cancelled') {
-      result = result.filter(s => s.status === 'cancelled' || s.status === 'failed')
-    } else if (filter !== 'all') {
-      result = result.filter(s => s.status === filter)
+    if (filter === 'active') {
+      result = result.filter(p => p.active)
+    } else if (filter === 'cancelled') {
+      result = result.filter(p => !p.active)
     }
 
-    // Search
+    // Search by merchant address or metadata URL
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(s =>
-        s.plan.merchantName.toLowerCase().includes(q) ||
-        s.plan.name.toLowerCase().includes(q)
+      result = result.filter(p =>
+        p.merchant.toLowerCase().includes(q) ||
+        p.metadataUrl.toLowerCase().includes(q) ||
+        p.policyId.toLowerCase().includes(q)
       )
     }
 
     return result
-  }, [subscriptions, filter, search])
+  }, [policies, filter, search])
 
   const counts = React.useMemo(() => ({
-    all: subscriptions.length,
-    active: subscriptions.filter(s => s.status === 'active').length,
-    paused: subscriptions.filter(s => s.status === 'paused').length,
-    cancelled: subscriptions.filter(s => s.status === 'cancelled' || s.status === 'failed').length,
-    failed: 0,
-  }), [subscriptions])
+    all: policies.length,
+    active: policies.filter(p => p.active).length,
+    cancelled: policies.filter(p => !p.active).length,
+  }), [policies])
+
+  if (isLoading && policies.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">Loading subscriptions...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+          <CreditCard className="h-5 w-5 text-destructive" />
+        </div>
+        <h3 className="mt-4 font-semibold text-sm">Failed to load subscriptions</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{error}</p>
+        <Button variant="outline" size="sm" className="mt-4" onClick={refetch}>
+          Try Again
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-3 md:gap-5">
       {/* Header area */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <p className="text-sm text-muted-foreground hidden md:block">
-          Manage your active and past subscriptions
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground hidden md:block">
+            Manage your active and past subscriptions
+          </p>
+          <a
+            href={`${chainConfig.explorer}/address/${chainConfig.policyManager}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            <ExternalLink className="h-3 w-3" />
+            <span className="hidden sm:inline">Contract</span>
+          </a>
+        </div>
         <div className="relative w-full md:w-64">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -114,11 +155,12 @@ export function SubscriptionsPage() {
         </div>
       ) : (
         <div className="space-y-2 md:space-y-2.5">
-          {filtered.map(subscription => (
+          {filtered.map(policy => (
             <SubscriptionCard
-              key={subscription.id}
-              subscription={subscription}
+              key={policy.policyId}
+              policy={policy}
               onCancel={handleCancel}
+              isCancelling={revokingId === policy.policyId && isRevoking}
             />
           ))}
         </div>

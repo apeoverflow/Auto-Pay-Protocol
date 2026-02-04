@@ -5,6 +5,7 @@ import {
   SubscriptionsPage,
   ActivityPage,
   SettingsPage,
+  DemoPage,
 } from '../../pages'
 
 export function WalletDashboard() {
@@ -18,6 +19,8 @@ export function WalletDashboard() {
         return <SubscriptionsPage />
       case 'activity':
         return <ActivityPage />
+      case 'demo':
+        return <DemoPage />
       case 'settings':
         return <SettingsPage />
       default:

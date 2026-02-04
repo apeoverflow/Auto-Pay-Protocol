@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { Card, CardContent } from '../ui/card'
 import { ActivityItemRow } from './ActivityItem'
-import { mockActivity } from '../../mocks/data'
+import { useActivity } from '../../hooks'
 import type { ActivityItem } from '../../types/subscriptions'
-import { Activity, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Activity, Filter, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { Button } from '../ui/button'
 
 interface ActivityListProps {
@@ -23,7 +23,7 @@ const filterLabels: Record<FilterType, string> = {
 const PAGE_SIZE = 8
 
 export function ActivityList({ showAll = false, limit = 5, compact = false }: ActivityListProps) {
-  const [activity] = React.useState<ActivityItem[]>(mockActivity)
+  const { activity, isLoading, error } = useActivity()
   const [filter, setFilter] = React.useState<FilterType>('all')
   const [page, setPage] = React.useState(0)
 
@@ -52,6 +52,27 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
     const start = page * PAGE_SIZE
     return filteredActivity.slice(start, start + PAGE_SIZE)
   }, [filteredActivity, showAll, limit, page])
+
+  if (isLoading && activity.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">Loading activity...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+          <Activity className="h-5 w-5 text-destructive" />
+        </div>
+        <h3 className="mt-4 font-semibold text-sm">Failed to load activity</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{error}</p>
+      </div>
+    )
+  }
 
   if (activity.length === 0) {
     return (

@@ -1,10 +1,10 @@
-import { useWallet } from '../../hooks'
-import { USDC_ADDRESS, BLOCK_EXPLORER_URL, CHAIN_NAME, CHAIN_ID } from '../../config'
+import { useWallet, useChain } from '../../hooks'
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
 import { AlertTriangle, ExternalLink, ChevronDown } from 'lucide-react'
 
 export function EmergencyInfo() {
   const { account } = useWallet()
+  const { chainConfig } = useChain()
 
   if (!account) return null
 
@@ -42,7 +42,7 @@ export function EmergencyInfo() {
               <label className="text-xs text-muted-foreground uppercase tracking-wide">
                 Network
               </label>
-              <p className="mt-1">{CHAIN_NAME} (Chain ID: {CHAIN_ID})</p>
+              <p className="mt-1">{chainConfig.name} (Chain ID: {chainConfig.chain.id})</p>
             </div>
 
             <div>
@@ -50,7 +50,7 @@ export function EmergencyInfo() {
                 USDC Contract
               </label>
               <code className="block mt-1 font-mono text-xs break-all">
-                {USDC_ADDRESS}
+                {chainConfig.usdc}
               </code>
             </div>
 
@@ -60,11 +60,11 @@ export function EmergencyInfo() {
               </label>
               <ol className="mt-2 list-decimal list-inside space-y-1 text-muted-foreground">
                 <li>Import your 12-word recovery phrase into MetaMask</li>
-                <li>Connect to {CHAIN_NAME} network</li>
+                <li>Connect to {chainConfig.name} network</li>
                 <li>Use the recovery EOA to sign transactions to your smart wallet</li>
                 <li>
                   <a
-                    href={`${BLOCK_EXPLORER_URL}/address/${account.address}`}
+                    href={`${chainConfig.explorer}/address/${account.address}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-primary hover:underline"

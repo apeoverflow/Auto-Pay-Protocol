@@ -5,30 +5,76 @@ import { ActivityList } from '../components/activity'
 import { SendUSDC } from '../components/wallet/SendUSDC'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../components/ui/drawer'
-import { ArrowRight, CreditCard, Activity, ChevronRight, Clock, Send } from 'lucide-react'
+import { ArrowRight, CreditCard, Activity, ChevronRight, Clock, Send, Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { useWallet } from '../hooks'
-import { mockSubscriptions } from '../mocks/data'
-import { formatUSDC, getRemainingTime } from '../types/subscriptions'
+import { useWallet, usePolicies } from '../hooks'
+import { formatUSDC } from '../types/subscriptions'
 
 interface DashboardPageProps {
   onNavigate: (page: 'subscriptions' | 'activity') => void
 }
 
+// Generate color theme based on merchant address
+function getMerchantGradient(address: string) {
+  const gradients = [
+    'from-blue-500 to-indigo-500',
+    'from-emerald-500 to-teal-500',
+    'from-violet-500 to-purple-500',
+    'from-orange-500 to-amber-500',
+    'from-pink-500 to-rose-500',
+    'from-cyan-500 to-blue-500',
+  ]
+  const index = parseInt(address.slice(-2), 16) % gradients.length
+  return gradients[index]
+}
+
+function getRemainingTime(nextChargeTimestamp: number): string {
+  const now = Math.floor(Date.now() / 1000)
+  const diff = nextChargeTimestamp - now
+
+  if (diff < 0) return 'Overdue'
+
+  const days = Math.floor(diff / 86400)
+  const hours = Math.floor((diff % 86400) / 3600)
+
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h`
+  return 'Soon'
+}
+
 /* ── Mobile: horizontally scrollable subscription chips ── */
 function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
-  const activeSubs = mockSubscriptions.filter(s => s.status === 'active')
+  const { policies, isLoading } = usePolicies()
+  const activePolicies = policies.filter(p => p.active)
 
-  const chipGradients: Record<string, string> = {
-    S: 'from-blue-500 to-indigo-500',
-    C: 'from-emerald-500 to-teal-500',
-    D: 'from-violet-500 to-purple-500',
-    N: 'from-orange-500 to-amber-500',
-    F: 'from-pink-500 to-rose-500',
+  if (isLoading && policies.length === 0) {
+    return (
+      <div className="md:hidden">
+        <div className="flex items-center justify-center py-6">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
   }
 
-  function getGradient(name: string) {
-    return chipGradients[name.charAt(0).toUpperCase()] || 'from-gray-500 to-slate-500'
+  if (activePolicies.length === 0) {
+    return (
+      <div className="md:hidden">
+        <div className="flex items-center justify-between mb-2.5 px-0.5">
+          <h3 className="text-[13px] font-semibold text-foreground/80" style={{ fontFamily: "'DM Sans', sans-serif" }}>Subscriptions</h3>
+          <button
+            onClick={onNavigate}
+            className="flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            See all
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
+        <div className="text-center py-4 text-xs text-muted-foreground">
+          No active subscriptions
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -45,28 +91,33 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
       </div>
       <div className="relative -mx-3">
         <div className="flex gap-2.5 overflow-x-auto pb-1 px-3 scrollbar-hide">
-          {activeSubs.map(sub => (
-            <button
-              key={sub.id}
-              onClick={onNavigate}
-              className="flex-shrink-0 flex items-center gap-2.5 rounded-xl bg-card border border-border/50 pl-2.5 pr-3.5 py-2.5 shadow-sm active:scale-[0.97] transition-all duration-150 hover:shadow-md"
-            >
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${getGradient(sub.plan.merchantName)} text-white text-[11px] font-bold shadow-sm`}>
-                {sub.plan.merchantName.charAt(0)}
-              </div>
-              <div className="text-left">
-                <p className="text-[12px] font-semibold text-foreground leading-tight">{sub.plan.merchantName}</p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{formatUSDC(sub.plan.amount)}</span>
-                  <span className="text-muted-foreground/30">&middot;</span>
-                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-                    <Clock className="h-2.5 w-2.5" />
-                    {getRemainingTime(sub.nextCharge)}
-                  </span>
+          {activePolicies.map(policy => {
+            const nextChargeTime = policy.lastCharged + policy.interval
+            return (
+              <button
+                key={policy.policyId}
+                onClick={onNavigate}
+                className="flex-shrink-0 flex items-center gap-2.5 rounded-xl bg-card border border-border/50 pl-2.5 pr-3.5 py-2.5 shadow-sm active:scale-[0.97] transition-all duration-150 hover:shadow-md"
+              >
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${getMerchantGradient(policy.merchant)} text-white text-[11px] font-bold shadow-sm`}>
+                  {policy.merchant.slice(2, 4).toUpperCase()}
                 </div>
-              </div>
-            </button>
-          ))}
+                <div className="text-left">
+                  <p className="text-[12px] font-semibold text-foreground leading-tight">
+                    {policy.merchant.slice(0, 6)}...{policy.merchant.slice(-4)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{formatUSDC(policy.chargeAmount)}</span>
+                    <span className="text-muted-foreground/30">&middot;</span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+                      <Clock className="h-2.5 w-2.5" />
+                      {getRemainingTime(nextChargeTime)}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            )
+          })}
         </div>
         {/* Right fade hint for more content */}
         <div className="absolute top-0 right-0 bottom-1 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none" />

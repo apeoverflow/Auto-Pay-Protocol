@@ -2,10 +2,10 @@ import * as React from 'react'
 import { formatUnits } from 'viem'
 import { toWebAuthnAccount, type SmartAccount, type WebAuthnAccount } from 'viem/account-abstraction'
 import { toCircleSmartAccount } from '@circle-fin/modular-wallets-core'
-import { publicClient, bundlerClient } from '../lib/clients'
-import { USDC_ADDRESS, USDC_DECIMALS } from '../config'
+import { USDC_DECIMALS } from '../config'
 import { erc20Abi } from '../config/contracts'
 import { useAuth } from './AuthContext'
+import { useChain } from './ChainContext'
 
 interface WalletContextValue {
   account: SmartAccount | undefined
@@ -18,6 +18,7 @@ const WalletContext = React.createContext<WalletContextValue | null>(null)
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { credential, username, logout } = useAuth()
+  const { publicClient, circleClient, chainConfig, chainKey } = useChain()
   const [account, setAccount] = React.useState<SmartAccount>()
   const [balance, setBalance] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
@@ -28,7 +29,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const rawBalance = await publicClient.readContract({
-        address: USDC_ADDRESS,
+        address: chainConfig.usdc,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [account.address],
@@ -38,15 +39,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to fetch balance:', err)
       setBalance(null)
     }
-  }, [account?.address])
+  }, [publicClient, account?.address, chainConfig.usdc])
 
   // Create smart account from passkey credential
+  // Re-create when chain changes to get proper client
   React.useEffect(() => {
-    if (!credential || !publicClient) return
+    if (!credential || !circleClient) return
 
     setIsLoading(true)
+    setBalance(null) // Clear balance while switching
+
     toCircleSmartAccount({
-      client: publicClient,
+      client: circleClient,
       owner: toWebAuthnAccount({ credential }) as WebAuthnAccount,
       name: username,
     })
@@ -57,7 +61,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         logout()
       })
       .finally(() => setIsLoading(false))
-  }, [credential, username, logout])
+  }, [credential, username, logout, circleClient, chainKey])
 
   // Fetch balance when account changes
   React.useEffect(() => {
@@ -95,5 +99,3 @@ export function useWallet() {
   return context
 }
 
-// Re-export bundlerClient for use in hooks
-export { bundlerClient }

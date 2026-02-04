@@ -1,11 +1,10 @@
 import * as React from 'react'
-import { useTransfer } from '../../hooks'
+import { useTransfer, useChain } from '../../hooks'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { StatusMessage } from '../common/StatusMessage'
 import { Send, CheckCircle, Loader2, ExternalLink } from 'lucide-react'
-import { BLOCK_EXPLORER_URL } from '../../config'
 
 interface SendUSDCProps {
   compact?: boolean
@@ -15,6 +14,7 @@ interface SendUSDCProps {
 
 export function SendUSDC({ compact = false, inline = false }: SendUSDCProps) {
   const { hash, userOpHash, status, isLoading, sendUSDC } = useTransfer()
+  const { chainConfig } = useChain()
   const [to, setTo] = React.useState('')
   const [amount, setAmount] = React.useState('')
 
@@ -67,7 +67,7 @@ export function SendUSDC({ compact = false, inline = false }: SendUSDCProps) {
                 <span className="font-medium">Confirmed</span>
               </div>
               <a
-                href={`${BLOCK_EXPLORER_URL}/tx/${hash}`}
+                href={`${chainConfig.explorer}/tx/${hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-primary hover:underline font-medium"
@@ -135,7 +135,7 @@ export function SendUSDC({ compact = false, inline = false }: SendUSDCProps) {
                   <span className="font-medium">Confirmed</span>
                 </div>
                 <a
-                  href={`${BLOCK_EXPLORER_URL}/tx/${hash}`}
+                  href={`${chainConfig.explorer}/tx/${hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-primary hover:underline font-medium"
@@ -220,7 +220,7 @@ export function SendUSDC({ compact = false, inline = false }: SendUSDCProps) {
                 <span className="font-medium">Transaction Confirmed</span>
               </div>
               <a
-                href={`${BLOCK_EXPLORER_URL}/tx/${hash}`}
+                href={`${chainConfig.explorer}/tx/${hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-primary hover:underline font-medium"

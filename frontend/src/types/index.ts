@@ -54,3 +54,6 @@ export type { Hex, P256Credential, SmartAccount }
 
 // Re-export subscription types
 export * from './subscriptions'
+
+// Re-export policy types
+export * from './policy'

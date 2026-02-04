@@ -1,7 +1,5 @@
 import * as React from 'react'
-import { useAuth, useWallet } from '../hooks'
-import { CHAIN_NAME, CHAIN_ID, BLOCK_EXPLORER_URL } from '../config'
-import { useRecovery } from '../hooks'
+import { useAuth, useWallet, useChain, useRecovery } from '../hooks'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
@@ -21,6 +19,7 @@ import {
 export function SettingsPage() {
   const { username } = useAuth()
   const { account } = useWallet()
+  const { chainConfig } = useChain()
   const {
     recoveryMnemonic,
     recoveryStatus,
@@ -93,14 +92,14 @@ export function SettingsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
                     <Globe className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-[13px] md:text-sm font-medium truncate">{CHAIN_NAME}</span>
+                    <span className="text-[13px] md:text-sm font-medium truncate">{chainConfig.name}</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] md:text-xs font-mono flex-shrink-0">Chain {CHAIN_ID}</Badge>
+                  <Badge variant="outline" className="text-[10px] md:text-xs font-mono flex-shrink-0">Chain {chainConfig.chain.id}</Badge>
                 </div>
               </div>
 
               <a
-                href={`${BLOCK_EXPLORER_URL}/address/${account?.address}`}
+                href={`${chainConfig.explorer}/address/${account?.address}`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center justify-center gap-1.5 text-[11px] md:text-xs text-primary hover:underline font-medium"
@@ -190,7 +189,7 @@ export function SettingsPage() {
                 <div className="space-y-1.5 md:space-y-2 text-[11px] md:text-xs">
                   <div>
                     <span className="text-muted-foreground">Network: </span>
-                    <span className="font-medium">{CHAIN_NAME} (Chain {CHAIN_ID})</span>
+                    <span className="font-medium">{chainConfig.name} (Chain {chainConfig.chain.id})</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Recovery: </span>

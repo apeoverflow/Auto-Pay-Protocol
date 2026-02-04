@@ -1,48 +1,58 @@
 import * as React from 'react'
-import { parseUnits, type Hex } from 'viem'
-import { encodeTransfer } from '@circle-fin/modular-wallets-core'
+import { encodeFunctionData, type Hex } from 'viem'
 import { useWallet } from '../contexts/WalletContext'
 import { useChain } from '../contexts/ChainContext'
-import { USDC_DECIMALS } from '../config'
+import { ArcPolicyManagerAbi } from '../config/deployments'
+import { parseContractError } from '../types/policy'
 
-interface UseTransferReturn {
+interface UseRevokePolicyReturn {
+  revokePolicy: (policyId: `0x${string}`) => Promise<Hex>
   hash: Hex | undefined
   userOpHash: Hex | undefined
   status: string
+  error: string | null
   isLoading: boolean
-  sendUSDC: (to: `0x${string}`, amount: string) => Promise<void>
   reset: () => void
 }
 
-export function useTransfer(): UseTransferReturn {
-  const { account, fetchBalance } = useWallet()
+export function useRevokePolicy(): UseRevokePolicyReturn {
+  const { account } = useWallet()
   const { bundlerClient, chainConfig } = useChain()
+
   const [hash, setHash] = React.useState<Hex>()
   const [userOpHash, setUserOpHash] = React.useState<Hex>()
   const [status, setStatus] = React.useState('')
+  const [error, setError] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
 
-  const sendUSDC = React.useCallback(
-    async (to: `0x${string}`, amount: string) => {
-      if (!account || !bundlerClient) return
+  const revokePolicy = React.useCallback(
+    async (policyId: `0x${string}`): Promise<Hex> => {
+      if (!account || !bundlerClient) {
+        throw new Error('Wallet not connected')
+      }
+
+      if (!chainConfig.policyManager) {
+        throw new Error('Policy manager not deployed on this chain')
+      }
 
       setIsLoading(true)
-      setStatus('Sending...')
+      setStatus('Cancelling subscription...')
+      setError(null)
       setHash(undefined)
       setUserOpHash(undefined)
 
       try {
-        const callData = encodeTransfer(
-          to,
-          chainConfig.usdc,
-          parseUnits(amount, USDC_DECIMALS)
-        )
+        const callData = encodeFunctionData({
+          abi: ArcPolicyManagerAbi,
+          functionName: 'revokePolicy',
+          args: [policyId],
+        })
 
         // Use paymaster for gas sponsorship
         // Arc's bundler requires minimum gas fees that the paymaster doesn't set correctly
         const opHash = await bundlerClient.sendUserOperation({
           account,
-          calls: [callData],
+          calls: [{ to: chainConfig.policyManager, data: callData }],
           paymaster: true,
           ...(chainConfig.minGasFees && {
             maxPriorityFeePerGas: chainConfig.minGasFees.maxPriorityFeePerGas,
@@ -58,32 +68,35 @@ export function useTransfer(): UseTransferReturn {
         })
 
         setHash(receipt.transactionHash)
-        setStatus('Confirmed')
+        setStatus('Subscription cancelled')
 
-        // Refresh balance after sending
-        await fetchBalance()
+        return receipt.transactionHash
       } catch (err) {
-        console.error('Transfer failed:', err)
-        setStatus(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        const message = parseContractError(err)
+        setError(message)
+        setStatus(`Error: ${message}`)
+        throw err
       } finally {
         setIsLoading(false)
       }
     },
-    [account, fetchBalance, bundlerClient, chainConfig.usdc]
+    [account, bundlerClient, chainConfig.policyManager]
   )
 
   const reset = React.useCallback(() => {
     setHash(undefined)
     setUserOpHash(undefined)
     setStatus('')
+    setError(null)
   }, [])
 
   return {
+    revokePolicy,
     hash,
     userOpHash,
     status,
+    error,
     isLoading,
-    sendUSDC,
     reset,
   }
 }
