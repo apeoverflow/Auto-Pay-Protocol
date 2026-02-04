@@ -60,6 +60,7 @@ export interface Deployment {
   chainName: string;
   deployedAt: string;
   deployer: string;
+  deployBlock?: number;
   contracts: {
     arcPolicyManager?: string;
     policyManager?: string;

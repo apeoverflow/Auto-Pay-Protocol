@@ -51,6 +51,15 @@ if [ -z "$MANAGER" ]; then
     exit 1
 fi
 
+# Get deploy block from transaction receipt
+TX_HASH=$(jq -r '.transactions[0].hash' "broadcast/DeployArc.s.sol/${CHAIN_ID}/run-latest.json")
+DEPLOY_BLOCK=$(cast receipt "$TX_HASH" --rpc-url "$ARC_TESTNET_RPC" 2>/dev/null | grep "blockNumber" | head -1 | awk '{print $2}')
+
+if [ -z "$DEPLOY_BLOCK" ]; then
+    echo -e "${YELLOW}Warning: Could not fetch deploy block, using 0${NC}"
+    DEPLOY_BLOCK=0
+fi
+
 # save deployment info
 cat > "deployments/${CHAIN_ID}.json" << EOF
 {
@@ -58,6 +67,7 @@ cat > "deployments/${CHAIN_ID}.json" << EOF
   "chainName": "arcTestnet",
   "deployedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "deployer": "${DEPLOYER}",
+  "deployBlock": ${DEPLOY_BLOCK},
   "contracts": {
     "arcPolicyManager": "${MANAGER}"
   },
@@ -71,4 +81,5 @@ EOF
 echo ""
 echo -e "${GREEN}Deployment complete!${NC}"
 echo -e "  Contract: ${MANAGER}"
+echo -e "  Block: ${DEPLOY_BLOCK}"
 echo -e "  Saved to: deployments/${CHAIN_ID}.json"
