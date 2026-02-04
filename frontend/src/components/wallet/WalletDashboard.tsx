@@ -6,6 +6,7 @@ import {
   ActivityPage,
   SettingsPage,
   DemoPage,
+  BridgePage,
 } from '../../pages'
 
 export function WalletDashboard() {
@@ -19,6 +20,8 @@ export function WalletDashboard() {
         return <SubscriptionsPage />
       case 'activity':
         return <ActivityPage />
+      case 'bridge':
+        return <BridgePage />
       case 'demo':
         return <DemoPage />
       case 'settings':

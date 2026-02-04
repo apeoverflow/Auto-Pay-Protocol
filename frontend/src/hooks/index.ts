@@ -9,6 +9,10 @@ export { useRevokePolicy } from './useRevokePolicy'
 export { usePolicy } from './usePolicy'
 export { useCharge } from './useCharge'
 
+// Cross-chain wallet funding (Bridge Kit)
+export { useBrowserWalletAdapter } from './useBrowserWalletAdapter'
+export { useFundWallet } from './useFundWallet'
+
 // ⚠️ INDEXED DATA HOOKS - Need refactor to use indexer API
 // Currently fetch via getLogs (limited to ~9k blocks, misses old data)
 // See: CLAUDE.md "Indexed Data Requirements" section

@@ -741,3 +741,852 @@
 .dynamic-dark-wrap span {
   color: inherit !important;
 }
+
+/* ══════════════════════════════════════════════════
+   Bridge Page — Clean Layout
+   ══════════════════════════════════════════════════ */
+
+.bridge-page {
+  height: 100%;
+}
+
+.bridge-layout {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .bridge-layout {
+    grid-template-columns: 1fr 280px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+}
+
+.bridge-main {
+  min-width: 0;
+}
+
+/* ── Sidebar ── */
+.bridge-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Balance card ── */
+.bridge-balance {
+  padding: 1rem 1.25rem;
+  border-radius: 0.875rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.bridge-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+
+.bridge-balance-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: hsl(var(--muted-foreground));
+}
+
+.bridge-balance-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.bridge-balance-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.bridge-balance-unit {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.bridge-address-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--muted) / 0.4);
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bridge-address-btn:hover {
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--foreground));
+}
+
+/* ── Sections ── */
+.bridge-section {
+  padding: 1rem 1.25rem;
+  border-radius: 0.875rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.bridge-section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.875rem;
+}
+
+/* ── Steps ── */
+.bridge-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.bridge-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.bridge-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 0.375rem;
+  background: hsl(var(--primary) / 0.1);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.bridge-step-text {
+  padding-top: 0.0625rem;
+}
+
+.bridge-step-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  line-height: 1.2;
+}
+
+.bridge-step-desc {
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.125rem;
+}
+
+/* ── Networks ── */
+.bridge-networks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.375rem;
+}
+
+.bridge-network {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  color: hsl(var(--foreground) / 0.8);
+  padding: 0.375rem 0;
+}
+
+.bridge-network-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bridge-network-dot--eth {
+  background: #627EEA;
+}
+
+.bridge-network-dot--base {
+  background: #0052FF;
+}
+
+.bridge-network-dot--polygon {
+  background: #8247E5;
+}
+
+.bridge-network-dot--arb {
+  background: #28A0F0;
+}
+
+.bridge-faucet-link {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid hsl(var(--border) / 0.5);
+  font-size: 0.6875rem;
+  color: hsl(var(--primary));
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.bridge-faucet-link:hover {
+  color: hsl(221 83% 45%);
+}
+
+/* ── CCTP badge ── */
+.bridge-cctp {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  background: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.bridge-cctp-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: hsl(var(--muted-foreground));
+  flex-shrink: 0;
+}
+
+.bridge-cctp-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.bridge-cctp-label {
+  font-size: 0.5625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+}
+
+.bridge-cctp-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+/* ══════════════════════════════════════════════════
+   Fund Wallet Card — Refined Form UI
+   ══════════════════════════════════════════════════ */
+
+.fund-card {
+  position: relative;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
+  box-shadow:
+    0 0 0 1px hsl(var(--border) / 0.1),
+    0 8px 40px -12px hsl(220 50% 5% / 0.15);
+}
+
+.fund-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 2rem;
+  right: 2rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(var(--border) / 0.8), transparent);
+}
+
+.fund-card--success {
+  overflow: hidden;
+}
+
+/* ── Sections ── */
+.fund-section {
+  padding: 1rem 0;
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+}
+
+.fund-section:first-child {
+  padding-top: 0;
+}
+
+.fund-section:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* ── Step header ── */
+.fund-step-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.fund-step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--muted));
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  transition: all 0.2s ease;
+}
+
+.fund-step-indicator--done {
+  background: linear-gradient(135deg, hsl(142 70% 45% / 0.2), hsl(142 70% 45% / 0.1));
+  color: hsl(142 70% 45%);
+  border: 1px solid hsl(142 70% 45% / 0.3);
+}
+
+.fund-step-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+/* ── Connect button ── */
+.fund-connect-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fund-connect-btn:hover {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border) / 0.8);
+}
+
+.fund-connect-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Wallet selector ── */
+.fund-wallet-selector {
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  overflow: hidden;
+}
+
+.fund-wallet-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: hsl(var(--muted) / 0.5);
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.fund-wallet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  background: transparent;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fund-wallet-close:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.fund-wallet-list {
+  padding: 0.5rem;
+}
+
+.fund-wallet-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: transparent;
+  border: none;
+  color: hsl(var(--foreground));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.fund-wallet-option:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.fund-wallet-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fund-wallet-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  flex-shrink: 0;
+}
+
+.fund-wallet-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+/* ── Connected state ── */
+.fund-connected {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, hsl(142 70% 45% / 0.08), hsl(142 70% 45% / 0.03));
+  border: 1px solid hsl(142 70% 45% / 0.2);
+}
+
+.fund-connected-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: hsl(142 70% 45% / 0.15);
+  color: hsl(142 70% 45%);
+}
+
+.fund-connected-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fund-connected-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(142 70% 40%);
+}
+
+.fund-connected-address {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: hsl(142 70% 35%);
+}
+
+.fund-disconnect-btn {
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  background: transparent;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(142 70% 40%);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fund-disconnect-btn:hover {
+  background: hsl(142 70% 45% / 0.1);
+  color: hsl(142 70% 30%);
+}
+
+/* ── Chain selector ── */
+.fund-chain-selector {
+  position: relative;
+}
+
+.fund-chain-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fund-chain-btn:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.fund-chain-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.fund-chain-name {
+  flex: 1;
+  text-align: left;
+}
+
+.fund-chain-dropdown {
+  position: absolute;
+  z-index: 20;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.375rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 8px 32px -8px hsl(220 50% 5% / 0.2);
+}
+
+.fund-chain-option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: transparent;
+  border: none;
+  color: hsl(var(--foreground));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.fund-chain-option:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.fund-chain-option--active {
+  background: hsl(var(--primary) / 0.08);
+}
+
+.fund-chain-option--active:hover {
+  background: hsl(var(--primary) / 0.12);
+}
+
+.fund-balance-info {
+  margin-top: 0.75rem;
+  padding-left: 0.25rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ── Amount input ── */
+.fund-amount-input-wrap {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.fund-amount-input {
+  width: 100%;
+  padding: 1rem 5rem 1rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  transition: all 0.15s ease;
+}
+
+.fund-amount-input:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+}
+
+.fund-amount-input::placeholder {
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Remove spinner buttons */
+.fund-amount-input::-webkit-outer-spin-button,
+.fund-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.fund-amount-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.fund-amount-suffix {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.fund-usdc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2775CA, #3B8CE8);
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: white;
+}
+
+/* ── Destination ── */
+.fund-destination {
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.3);
+  margin-bottom: 1rem;
+}
+
+.fund-destination-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.375rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+}
+
+.fund-destination-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  background: hsl(var(--primary) / 0.1);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.fund-destination-address {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--foreground) / 0.8);
+  word-break: break-all;
+}
+
+/* ── Transfer button ── */
+.fund-transfer-btn {
+  width: 100%;
+  height: 3rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(221 83% 45%));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.3);
+}
+
+.fund-transfer-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px hsl(var(--primary) / 0.4);
+}
+
+.fund-transfer-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.fund-transfer-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Error ── */
+.fund-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: hsl(0 84% 60% / 0.1);
+  border: 1px solid hsl(0 84% 60% / 0.2);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  color: hsl(0 84% 50%);
+}
+
+/* ── Success state ── */
+.fund-success-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1.5rem;
+  background: linear-gradient(135deg, hsl(142 70% 45% / 0.15), hsl(173 80% 40% / 0.1));
+  margin: -1.5rem -1.5rem 1.5rem;
+  border-bottom: 1px solid hsl(142 70% 45% / 0.2);
+}
+
+.fund-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, hsl(142 70% 45%), hsl(173 80% 40%));
+  color: white;
+  margin-bottom: 1rem;
+  box-shadow: 0 8px 24px hsl(142 70% 45% / 0.3);
+}
+
+.fund-success-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-bottom: 0.25rem;
+}
+
+.fund-success-amount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(142 70% 40%);
+}
+
+.fund-success-details {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.3);
+}
+
+.fund-success-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.fund-success-label {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.25rem;
+}
+
+.fund-success-value {
+  display: block;
+  font-size: 0.75rem;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fund-success-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  flex-shrink: 0;
+}
+
+.fund-success-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.fund-success-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--primary));
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.fund-success-link:hover {
+  color: hsl(221 83% 45%);
+}

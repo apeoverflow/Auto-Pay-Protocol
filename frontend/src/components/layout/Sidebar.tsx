@@ -7,11 +7,12 @@ import {
   LogOut,
   X,
   Beaker,
+  ArrowDownUp,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { useAuth } from '../../hooks'
 
-export type NavItem = 'dashboard' | 'subscriptions' | 'activity' | 'settings' | 'demo'
+export type NavItem = 'dashboard' | 'subscriptions' | 'activity' | 'bridge' | 'settings' | 'demo'
 
 interface SidebarProps {
   currentPage: NavItem
@@ -24,6 +25,7 @@ const navItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'subscriptions', label: 'Subscriptions', icon: <CreditCard className="h-4 w-4" /> },
   { id: 'activity', label: 'Activity', icon: <Activity className="h-4 w-4" /> },
+  { id: 'bridge', label: 'Bridge Funds', icon: <ArrowDownUp className="h-4 w-4" /> },
   { id: 'demo', label: 'SDK Demo', icon: <Beaker className="h-4 w-4" /> },
   { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
 ]

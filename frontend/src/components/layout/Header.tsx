@@ -14,6 +14,7 @@ const pageTitles: Record<NavItem, string> = {
   dashboard: 'Dashboard',
   subscriptions: 'Subscriptions',
   activity: 'Activity',
+  bridge: 'Bridge Funds',
   demo: 'SDK Demo',
   settings: 'Settings',
 }

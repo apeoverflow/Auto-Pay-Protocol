@@ -16,10 +16,12 @@ import {
   Zap,
   XCircle,
   Wallet,
+  ArrowDownUp,
 } from 'lucide-react'
 import { USDC_DECIMALS } from '../config'
 import { parseContractError } from '../types/policy'
 import { ToastContainer, useToast } from '../components/ui/toast'
+import { FundWalletCard } from '../components/FundWallet'
 
 // Interval unit configuration
 const INTERVAL_UNITS = [
@@ -35,9 +37,12 @@ const MIN_INTERVAL_SECONDS = 60 // 1 minute
 const MAX_INTERVAL_SECONDS = 365 * 24 * 60 * 60 // 1 year
 
 export function DemoPage() {
-  const { account, balance, isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet } = useWallet()
+  const { isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet, account, balance, fetchBalance } = useWallet()
   const { chainConfig } = useChain()
   const { policies, refetch: refetchPolicies } = usePolicies()
+
+  // State for showing/hiding fund wallet section
+  const [showFundWallet, setShowFundWallet] = React.useState(false)
 
   // Form state
   const [merchant, setMerchant] = React.useState('')
@@ -191,7 +196,41 @@ export function DemoPage() {
 
         {/* Wallet Setup Required */}
         {!isWalletSetup ? (
-          <div className="max-w-lg mx-auto">
+          <div className="max-w-lg mx-auto space-y-4">
+            {/* Fund Wallet Option */}
+            {account?.address && (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowFundWallet(!showFundWallet)}
+                  className="w-full flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <ArrowDownUp className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Need USDC on Arc?</p>
+                      <p className="text-xs text-muted-foreground">
+                        Transfer from MetaMask on another chain
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className={`h-4 w-4 text-muted-foreground transition-transform ${showFundWallet ? 'rotate-90' : ''}`} />
+                </button>
+
+                {showFundWallet && (
+                  <FundWalletCard
+                    destinationAddress={account.address}
+                    onSuccess={() => {
+                      fetchBalance()
+                      toast.success('Wallet funded successfully!')
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* USDC Approval Card */}
             <Card className="border-primary/30 bg-gradient-to-br from-primary/[0.03] to-transparent">
               <CardHeader className="py-4 px-5 border-b border-border/50">
                 <CardTitle className="text-base font-semibold flex items-center gap-3">
@@ -221,6 +260,16 @@ export function DemoPage() {
                       <span>Revoke any subscription instantly to stop charges</span>
                     </li>
                   </ul>
+
+                  {/* Show current balance */}
+                  {balance && (
+                    <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Your Balance</span>
+                        <span className="font-medium">{balance} USDC</span>
+                      </div>
+                    </div>
+                  )}
 
                   <Button
                     onClick={handleSetup}
@@ -475,46 +524,19 @@ export function DemoPage() {
 
           {/* Right Column: Info & Recent Policies */}
           <div className="space-y-4">
-            {/* Account Info */}
-            <Card>
-              <CardHeader className="py-3 px-4 border-b border-border/50">
-                <CardTitle className="text-sm font-semibold">Your Account</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Wallet</span>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs font-mono">{account?.address?.slice(0, 6)}...{account?.address?.slice(-4)}</code>
-                    <button
-                      onClick={() => copyToClipboard(account?.address || '', 'wallet')}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      {copied === 'wallet' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Balance</span>
-                  <span className="text-sm font-medium">{balance ? Number(balance).toFixed(2) : '0.00'} USDC</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Network</span>
-                  <Badge variant="outline" className="text-[10px]">{chainConfig.name}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Policy Manager</span>
-                  <a
-                    href={`${chainConfig.explorer}/address/${chainConfig.policyManager}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    {chainConfig.policyManager?.slice(0, 6)}...{chainConfig.policyManager?.slice(-4)}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Contract Info */}
+            <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+              <span>Policy Manager Contract</span>
+              <a
+                href={`${chainConfig.explorer}/address/${chainConfig.policyManager}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline flex items-center gap-1 font-mono"
+              >
+                {chainConfig.policyManager?.slice(0, 6)}...{chainConfig.policyManager?.slice(-4)}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
 
             {/* SDK Code Example */}
             <Card>

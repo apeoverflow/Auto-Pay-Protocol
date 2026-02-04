@@ -5,13 +5,13 @@ import { ActivityList } from '../components/activity'
 import { SendUSDC } from '../components/wallet/SendUSDC'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../components/ui/drawer'
-import { ArrowRight, CreditCard, Activity, ChevronRight, Clock, Send, Loader2 } from 'lucide-react'
+import { ArrowRight, CreditCard, Activity, ChevronRight, Clock, Send, Loader2, ArrowDownUp } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { useWallet, usePolicies } from '../hooks'
 import { formatUSDC } from '../types/subscriptions'
 
 interface DashboardPageProps {
-  onNavigate: (page: 'subscriptions' | 'activity') => void
+  onNavigate: (page: 'subscriptions' | 'activity' | 'bridge') => void
 }
 
 // Generate color theme based on merchant address
@@ -174,6 +174,21 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         {/* Subscription chips — horizontal scroll */}
         <MobileSubscriptionScroll onNavigate={() => onNavigate('subscriptions')} />
 
+        {/* Bridge Funds Quick Action */}
+        <button
+          onClick={() => onNavigate('bridge')}
+          className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl border border-blue-500/20 active:scale-[0.98] transition-all"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
+            <ArrowDownUp className="h-5 w-5" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-[13px] font-semibold">Bridge Funds</p>
+            <p className="text-[11px] text-muted-foreground">Transfer USDC from other chains</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+
         {/* Recent Activity */}
         <div>
           <Card className="overflow-hidden">
@@ -232,6 +247,22 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         {/* Right column - Quick Actions & Activity */}
         <div className="flex flex-col gap-6 min-h-0 overflow-hidden">
           <SendUSDC compact />
+
+          {/* Bridge Funds Quick Action */}
+          <button
+            onClick={() => onNavigate('bridge')}
+            className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all group"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
+              <ArrowDownUp className="h-5 w-5" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold">Bridge Funds</p>
+              <p className="text-xs text-muted-foreground">Transfer USDC from other chains</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+          </button>
+
           <Card className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between py-3.5 px-5 flex-shrink-0 border-b border-border/50">
               <div className="flex items-center gap-2.5">
