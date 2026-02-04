@@ -61,8 +61,22 @@ export function useGatewayTransfer() {
     const sourceChain = params.sourceChain.testnet
     const destChain = arcTestnetConfig.testnet
     const transferAmount = parseUnits(params.amount, USDC_DECIMALS)
-    const maxFee = BigInt('2010000') // 2.01 USDC for fees
+    // Max fee is ~2% of transfer or minimum 2.01 USDC, whichever is higher
+    // Gateway requires at least 2 USDC as max fee
+    const percentageFee = transferAmount / BigInt(50) // 2%
+    const minFee = BigInt('2010000') // 2.01 USDC minimum (Gateway requirement)
+    const maxFee = percentageFee > minFee ? percentageFee : minFee
     const requiredAmount = transferAmount + maxFee
+
+    console.log('[Gateway] Starting transfer', {
+      transferAmount: transferAmount.toString(),
+      maxFee: maxFee.toString(),
+      requiredAmount: requiredAmount.toString(),
+      sourceChain: params.sourceChain.name,
+      sourceDomain: params.sourceChain.domain,
+      depositor: address,
+      recipient: params.recipientAddress,
+    })
 
     setIsLoading(true)
     setStatus('Preparing transfer...')
@@ -80,10 +94,13 @@ export function useGatewayTransfer() {
         args: [address],
       })
 
+      console.log('[Gateway] USDC balance:', balance.toString())
+
       if (balance < requiredAmount) {
         const balanceFormatted = (Number(balance) / 1e6).toFixed(2)
         const requiredFormatted = (Number(requiredAmount) / 1e6).toFixed(2)
-        throw new Error(`Insufficient USDC balance. You have ${balanceFormatted} USDC but need ${requiredFormatted} USDC (${params.amount} + 2.01 fee)`)
+        const feeFormatted = (Number(maxFee) / 1e6).toFixed(2)
+        throw new Error(`Insufficient USDC balance. You have ${balanceFormatted} USDC but need ${requiredFormatted} USDC (${params.amount} + ${feeFormatted} fee)`)
       }
 
       // Step 1: Check allowance and approve if needed
@@ -96,37 +113,55 @@ export function useGatewayTransfer() {
         args: [address, sourceChain.GatewayWallet],
       })
 
-      if (allowance < transferAmount) {
+      console.log('[Gateway] Allowance:', allowance.toString(), 'GatewayWallet:', sourceChain.GatewayWallet)
+
+      if (allowance < requiredAmount) {
         setStatus('Approving USDC (sign in wallet)...')
 
         const approveHash = await walletClient.writeContract({
           address: sourceChain.USDCAddress,
           abi: ERC20_ABI,
           functionName: 'approve',
-          args: [sourceChain.GatewayWallet, transferAmount],
+          args: [sourceChain.GatewayWallet, requiredAmount],
         })
 
+        console.log('[Gateway] Approve tx:', approveHash)
         await publicClient.waitForTransactionReceipt({ hash: approveHash })
+        console.log('[Gateway] Approve confirmed')
       }
 
-      // Step 2: Deposit USDC into GatewayWallet
+      // Step 2: Deposit USDC into GatewayWallet (transfer amount + max fee)
       setStatus('Depositing to Gateway (sign in wallet)...')
+
+      console.log('[Gateway] Depositing to GatewayWallet:', {
+        gatewayWallet: sourceChain.GatewayWallet,
+        token: sourceChain.USDCAddress,
+        amount: requiredAmount.toString(),
+      })
 
       const depositHash = await walletClient.writeContract({
         address: sourceChain.GatewayWallet,
         abi: GATEWAY_WALLET_ABI,
         functionName: 'deposit',
-        args: [sourceChain.USDCAddress, transferAmount],
+        args: [sourceChain.USDCAddress, requiredAmount],
       })
 
-      await publicClient.waitForTransactionReceipt({ hash: depositHash })
+      console.log('[Gateway] Deposit tx:', depositHash)
+      const depositReceipt = await publicClient.waitForTransactionReceipt({ hash: depositHash })
+      console.log('[Gateway] Deposit confirmed, status:', depositReceipt.status)
+
+      // Wait for Gateway indexer to pick up the deposit
+      setStatus('Waiting for Gateway to confirm...')
+      console.log('[Gateway] Waiting 5s for indexer...')
+      await new Promise(resolve => setTimeout(resolve, 5000))
 
       // Step 3: Build the burn intent
       setStatus('Sign transfer message...')
 
+      const salt = randomSalt()
       const burnIntent = {
         maxBlockHeight: maxUint256.toString(),
-        maxFee: '2010000', // 2.01 USDC covers fees
+        maxFee: maxFee.toString(),
         spec: {
           version: 1,
           sourceDomain: params.sourceChain.domain,
@@ -140,14 +175,17 @@ export function useGatewayTransfer() {
           sourceSigner: addressToBytes32(address),
           destinationCaller: addressToBytes32(zeroAddress), // Anyone can mint
           value: transferAmount.toString(),
-          salt: randomSalt(),
+          salt,
           hookData: '0x' as `0x${string}`,
         },
       }
 
+      console.log('[Gateway] Burn intent:', JSON.stringify(burnIntent, null, 2))
+
       // Step 4: Sign the burn intent with MetaMask
       // Note: EIP-712 types expect strings for uint256 values
       // Using type assertion to satisfy wagmi's strict typing while Gateway API expects strings
+      console.log('[Gateway] Requesting signature...')
       const signature = await signTypedDataAsync({
         types: EIP712_TYPES,
         domain: EIP712_DOMAIN,
@@ -155,18 +193,26 @@ export function useGatewayTransfer() {
         message: burnIntent,
       } as Parameters<typeof signTypedDataAsync>[0])
 
+      console.log('[Gateway] Signature obtained:', signature.slice(0, 20) + '...')
+
       // Step 5: Submit to Gateway API
       setStatus('Getting attestation...')
+
+      const requestBody = [{ burnIntent, signature }]
+      console.log('[Gateway] Submitting to Gateway API:', GATEWAY_API_URL + '/transfer')
+      console.log('[Gateway] Request body:', JSON.stringify(requestBody, null, 2))
 
       const response = await fetch(`${GATEWAY_API_URL}/transfer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([{ burnIntent, signature }]),
+        body: JSON.stringify(requestBody),
       })
+
+      console.log('[Gateway] Response status:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Gateway API error:', errorText)
+        console.error('[Gateway] API error response:', errorText)
         throw new Error(`Gateway API failed: ${response.status} - ${errorText}`)
       }
 

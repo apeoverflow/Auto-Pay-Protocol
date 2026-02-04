@@ -1,8 +1,31 @@
 // Circle Gateway configuration for cross-chain USDC transfers
 // Gateway enables instant (~500ms) transfers via EIP-712 signatures
 
-import { arcTestnet, baseSepolia, sepolia } from 'viem/chains'
+import {
+  arcTestnet,
+  avalancheFuji,
+  baseSepolia,
+  sepolia,
+  seiTestnet,
+  sonicTestnet,
+  worldchainSepolia,
+} from 'viem/chains'
+import { defineChain } from 'viem'
 import type { Chain, Hex } from 'viem'
+
+// HyperEVM Testnet (not in viem yet)
+export const hyperEvmTestnet = defineChain({
+  id: 998,
+  name: 'HyperEVM Testnet',
+  nativeCurrency: { name: 'HYPE', symbol: 'HYPE', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://api.hyperliquid-testnet.xyz/evm'] },
+  },
+  blockExplorers: {
+    default: { name: 'Hyperliquid Explorer', url: 'https://explorer.hyperliquid-testnet.xyz' },
+  },
+  testnet: true,
+})
 
 export const GATEWAY_API_URL = 'https://gateway-api-testnet.circle.com/v1'
 
@@ -36,6 +59,20 @@ export const ethereumSepoliaConfig: ChainConfig = {
   },
 }
 
+// Avalanche Fuji
+export const avalancheFujiConfig: ChainConfig = {
+  domain: 1,
+  name: 'Avalanche Fuji',
+  shortName: 'Fuji',
+  testnet: {
+    RPC: 'https://api.avax-test.network/ext/bc/C/rpc',
+    GatewayWallet: '0x0077777d7EBA4688BDeF3E311b846F25870A19B9',
+    GatewayMinter: '0x0022222ABE238Cc2C7Bb1f21003F0a260052475B',
+    USDCAddress: '0x5425890298aed601595a70AB815c96711a31Bc65',
+    ViemChain: avalancheFuji,
+  },
+}
+
 // Base Sepolia
 export const baseSepoliaConfig: ChainConfig = {
   domain: 6,
@@ -47,6 +84,62 @@ export const baseSepoliaConfig: ChainConfig = {
     GatewayMinter: '0x0022222ABE238Cc2C7Bb1f21003F0a260052475B',
     USDCAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
     ViemChain: baseSepolia,
+  },
+}
+
+// Sonic Testnet
+export const sonicTestnetConfig: ChainConfig = {
+  domain: 13,
+  name: 'Sonic Testnet',
+  shortName: 'Sonic',
+  testnet: {
+    RPC: 'https://rpc.testnet.soniclabs.com',
+    GatewayWallet: '0x0077777d7EBA4688BDeF3E311b846F25870A19B9',
+    GatewayMinter: '0x0022222ABE238Cc2C7Bb1f21003F0a260052475B',
+    USDCAddress: '0x0BA304580ee7c9a980CF72e55f5Ed2E9fd30Bc51',
+    ViemChain: sonicTestnet,
+  },
+}
+
+// World Chain Sepolia
+export const worldChainSepoliaConfig: ChainConfig = {
+  domain: 14,
+  name: 'World Chain Sepolia',
+  shortName: 'World',
+  testnet: {
+    RPC: 'https://worldchain-sepolia.g.alchemy.com/public',
+    GatewayWallet: '0x0077777d7EBA4688BDeF3E311b846F25870A19B9',
+    GatewayMinter: '0x0022222ABE238Cc2C7Bb1f21003F0a260052475B',
+    USDCAddress: '0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88',
+    ViemChain: worldchainSepolia,
+  },
+}
+
+// Sei Atlantic (Testnet)
+export const seiAtlanticConfig: ChainConfig = {
+  domain: 16,
+  name: 'Sei Atlantic',
+  shortName: 'Sei',
+  testnet: {
+    RPC: 'https://evm-rpc-testnet.sei-apis.com',
+    GatewayWallet: '0x0077777d7EBA4688BDeF3E311b846F25870A19B9',
+    GatewayMinter: '0x0022222ABE238Cc2C7Bb1f21003F0a260052475B',
+    USDCAddress: '0x4fCF1784B31630811181f670Aea7A7bEF803eaED',
+    ViemChain: seiTestnet,
+  },
+}
+
+// HyperEVM Testnet
+export const hyperEvmTestnetConfig: ChainConfig = {
+  domain: 19,
+  name: 'HyperEVM Testnet',
+  shortName: 'HyperEVM',
+  testnet: {
+    RPC: 'https://api.hyperliquid-testnet.xyz/evm',
+    GatewayWallet: '0x0077777d7EBA4688BDeF3E311b846F25870A19B9',
+    GatewayMinter: '0x0022222ABE238Cc2C7Bb1f21003F0a260052475B',
+    USDCAddress: '0x2B3370eE501B4a559b57D449569354196457D8Ab',
+    ViemChain: hyperEvmTestnet,
   },
 }
 
@@ -67,7 +160,12 @@ export const arcTestnetConfig: ChainConfig = {
 // Supported source chains for funding (testnets)
 export const GATEWAY_SOURCE_CHAINS = [
   ethereumSepoliaConfig,
+  avalancheFujiConfig,
   baseSepoliaConfig,
+  sonicTestnetConfig,
+  worldChainSepoliaConfig,
+  seiAtlanticConfig,
+  hyperEvmTestnetConfig,
 ] as const
 
 export type GatewaySourceChain = typeof GATEWAY_SOURCE_CHAINS[number]
@@ -80,7 +178,12 @@ export function getSourceChainByChainId(chainId: number): GatewaySourceChain | u
 // USDC addresses by chainId for balance lookups
 export const USDC_ADDRESSES: Record<number, Hex> = {
   [sepolia.id]: ethereumSepoliaConfig.testnet.USDCAddress,
+  [avalancheFuji.id]: avalancheFujiConfig.testnet.USDCAddress,
   [baseSepolia.id]: baseSepoliaConfig.testnet.USDCAddress,
+  [sonicTestnet.id]: sonicTestnetConfig.testnet.USDCAddress,
+  [worldchainSepolia.id]: worldChainSepoliaConfig.testnet.USDCAddress,
+  [seiTestnet.id]: seiAtlanticConfig.testnet.USDCAddress,
+  [hyperEvmTestnet.id]: hyperEvmTestnetConfig.testnet.USDCAddress,
 }
 
 // EIP-712 Domain for Gateway signing
@@ -139,16 +242,6 @@ export const GATEWAY_WALLET_ABI = [
     ],
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'balanceOf',
-    inputs: [
-      { name: 'account', type: 'address' },
-      { name: 'token', type: 'address' },
-    ],
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
   },
 ] as const
 

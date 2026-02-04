@@ -85,14 +85,34 @@ export function BridgePage() {
           {/* Supported chains */}
           <div className="bridge-section">
             <div className="bridge-section-title">Supported Networks</div>
-            <div className="bridge-networks">
+            <div className="bridge-networks bridge-networks--grid">
               <div className="bridge-network">
-                <span className="bridge-network-dot bridge-network-dot--eth" />
-                Ethereum Sepolia
+                <span className="bridge-network-dot" style={{ background: '#627EEA' }} />
+                Ethereum
               </div>
               <div className="bridge-network">
-                <span className="bridge-network-dot bridge-network-dot--base" />
-                Base Sepolia
+                <span className="bridge-network-dot" style={{ background: '#E84142' }} />
+                Avalanche
+              </div>
+              <div className="bridge-network">
+                <span className="bridge-network-dot" style={{ background: '#0052FF' }} />
+                Base
+              </div>
+              <div className="bridge-network">
+                <span className="bridge-network-dot" style={{ background: '#19FB9B' }} />
+                Sonic
+              </div>
+              <div className="bridge-network">
+                <span className="bridge-network-dot" style={{ background: '#000' }} />
+                World Chain
+              </div>
+              <div className="bridge-network">
+                <span className="bridge-network-dot" style={{ background: '#9B1C1C' }} />
+                Sei
+              </div>
+              <div className="bridge-network">
+                <span className="bridge-network-dot" style={{ background: '#50E2C1' }} />
+                HyperEVM
               </div>
             </div>
             <a
