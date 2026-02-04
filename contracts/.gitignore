@@ -10,3 +10,7 @@ docs/
 
 # Dotenv file
 .env
+
+# Generated (synced to frontend)
+abis/
+deployments/
