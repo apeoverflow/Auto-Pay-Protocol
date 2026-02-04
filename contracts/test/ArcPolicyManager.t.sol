@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2.0
 pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {ArcPolicyManager} from "../src/ArcPolicyManager.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 
@@ -35,10 +35,14 @@ contract ArcPolicyManagerTest is Test {
     }
 
     // --- createPolicy ---
+    // NOTE: createPolicy now executes the first charge immediately
 
     function test_CreatePolicy_Success() public {
         vm.startPrank(payer);
         usdc.approve(address(manager), type(uint256).max);
+
+        uint256 payerBalanceBefore = usdc.balanceOf(payer);
+        uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
 
         bytes32 policyId = manager.createPolicy(
             merchant,
@@ -52,7 +56,15 @@ contract ArcPolicyManagerTest is Test {
         assertTrue(policyId != bytes32(0));
         assertEq(manager.policyCount(), 1);
 
-        // check the policy was stored correctly
+        // Verify first charge was executed
+        uint256 protocolFee = (CHARGE_AMOUNT * manager.PROTOCOL_FEE_BPS()) / manager.BPS_DENOMINATOR();
+        uint256 merchantAmount = CHARGE_AMOUNT - protocolFee;
+
+        assertEq(usdc.balanceOf(payer), payerBalanceBefore - CHARGE_AMOUNT);
+        assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + merchantAmount);
+        assertEq(manager.accumulatedFees(), protocolFee);
+
+        // check the policy was stored correctly (with first charge applied)
         (
             address storedPayer,
             address storedMerchant,
@@ -70,36 +82,61 @@ contract ArcPolicyManagerTest is Test {
         assertEq(storedMerchant, merchant);
         assertEq(chargeAmount, CHARGE_AMOUNT);
         assertEq(spendingCap, SPENDING_CAP);
-        assertEq(totalSpent, 0);
+        assertEq(totalSpent, CHARGE_AMOUNT); // First charge applied
         assertEq(interval, INTERVAL);
-        assertEq(lastCharged, 0);
-        assertEq(chargeCount, 0);
+        assertEq(lastCharged, block.timestamp); // Set to now
+        assertEq(chargeCount, 1); // First charge counted
         assertEq(endTime, 0);
         assertTrue(active);
     }
 
     function test_CreatePolicy_RevertInvalidMerchant() public {
-        vm.prank(payer);
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
         vm.expectRevert(abi.encodeWithSignature("InvalidMerchant()"));
         manager.createPolicy(address(0), CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
     }
 
     function test_CreatePolicy_RevertInvalidAmount() public {
-        vm.prank(payer);
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
         vm.expectRevert(abi.encodeWithSignature("InvalidAmount()"));
         manager.createPolicy(merchant, 0, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
     }
 
     function test_CreatePolicy_RevertInvalidInterval_TooShort() public {
-        vm.prank(payer);
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
         vm.expectRevert(abi.encodeWithSignature("InvalidInterval()"));
         manager.createPolicy(merchant, CHARGE_AMOUNT, 30 minutes, SPENDING_CAP, "");
+        vm.stopPrank();
     }
 
     function test_CreatePolicy_RevertInvalidInterval_TooLong() public {
-        vm.prank(payer);
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
         vm.expectRevert(abi.encodeWithSignature("InvalidInterval()"));
         manager.createPolicy(merchant, CHARGE_AMOUNT, 366 days, SPENDING_CAP, "");
+        vm.stopPrank();
+    }
+
+    function test_CreatePolicy_RevertInsufficientAllowance() public {
+        // No approval given
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSignature("InsufficientAllowance()"));
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+    }
+
+    function test_CreatePolicy_RevertInsufficientBalance() public {
+        address brokePayer = makeAddr("brokePayer");
+        // Has approval but no balance
+        vm.startPrank(brokePayer);
+        usdc.approve(address(manager), type(uint256).max);
+        vm.expectRevert(abi.encodeWithSignature("InsufficientBalance()"));
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
     }
 
     // --- revokePolicy ---
@@ -141,6 +178,7 @@ contract ArcPolicyManagerTest is Test {
     }
 
     // --- charge ---
+    // NOTE: First charge happens on createPolicy, so charge() is for subsequent charges
 
     function test_Charge_Success() public {
         vm.startPrank(payer);
@@ -148,8 +186,12 @@ contract ArcPolicyManagerTest is Test {
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
         vm.stopPrank();
 
+        // First charge already happened, need to wait for interval
+        vm.warp(block.timestamp + INTERVAL);
+
         uint256 payerBalanceBefore = usdc.balanceOf(payer);
         uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
+        uint256 feesBefore = manager.accumulatedFees();
 
         manager.charge(policyId);
 
@@ -158,12 +200,12 @@ contract ArcPolicyManagerTest is Test {
 
         assertEq(usdc.balanceOf(payer), payerBalanceBefore - CHARGE_AMOUNT);
         assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + merchantAmount);
-        assertEq(manager.accumulatedFees(), protocolFee);
+        assertEq(manager.accumulatedFees(), feesBefore + protocolFee);
 
         (,,,, uint128 totalSpent,, uint32 lastCharged, uint32 chargeCount,,,) = manager.policies(policyId);
-        assertEq(totalSpent, CHARGE_AMOUNT);
+        assertEq(totalSpent, CHARGE_AMOUNT * 2); // First + second charge
         assertEq(lastCharged, block.timestamp);
-        assertEq(chargeCount, 1);
+        assertEq(chargeCount, 2);
     }
 
     function test_Charge_RevertPolicyNotActive() public {
@@ -183,9 +225,7 @@ contract ArcPolicyManagerTest is Test {
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
         vm.stopPrank();
 
-        manager.charge(policyId);
-
-        // immediate second charge should fail
+        // First charge already happened on create, immediate second charge should fail
         vm.expectRevert(abi.encodeWithSignature("TooSoonToCharge()"));
         manager.charge(policyId);
     }
@@ -196,12 +236,15 @@ contract ArcPolicyManagerTest is Test {
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
         vm.stopPrank();
 
-        manager.charge(policyId);
+        // First charge already happened on create
+        (,,,, uint128 totalSpentBefore,,, uint32 chargeCountBefore,,,) = manager.policies(policyId);
+        assertEq(totalSpentBefore, CHARGE_AMOUNT);
+        assertEq(chargeCountBefore, 1);
 
         // skip ahead
         vm.warp(block.timestamp + INTERVAL);
 
-        // now it should work
+        // Second charge should work
         manager.charge(policyId);
 
         (,,,, uint128 totalSpent,,, uint32 chargeCount,,,) = manager.policies(policyId);
@@ -214,34 +257,40 @@ contract ArcPolicyManagerTest is Test {
 
         vm.startPrank(payer);
         usdc.approve(address(manager), type(uint256).max);
+        // First charge (10 USDC) happens on create
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, smallCap, "");
         vm.stopPrank();
 
-        manager.charge(policyId); // 10 usdc
-
         vm.warp(block.timestamp + INTERVAL);
 
-        // 10 + 10 = 20 > 15 cap
+        // 10 (from create) + 10 = 20 > 15 cap
         vm.expectRevert(abi.encodeWithSignature("SpendingCapExceeded()"));
         manager.charge(policyId);
     }
 
     function test_Charge_RevertInsufficientAllowance() public {
-        vm.prank(payer);
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT); // Only approve enough for first charge
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
 
-        // no approval
+        vm.warp(block.timestamp + INTERVAL);
+
+        // No allowance remaining for second charge
         vm.expectRevert(abi.encodeWithSignature("InsufficientAllowance()"));
         manager.charge(policyId);
     }
 
     function test_Charge_RevertInsufficientBalance() public {
-        address brokePayer = makeAddr("brokePayer");
-
-        vm.startPrank(brokePayer);
+        vm.startPrank(payer);
         usdc.approve(address(manager), type(uint256).max);
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+
+        // Drain payer's remaining balance
+        usdc.transfer(merchant, usdc.balanceOf(payer));
         vm.stopPrank();
+
+        vm.warp(block.timestamp + INTERVAL);
 
         vm.expectRevert(abi.encodeWithSignature("InsufficientBalance()"));
         manager.charge(policyId);
@@ -255,9 +304,24 @@ contract ArcPolicyManagerTest is Test {
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
         vm.stopPrank();
 
+        // First charge happened on create, need to wait for interval
+        vm.warp(block.timestamp + INTERVAL);
+
         (bool canChargeResult, string memory reason) = manager.canCharge(policyId);
         assertTrue(canChargeResult);
         assertEq(reason, "");
+    }
+
+    function test_CanCharge_ReturnsFalse_TooSoon() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // First charge just happened, should return false
+        (bool canChargeResult, string memory reason) = manager.canCharge(policyId);
+        assertFalse(canChargeResult);
+        assertEq(reason, "Too soon to charge");
     }
 
     function test_CanCharge_ReturnsFalse_NotActive() public {
@@ -275,13 +339,11 @@ contract ArcPolicyManagerTest is Test {
     // --- Admin ---
 
     function test_WithdrawFees_Success() public {
-        // charge a policy to accumulate some fees
+        // First charge happens on createPolicy, accumulating fees
         vm.startPrank(payer);
         usdc.approve(address(manager), type(uint256).max);
-        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
         vm.stopPrank();
-
-        manager.charge(policyId);
 
         uint256 fees = manager.accumulatedFees();
         assertTrue(fees > 0);

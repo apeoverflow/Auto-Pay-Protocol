@@ -171,10 +171,14 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         uint32 interval,
         uint128 spendingCap,
         string calldata metadataUrl
-    ) external returns (bytes32 policyId) {
+    ) external nonReentrant returns (bytes32 policyId) {
         if (merchant == address(0)) revert InvalidMerchant();
         if (chargeAmount == 0) revert InvalidAmount();
         if (interval < MIN_INTERVAL || interval > MAX_INTERVAL) revert InvalidInterval();
+
+        // Verify payer has sufficient balance and allowance for first charge
+        if (USDC.allowance(msg.sender, address(this)) < chargeAmount) revert InsufficientAllowance();
+        if (USDC.balanceOf(msg.sender) < chargeAmount) revert InsufficientBalance();
 
         policyId = keccak256(abi.encodePacked(msg.sender, merchant, block.timestamp, policyCount++));
 
@@ -183,18 +187,31 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
             merchant: merchant,
             chargeAmount: chargeAmount,
             spendingCap: spendingCap,
-            totalSpent: 0,
+            totalSpent: chargeAmount,
             interval: interval,
-            lastCharged: 0,
-            chargeCount: 0,
+            lastCharged: uint32(block.timestamp),
+            chargeCount: 1,
             endTime: 0,
             active: true,
             metadataUrl: metadataUrl
         });
 
         totalPoliciesCreated++;
+        totalChargesProcessed++;
+        totalVolumeProcessed += chargeAmount;
 
         emit PolicyCreated(policyId, msg.sender, merchant, chargeAmount, interval, spendingCap, metadataUrl);
+
+        // Execute first charge
+        USDC.safeTransferFrom(msg.sender, address(this), chargeAmount);
+
+        uint256 protocolFee = _calculateProtocolFee(chargeAmount);
+        accumulatedFees += protocolFee;
+        uint256 merchantAmount = chargeAmount - protocolFee;
+
+        USDC.safeTransfer(merchant, merchantAmount);
+
+        emit ChargeSucceeded(policyId, msg.sender, merchant, uint128(merchantAmount), uint128(protocolFee));
     }
 
     function revokePolicy(bytes32 policyId) external {
@@ -215,7 +232,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         Policy storage policy = policies[policyId];
 
         if (!policy.active) revert PolicyNotActive();
-        if (policy.lastCharged > 0 && block.timestamp < policy.lastCharged + policy.interval) {
+        if (block.timestamp < policy.lastCharged + policy.interval) {
             revert TooSoonToCharge();
         }
         if (policy.spendingCap > 0 && policy.totalSpent + policy.chargeAmount > policy.spendingCap) {
@@ -270,7 +287,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         Policy storage policy = policies[policyId];
 
         if (!policy.active) return (false, "Policy not active");
-        if (policy.lastCharged > 0 && block.timestamp < policy.lastCharged + policy.interval) {
+        if (block.timestamp < policy.lastCharged + policy.interval) {
             return (false, "Too soon to charge");
         }
         if (policy.spendingCap > 0 && policy.totalSpent + policy.chargeAmount > policy.spendingCap) {
@@ -286,10 +303,9 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         return (true, "");
     }
 
-        function getNextChargeTime(bytes32 policyId) external view returns (uint256) {
+    function getNextChargeTime(bytes32 policyId) external view returns (uint256) {
         Policy storage policy = policies[policyId];
         if (!policy.active) return 0;
-        if (policy.lastCharged == 0) return block.timestamp;
         return policy.lastCharged + policy.interval;
     }
 
