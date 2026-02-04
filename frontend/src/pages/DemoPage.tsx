@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { formatUnits, parseUnits } from 'viem'
-import { useWallet, useChain, useApproval, useCreatePolicy, usePolicies, useCharge, useRevokePolicy } from '../hooks'
+import { useWallet, useChain, useCreatePolicy, usePolicies, useCharge, useRevokePolicy } from '../hooks'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
@@ -15,33 +15,55 @@ import {
   RefreshCw,
   Zap,
   XCircle,
+  Wallet,
 } from 'lucide-react'
 import { USDC_DECIMALS } from '../config'
 import { parseContractError } from '../types/policy'
 import { ToastContainer, useToast } from '../components/ui/toast'
 
-// Interval options in seconds
-const INTERVAL_OPTIONS = [
-  { label: '1 hour', value: 3600 },
-  { label: '1 day', value: 86400 },
-  { label: '1 week', value: 604800 },
-  { label: '30 days', value: 2592000 },
-]
+// Interval unit configuration
+const INTERVAL_UNITS = [
+  { label: 'Minutes', value: 'minutes', seconds: 60, max: 525600 }, // max 1 year in minutes
+  { label: 'Days', value: 'days', seconds: 86400, max: 365 },
+  { label: 'Months', value: 'months', seconds: 2592000, max: 12 }, // 30-day months
+  { label: 'Years', value: 'years', seconds: 31536000, max: 1 },
+] as const
+
+type IntervalUnit = typeof INTERVAL_UNITS[number]['value']
+
+const MIN_INTERVAL_SECONDS = 60 // 1 minute
+const MAX_INTERVAL_SECONDS = 365 * 24 * 60 * 60 // 1 year
 
 export function DemoPage() {
-  const { account, balance } = useWallet()
+  const { account, balance, isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet } = useWallet()
   const { chainConfig } = useChain()
   const { policies, refetch: refetchPolicies } = usePolicies()
 
   // Form state
   const [merchant, setMerchant] = React.useState('')
   const [chargeAmount, setChargeAmount] = React.useState('1')
-  const [interval, setInterval] = React.useState(86400)
+  const [intervalAmount, setIntervalAmount] = React.useState('1')
+  const [intervalUnit, setIntervalUnit] = React.useState<IntervalUnit>('days')
   const [spendingCap, setSpendingCap] = React.useState('100')
   const [metadataUrl, setMetadataUrl] = React.useState('')
 
-  // Approval hook
-  const approval = useApproval(chainConfig.policyManager)
+  // Calculate interval in seconds with validation
+  const intervalSeconds = React.useMemo(() => {
+    const unit = INTERVAL_UNITS.find(u => u.value === intervalUnit)
+    if (!unit) return 0
+    const amount = parseInt(intervalAmount) || 0
+    const seconds = amount * unit.seconds
+    // Clamp to min/max
+    if (seconds < MIN_INTERVAL_SECONDS) return MIN_INTERVAL_SECONDS
+    if (seconds > MAX_INTERVAL_SECONDS) return MAX_INTERVAL_SECONDS
+    return seconds
+  }, [intervalAmount, intervalUnit])
+
+  // Get max value for current unit
+  const maxIntervalAmount = React.useMemo(() => {
+    const unit = INTERVAL_UNITS.find(u => u.value === intervalUnit)
+    return unit?.max || 1
+  }, [intervalUnit])
 
   // Create policy hook
   const createPolicy = useCreatePolicy()
@@ -76,14 +98,13 @@ export function DemoPage() {
     }
   }, [spendingCap])
 
-  const needsApproval = !approval.isApproved(spendingCapBigInt)
-
-  // Handle approval
-  const handleApprove = async () => {
+  // Handle wallet setup
+  const handleSetup = async () => {
     try {
-      await approval.approve(spendingCapBigInt)
+      await setupWallet()
+      toast.success('Wallet set up successfully!')
     } catch (err) {
-      console.error('Approval failed:', err)
+      toast.error(parseContractError(err))
     }
   }
 
@@ -95,7 +116,7 @@ export function DemoPage() {
       await createPolicy.createPolicy({
         merchant: merchant as `0x${string}`,
         chargeAmount: chargeAmountBigInt,
-        interval,
+        interval: intervalSeconds,
         spendingCap: spendingCapBigInt,
         metadataUrl,
       })
@@ -168,222 +189,252 @@ export function DemoPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Left Column: Create Subscription Form */}
-          <div className="space-y-4">
-            {/* Subscription Details Card */}
-            <Card>
-              <CardHeader className="py-3 px-4 border-b border-border/50">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
-                  Configure Subscription
+        {/* Wallet Setup Required */}
+        {!isWalletSetup ? (
+          <div className="max-w-lg mx-auto">
+            <Card className="border-primary/30 bg-gradient-to-br from-primary/[0.03] to-transparent">
+              <CardHeader className="py-4 px-5 border-b border-border/50">
+                <CardTitle className="text-base font-semibold flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <Wallet className="h-5 w-5 text-primary" />
+                  </div>
+                  Approve USDC
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                {/* Merchant Address */}
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Merchant Address
-                  </label>
-                  <input
-                    type="text"
-                    value={merchant}
-                    onChange={(e) => setMerchant(e.target.value)}
-                    placeholder="0x..."
-                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    The merchant's wallet address to receive payments
-                  </p>
-                </div>
-
-                {/* Charge Amount */}
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Charge Amount (USDC)
-                  </label>
-                  <div className="mt-1.5 relative">
-                    <input
-                      type="number"
-                      value={chargeAmount}
-                      onChange={(e) => setChargeAmount(e.target.value)}
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
-                      USDC
-                    </span>
+              <CardContent className="p-5">
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground leading-relaxed">
+                    Before creating subscriptions, you need to approve USDC spending. This one-time setup:
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Amount charged each billing cycle
-                  </p>
-                </div>
 
-                {/* Interval */}
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Billing Interval
-                  </label>
-                  <select
-                    value={interval}
-                    onChange={(e) => setInterval(Number(e.target.value))}
-                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
+                      <span>Approves AutoPay to charge your subscriptions</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
+                      <span>Security enforced via policy limits (amount, interval, cap)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
+                      <span>Revoke any subscription instantly to stop charges</span>
+                    </li>
+                  </ul>
+
+                  <Button
+                    onClick={handleSetup}
+                    disabled={isSettingUp}
+                    className="w-full"
+                    size="lg"
                   >
-                    {INTERVAL_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    {isSettingUp ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {setupStatus}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Approve USDC
+                      </>
+                    )}
+                  </Button>
 
-                {/* Spending Cap */}
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Spending Cap (USDC)
-                  </label>
-                  <div className="mt-1.5 relative">
-                    <input
-                      type="number"
-                      value={spendingCap}
-                      onChange={(e) => setSpendingCap(e.target.value)}
-                      placeholder="0.00"
-                      min="0"
-                      step="1"
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
-                      USDC
-                    </span>
-                  </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Maximum total amount that can be charged (safety limit)
-                  </p>
-                </div>
-
-                {/* Metadata URL */}
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Metadata URL <span className="text-muted-foreground/50">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={metadataUrl}
-                    onChange={(e) => setMetadataUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Optional JSON metadata (subscription name, icon, etc.)
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Step 2: Approve */}
-            <Card className={!needsApproval ? 'opacity-60' : ''}>
-              <CardHeader className="py-3 px-4 border-b border-border/50">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${!needsApproval ? 'bg-success/20 text-success' : 'bg-primary/10 text-primary'}`}>
-                      {!needsApproval ? <Check className="h-3.5 w-3.5" /> : '2'}
-                    </span>
-                    Approve USDC
-                  </CardTitle>
-                  {!needsApproval && (
-                    <Badge variant="success" className="text-[10px]">Approved</Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Current Allowance</span>
-                    <span className="font-mono">{formatUnits(approval.allowance, USDC_DECIMALS)} USDC</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Required for Cap</span>
-                    <span className="font-mono">{spendingCap} USDC</span>
-                  </div>
-
-                  {needsApproval && (
-                    <Button
-                      onClick={handleApprove}
-                      disabled={approval.isLoading || spendingCapBigInt === 0n}
-                      className="w-full mt-2"
-                      size="sm"
-                    >
-                      {approval.isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          {approval.status}
-                        </>
-                      ) : (
-                        <>
-                          Approve {spendingCap} USDC
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {approval.error && (
-                    <div className="flex items-center gap-2 text-destructive text-xs">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {approval.error}
+                  {setupError && (
+                    <div className="flex items-center gap-2 text-destructive text-xs p-3 bg-destructive/10 rounded-lg">
+                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                      {setupError}
                     </div>
                   )}
+
+                  <p className="text-[11px] text-muted-foreground/70 text-center">
+                    One-time approval • Requires passkey signature
+                  </p>
                 </div>
               </CardContent>
             </Card>
+          </div>
+        ) : (
+          /* Main Demo UI - Only shown after wallet setup */
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Left Column: Create Subscription Form */}
+            <div className="space-y-4">
+              {/* Subscription Details Card */}
+              <Card>
+                <CardHeader className="py-3 px-4 border-b border-border/50">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
+                    Configure Subscription
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  {/* Merchant Address */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Merchant Address
+                    </label>
+                    <input
+                      type="text"
+                      value={merchant}
+                      onChange={(e) => setMerchant(e.target.value)}
+                      placeholder="0x..."
+                      className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      The merchant's wallet address to receive payments
+                    </p>
+                  </div>
 
-            {/* Step 3: Create Subscription */}
-            <Card className={needsApproval ? 'opacity-60' : ''}>
-              <CardHeader className="py-3 px-4 border-b border-border/50">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${createPolicy.policyId ? 'bg-success/20 text-success' : 'bg-primary/10 text-primary'}`}>
-                    {createPolicy.policyId ? <Check className="h-3.5 w-3.5" /> : '3'}
-                  </span>
-                  Create Subscription
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                {createPolicy.policyId ? (
-                  <div className="space-y-3">
-                    <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
-                      <p className="text-sm font-medium text-success mb-2">Subscription Created!</p>
-                      <div className="space-y-2">
-                        <div>
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Policy ID</span>
-                          <div className="flex items-center gap-2">
-                            <code className="text-xs font-mono truncate">{createPolicy.policyId}</code>
-                            <button
-                              onClick={() => copyToClipboard(createPolicy.policyId!, 'policyId')}
-                              className="text-muted-foreground hover:text-foreground"
-                            >
-                              {copied === 'policyId' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </button>
+                  {/* Charge Amount */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Charge Amount (USDC)
+                    </label>
+                    <div className="mt-1.5 relative">
+                      <input
+                        type="number"
+                        value={chargeAmount}
+                        onChange={(e) => setChargeAmount(e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
+                        USDC
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Amount charged each billing cycle
+                    </p>
+                  </div>
+
+                  {/* Interval */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Billing Interval
+                    </label>
+                    <div className="mt-1.5 flex gap-2">
+                      <input
+                        type="number"
+                        value={intervalAmount}
+                        onChange={(e) => setIntervalAmount(e.target.value)}
+                        min="1"
+                        max={maxIntervalAmount}
+                        className="w-20 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                      <select
+                        value={intervalUnit}
+                        onChange={(e) => setIntervalUnit(e.target.value as IntervalUnit)}
+                        className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      >
+                        {INTERVAL_UNITS.map((unit) => (
+                          <option key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Min: 1 minute, Max: 1 year
+                    </p>
+                  </div>
+
+                  {/* Spending Cap */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Spending Cap (USDC)
+                    </label>
+                    <div className="mt-1.5 relative">
+                      <input
+                        type="number"
+                        value={spendingCap}
+                        onChange={(e) => setSpendingCap(e.target.value)}
+                        placeholder="0.00"
+                        min="0"
+                        step="1"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
+                        USDC
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Maximum total amount that can be charged (safety limit)
+                    </p>
+                  </div>
+
+                  {/* Metadata URL */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Metadata URL <span className="text-muted-foreground/50">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={metadataUrl}
+                      onChange={(e) => setMetadataUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Optional JSON metadata (subscription name, icon, etc.)
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Step 2: Create Subscription */}
+              <Card>
+                <CardHeader className="py-3 px-4 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${createPolicy.policyId ? 'bg-success/20 text-success' : 'bg-primary/10 text-primary'}`}>
+                        {createPolicy.policyId ? <Check className="h-3.5 w-3.5" /> : '2'}
+                      </span>
+                      Create Subscription
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] text-success border-success/30">
+                      <Check className="h-2.5 w-2.5 mr-1" />
+                      Wallet Ready
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {createPolicy.policyId ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
+                        <p className="text-sm font-medium text-success mb-2">Subscription Created!</p>
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Policy ID</span>
+                            <div className="flex items-center gap-2">
+                              <code className="text-xs font-mono truncate">{createPolicy.policyId}</code>
+                              <button
+                                onClick={() => copyToClipboard(createPolicy.policyId!, 'policyId')}
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                {copied === 'policyId' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Transaction</span>
-                          <div className="flex items-center gap-2">
-                            <a
-                              href={`${chainConfig.explorer}/tx/${createPolicy.hash}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                              View on Explorer <ExternalLink className="h-3 w-3" />
-                            </a>
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Transaction</span>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`${chainConfig.explorer}/tx/${createPolicy.hash}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-primary hover:underline flex items-center gap-1"
+                              >
+                                View on Explorer <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full" onClick={createPolicy.reset}>
-                      Create Another
+                      <Button variant="outline" size="sm" className="w-full" onClick={createPolicy.reset}>
+                        Create Another
                     </Button>
                   </div>
                 ) : (
@@ -393,7 +444,7 @@ export function DemoPage() {
                     </div>
                     <Button
                       onClick={handleCreate}
-                      disabled={createPolicy.isLoading || needsApproval || !merchant || chargeAmountBigInt === 0n}
+                      disabled={createPolicy.isLoading || !merchant || chargeAmountBigInt === 0n}
                       className="w-full"
                       size="sm"
                     >
@@ -472,20 +523,20 @@ export function DemoPage() {
               </CardHeader>
               <CardContent className="p-4">
                 <pre className="text-[11px] bg-muted/50 rounded-lg p-3 overflow-x-auto font-mono">
-{`// 1. Check approval
-const { isApproved, approve } = useApproval(policyManager)
+{`// 1. Setup wallet (one-time, on first use)
+const { isWalletSetup, setupWallet } = useWallet()
 
-if (!isApproved(spendingCap)) {
-  await approve(spendingCap)
+if (!isWalletSetup) {
+  await setupWallet() // Deploys wallet + approves USDC
 }
 
-// 2. Create subscription
+// 2. Create subscription (just one signature!)
 const { createPolicy } = useCreatePolicy()
 
 const policyId = await createPolicy({
   merchant: '${merchant || '0x...'}',
   chargeAmount: ${chargeAmountBigInt}n, // ${chargeAmount} USDC
-  interval: ${interval}, // ${INTERVAL_OPTIONS.find(o => o.value === interval)?.label}
+  interval: ${intervalSeconds}, // ${intervalAmount} ${intervalUnit}
   spendingCap: ${spendingCapBigInt}n, // ${spendingCap} USDC
   metadataUrl: '${metadataUrl || ''}'
 })
@@ -594,6 +645,7 @@ console.log('Created:', policyId)`}
             </Card>
           </div>
         </div>
+        )}
       </div>
     </div>
   )
