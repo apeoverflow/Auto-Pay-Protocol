@@ -505,7 +505,7 @@ export function DemoPage() {
                             className="max-h-[450px]"
                           />
                           <p className="mt-5 text-sm text-muted-foreground">
-                            Host this JSON at a public URL. Billing details (amount, interval, cap) are stored on-chain.
+                            Host this JSON at a public URL
                           </p>
                         </div>
                       </>
