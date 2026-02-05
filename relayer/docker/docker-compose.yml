@@ -1,0 +1,35 @@
+services:
+  relayer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      DATABASE_URL: postgres://autopay:password@db:5432/autopay
+      RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY}
+      ARC_TESTNET_RPC: ${ARC_TESTNET_RPC:-https://rpc.testnet.arc.network}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: autopay
+      POSTGRES_USER: autopay
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autopay -d autopay"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
