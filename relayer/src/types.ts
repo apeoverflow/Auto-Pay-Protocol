@@ -16,6 +16,15 @@ export interface ChainConfig {
   }
 }
 
+export type RetryPreset = 'aggressive' | 'standard' | 'conservative' | 'custom'
+
+export interface RetryConfig {
+  preset: RetryPreset
+  maxRetries: number
+  backoffMs: number[] // Backoff times for each retry
+  maxConsecutiveFailures: number // Before cancelling policy
+}
+
 export interface RelayerConfig {
   chains: Record<string, ChainConfig>
   privateKey: `0x${string}`
@@ -28,8 +37,8 @@ export interface RelayerConfig {
   executor: {
     runIntervalMs: number
     batchSize: number
-    maxRetries: number
   }
+  retry: RetryConfig
   webhooks: {
     timeoutMs: number
     maxRetries: number

@@ -6,6 +6,7 @@ import { startExecutorLoop } from './executor/index.js'
 import { startWebhookSenderLoop } from './webhooks/index.js'
 import { createApiServer, startApiServer, stopApiServer } from './api/index.js'
 import { createLogger } from './utils/logger.js'
+import { privateKeyToAccount } from 'viem/accounts'
 
 const logger = createLogger('relayer')
 
@@ -13,6 +14,10 @@ export async function startRelayer() {
   logger.info('Starting AutoPay relayer...')
 
   const config = loadConfig()
+
+  // Log the relayer wallet address
+  const account = privateKeyToAccount(config.privateKey)
+  logger.info({ wallet: account.address }, 'Relayer wallet')
 
   // Run migrations
   logger.info('Running database migrations...')

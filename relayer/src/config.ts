@@ -1,7 +1,54 @@
 import 'dotenv/config'
-import type { RelayerConfig, ChainConfig } from './types.js'
+import type { RelayerConfig, ChainConfig, RetryConfig, RetryPreset } from './types.js'
 
-export type { RelayerConfig, ChainConfig }
+export type { RelayerConfig, ChainConfig, RetryConfig, RetryPreset }
+
+// Retry presets
+export const RETRY_PRESETS: Record<Exclude<RetryPreset, 'custom'>, Omit<RetryConfig, 'preset'>> = {
+  aggressive: {
+    maxRetries: 3,
+    backoffMs: [30_000, 60_000, 120_000], // 30s, 1min, 2min
+    maxConsecutiveFailures: 3,
+  },
+  standard: {
+    maxRetries: 3,
+    backoffMs: [60_000, 300_000, 900_000], // 1min, 5min, 15min
+    maxConsecutiveFailures: 3,
+  },
+  conservative: {
+    maxRetries: 5,
+    backoffMs: [300_000, 900_000, 1_800_000, 3_600_000, 7_200_000], // 5min, 15min, 30min, 1hr, 2hr
+    maxConsecutiveFailures: 5,
+  },
+}
+
+function parseRetryConfig(): RetryConfig {
+  const preset = (process.env.RETRY_PRESET || 'standard') as RetryPreset
+
+  if (preset === 'custom') {
+    // Custom config from env vars
+    const maxRetries = parseInt(process.env.RETRY_MAX_RETRIES || '3', 10)
+    const backoffStr = process.env.RETRY_BACKOFF_MS || '60000,300000,900000'
+    const backoffMs = backoffStr.split(',').map((s) => parseInt(s.trim(), 10))
+    const maxConsecutiveFailures = parseInt(process.env.RETRY_MAX_CONSECUTIVE_FAILURES || '3', 10)
+
+    return {
+      preset: 'custom',
+      maxRetries,
+      backoffMs,
+      maxConsecutiveFailures,
+    }
+  }
+
+  if (!(preset in RETRY_PRESETS)) {
+    throw new Error(`Invalid RETRY_PRESET: ${preset}. Must be one of: aggressive, standard, conservative, custom`)
+  }
+
+  return {
+    preset,
+    ...RETRY_PRESETS[preset],
+  }
+}
 
 // Arc Testnet is the only deployed chain
 const ARC_TESTNET_CONFIG: ChainConfig = {
@@ -56,8 +103,8 @@ export function loadConfig(): RelayerConfig {
     executor: {
       runIntervalMs: 60000, // 1 minute
       batchSize: 10,
-      maxRetries: 3,
     },
+    retry: parseRetryConfig(),
     webhooks: {
       timeoutMs: 10000, // 10 seconds
       maxRetries: 3,
