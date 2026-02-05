@@ -1387,16 +1387,17 @@
 }
 
 .fund-usdc-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 50%;
   background: linear-gradient(135deg, #2775CA, #3B8CE8);
   font-size: 0.625rem;
   font-weight: 700;
+  line-height: 0;
   color: white;
+  padding-left: 1px;
 }
 
 /* ── Destination ── */
@@ -1482,6 +1483,67 @@
   font-family: 'DM Sans', sans-serif;
   font-size: 0.8125rem;
   color: hsl(0 84% 50%);
+}
+
+/* ── Progress Bar ── */
+.fund-progress {
+  margin-top: 1rem;
+}
+
+.fund-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: hsl(var(--muted));
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.fund-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(221 83% 63%));
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+}
+
+/* Animated shimmer effect for indefinite waiting */
+.fund-progress-fill--animated {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0%,
+    hsl(221 83% 70%) 50%,
+    hsl(var(--primary)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.fund-progress-text {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.fund-progress-warning {
+  display: block;
+  padding: 0.625rem 0.875rem;
+  margin-top: 0.75rem;
+  background: hsl(45 93% 47% / 0.1);
+  border: 1px solid hsl(45 93% 47% / 0.2);
+  border-radius: 0.375rem;
+  color: hsl(45 93% 35%);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-align: center;
 }
 
 /* ── Success state ── */
@@ -1589,4 +1651,288 @@
 
 .fund-success-link:hover {
   color: hsl(221 83% 45%);
+}
+
+/* ══════════════════════════════════════════════════
+   Bridge Page — Mobile Optimizations
+   ══════════════════════════════════════════════════ */
+
+/* ── Mobile header with balance ── */
+.bridge-mobile-header {
+  margin-bottom: 1rem;
+}
+
+.bridge-mobile-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.bridge-mobile-balance-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.bridge-mobile-balance-label {
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+}
+
+.bridge-mobile-balance-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.bridge-mobile-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: hsl(var(--muted) / 0.4);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bridge-mobile-copy:hover {
+  background: hsl(var(--muted) / 0.6);
+}
+
+.bridge-mobile-copy:active {
+  transform: scale(0.97);
+}
+
+.bridge-mobile-address {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ── Mobile expandable info ── */
+.bridge-mobile-info {
+  margin-top: 1rem;
+}
+
+.bridge-mobile-info-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--muted-foreground));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bridge-mobile-info-toggle:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.bridge-mobile-info-toggle:active {
+  transform: scale(0.99);
+}
+
+.bridge-mobile-info-content {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
+  animation: bridge-info-reveal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes bridge-info-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Mobile steps (horizontal layout) ── */
+.bridge-mobile-steps {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+}
+
+.bridge-mobile-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.bridge-mobile-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: hsl(var(--primary) / 0.1);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
+.bridge-mobile-step-title {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.bridge-mobile-step-desc {
+  display: block;
+  font-size: 0.625rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.125rem;
+}
+
+/* ── Mobile networks (chip layout) ── */
+.bridge-mobile-networks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bridge-mobile-network {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 2rem;
+  background: hsl(var(--muted) / 0.4);
+  font-size: 0.6875rem;
+  color: hsl(var(--foreground) / 0.8);
+}
+
+.bridge-mobile-network-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bridge-mobile-faucet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(var(--border) / 0.3);
+  font-size: 0.75rem;
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+
+/* ── Mobile Gateway badge ── */
+.bridge-mobile-gateway {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.625rem 0;
+}
+
+.bridge-mobile-gateway-icon {
+  width: 1rem;
+  height: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.bridge-mobile-gateway-text {
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.bridge-mobile-gateway-text strong {
+  font-weight: 600;
+  color: hsl(var(--foreground) / 0.8);
+}
+
+/* ── Desktop sidebar visibility ── */
+@media (max-width: 767px) {
+  .bridge-sidebar {
+    display: none !important;
+  }
+}
+
+/* ── Remove mobile elements on desktop ── */
+@media (min-width: 768px) {
+  .bridge-mobile-header,
+  .bridge-mobile-info,
+  .bridge-mobile-gateway {
+    display: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   JSON Syntax Highlighting (Light Theme)
+   ══════════════════════════════════════════════════ */
+
+.json-highlight {
+  background: hsl(220 20% 97%);
+  border: 1px solid hsl(220 13% 91%);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: hsl(220 10% 40%);
+}
+
+.json-highlight code {
+  display: block;
+}
+
+.json-highlight .json-line {
+  min-height: 1.4em;
+}
+
+.json-highlight .json-key {
+  color: hsl(221 83% 53%);
+  font-weight: 500;
+}
+
+.json-highlight .json-string {
+  color: hsl(142 70% 35%);
+}
+
+.json-highlight .json-number {
+  color: hsl(25 95% 45%);
+}
+
+.json-highlight .json-bool {
+  color: hsl(271 80% 50%);
+  font-weight: 500;
 }
