@@ -1,11 +1,12 @@
 import * as React from 'react'
 import { useWallet } from '../hooks'
 import { FundWalletCard } from '../components/FundWallet'
-import { Copy, Check, ExternalLink } from 'lucide-react'
+import { Copy, Check, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function BridgePage() {
   const { account, balance, fetchBalance } = useWallet()
   const [copied, setCopied] = React.useState(false)
+  const [showInfo, setShowInfo] = React.useState(false)
 
   const handleCopy = () => {
     if (account?.address) {
@@ -26,6 +27,20 @@ export function BridgePage() {
 
   return (
     <div className="bridge-page">
+      {/* ── Mobile: Compact balance pill ── */}
+      <div className="bridge-mobile-header md:hidden">
+        <div className="bridge-mobile-balance">
+          <div className="bridge-mobile-balance-left">
+            <span className="bridge-mobile-balance-label">Arc Balance</span>
+            <span className="bridge-mobile-balance-value">{formatBalance(balance)} USDC</span>
+          </div>
+          <button onClick={handleCopy} className="bridge-mobile-copy">
+            <span className="bridge-mobile-address">{account?.address?.slice(0, 6)}...{account?.address?.slice(-4)}</span>
+            {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+          </button>
+        </div>
+      </div>
+
       <div className="bridge-layout">
         {/* Main card */}
         <div className="bridge-main">
@@ -35,10 +50,96 @@ export function BridgePage() {
               onSuccess={fetchBalance}
             />
           )}
+
+          {/* ── Mobile: Expandable info section ── */}
+          <div className="bridge-mobile-info md:hidden">
+            <button
+              onClick={() => setShowInfo(!showInfo)}
+              className="bridge-mobile-info-toggle"
+            >
+              <span>How it works & supported networks</span>
+              {showInfo ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {showInfo && (
+              <div className="bridge-mobile-info-content">
+                {/* Steps */}
+                <div className="bridge-mobile-steps">
+                  <div className="bridge-mobile-step">
+                    <div className="bridge-mobile-step-num">1</div>
+                    <div>
+                      <span className="bridge-mobile-step-title">Connect</span>
+                      <span className="bridge-mobile-step-desc">Link browser wallet</span>
+                    </div>
+                  </div>
+                  <div className="bridge-mobile-step">
+                    <div className="bridge-mobile-step-num">2</div>
+                    <div>
+                      <span className="bridge-mobile-step-title">Select</span>
+                      <span className="bridge-mobile-step-desc">Choose source chain</span>
+                    </div>
+                  </div>
+                  <div className="bridge-mobile-step">
+                    <div className="bridge-mobile-step-num">3</div>
+                    <div>
+                      <span className="bridge-mobile-step-title">Transfer</span>
+                      <span className="bridge-mobile-step-desc">Instant via Gateway</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Networks */}
+                <div className="bridge-mobile-networks">
+                  <div className="bridge-mobile-network">
+                    <span className="bridge-mobile-network-dot" style={{ background: '#627EEA' }} />
+                    Ethereum
+                  </div>
+                  <div className="bridge-mobile-network">
+                    <span className="bridge-mobile-network-dot" style={{ background: '#E84142' }} />
+                    Avalanche
+                  </div>
+                  <div className="bridge-mobile-network">
+                    <span className="bridge-mobile-network-dot" style={{ background: '#0052FF' }} />
+                    Base
+                  </div>
+                  <div className="bridge-mobile-network">
+                    <span className="bridge-mobile-network-dot" style={{ background: '#19FB9B' }} />
+                    Sonic
+                  </div>
+                  <div className="bridge-mobile-network">
+                    <span className="bridge-mobile-network-dot" style={{ background: '#000' }} />
+                    World Chain
+                  </div>
+                  <div className="bridge-mobile-network">
+                    <span className="bridge-mobile-network-dot" style={{ background: '#9B1C1C' }} />
+                    Sei
+                  </div>
+                </div>
+
+                <a
+                  href="https://faucet.circle.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bridge-mobile-faucet"
+                >
+                  Need testnet USDC? <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* ── Mobile: Gateway badge (always visible) ── */}
+          <div className="bridge-mobile-gateway md:hidden">
+            <svg viewBox="0 0 24 24" fill="none" className="bridge-mobile-gateway-icon">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M8 12h8M12 8l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="bridge-mobile-gateway-text">Powered by <strong>Circle Gateway</strong></span>
+          </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="bridge-sidebar">
+        {/* ── Desktop: Sidebar ── */}
+        <div className="bridge-sidebar hidden md:flex">
           {/* Arc Balance */}
           <div className="bridge-balance">
             <div className="bridge-balance-row">
