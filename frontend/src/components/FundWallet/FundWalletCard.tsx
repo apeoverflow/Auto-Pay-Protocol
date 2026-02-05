@@ -361,6 +361,23 @@ export function FundWalletCard({ destinationAddress, onSuccess }: FundWalletCard
             )}
           </Button>
 
+          {/* Progress indicator for confirmation waiting */}
+          {isLoading && status.includes('Waiting for') && (
+            <div className="fund-progress">
+              <div className="fund-progress-bar">
+                <div
+                  className="fund-progress-fill fund-progress-fill--animated"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              {status.includes('Please stay') && (
+                <div className="fund-progress-warning">
+                  ⏳ Waiting for blockchain confirmation. This may take a few minutes depending on the chain.
+                </div>
+              )}
+            </div>
+          )}
+
           {error && (
             <div className="fund-error">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
