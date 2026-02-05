@@ -119,4 +119,128 @@ program
     console.log()
   })
 
+// ==================== Metadata Commands ====================
+
+program
+  .command('metadata:add')
+  .description('Add or update plan metadata from a JSON file')
+  .requiredOption('--id <id>', 'Metadata ID (used in URL: /metadata/<id>)')
+  .requiredOption('--merchant <address>', 'Merchant address')
+  .requiredOption('--file <path>', 'Path to JSON metadata file')
+  .action(async (options) => {
+    const { readFileSync } = await import('fs')
+    const config = loadConfig()
+    const { upsertPlanMetadata } = await import('../src/db/metadata.js')
+
+    try {
+      const content = readFileSync(options.file, 'utf-8')
+      const metadata = JSON.parse(content)
+
+      await upsertPlanMetadata(
+        config.databaseUrl,
+        options.id,
+        options.merchant,
+        metadata
+      )
+
+      console.log(`\n✅ Metadata saved!`)
+      console.log(`   ID: ${options.id}`)
+      console.log(`   Merchant: ${options.merchant}`)
+      console.log(`   URL: /metadata/${options.id}`)
+      console.log()
+    } catch (err) {
+      logger.error({ error: err }, 'Failed to add metadata')
+      process.exit(1)
+    }
+  })
+
+program
+  .command('metadata:list')
+  .description('List all plan metadata')
+  .action(async () => {
+    const config = loadConfig()
+    const { listAllPlanMetadata } = await import('../src/db/metadata.js')
+
+    const metadata = await listAllPlanMetadata(config.databaseUrl)
+
+    console.log('\n=== Plan Metadata ===\n')
+
+    if (metadata.length === 0) {
+      console.log('No metadata registered yet.')
+      console.log('\nUse: relayer metadata:add --id <id> --merchant <address> --file <path>')
+    } else {
+      for (const m of metadata) {
+        console.log(`ID: ${m.id}`)
+        console.log(`  Merchant: ${m.merchant_address}`)
+        console.log(`  Plan: ${m.metadata.plan?.name ?? 'N/A'}`)
+        console.log(`  URL: /metadata/${m.id}`)
+        console.log(`  Created: ${m.created_at}`)
+        console.log()
+      }
+    }
+  })
+
+program
+  .command('metadata:get')
+  .description('Get plan metadata by ID')
+  .argument('<id>', 'Metadata ID')
+  .action(async (id: string) => {
+    const config = loadConfig()
+    const { getPlanMetadata } = await import('../src/db/metadata.js')
+
+    const metadata = await getPlanMetadata(config.databaseUrl, id)
+
+    if (!metadata) {
+      console.log(`\n❌ Metadata not found: ${id}\n`)
+      process.exit(1)
+    }
+
+    console.log('\n=== Plan Metadata ===\n')
+    console.log(JSON.stringify(metadata.metadata, null, 2))
+    console.log()
+  })
+
+program
+  .command('metadata:delete')
+  .description('Delete plan metadata')
+  .argument('<id>', 'Metadata ID to delete')
+  .action(async (id: string) => {
+    const config = loadConfig()
+    const { deletePlanMetadata } = await import('../src/db/metadata.js')
+
+    const deleted = await deletePlanMetadata(config.databaseUrl, id)
+
+    if (deleted) {
+      console.log(`\n✅ Deleted metadata: ${id}\n`)
+    } else {
+      console.log(`\n❌ Metadata not found: ${id}\n`)
+      process.exit(1)
+    }
+  })
+
+// ==================== Merchant Commands ====================
+
+program
+  .command('merchant:add')
+  .description('Register a merchant webhook')
+  .requiredOption('--address <address>', 'Merchant address')
+  .requiredOption('--webhook-url <url>', 'Webhook URL')
+  .requiredOption('--webhook-secret <secret>', 'Webhook secret for signing')
+  .action(async (options) => {
+    const config = loadConfig()
+    const { upsertMerchant } = await import('../src/db/merchants.js')
+
+    await upsertMerchant(
+      config.databaseUrl,
+      options.address,
+      options.webhookUrl,
+      options.webhookSecret
+    )
+
+    console.log(`\n✅ Merchant registered!`)
+    console.log(`   Address: ${options.address}`)
+    console.log(`   Webhook URL: ${options.webhookUrl}`)
+    console.log()
+  })
+
 program.parse()
