@@ -129,21 +129,40 @@ export async function runIndexerOnce(
           break
 
         case 'ChargeSucceeded':
-          // Update policy state
-          const policy = await getPolicy(
+          // Update policy state - but only if this isn't the first charge
+          // (first charge is already counted when PolicyCreated is processed)
+          const existingPolicy = await getPolicy(
             databaseUrl,
             chainConfig.chainId,
             parsed.event.policyId
           )
-          if (policy) {
-            await updatePolicyAfterCharge(
-              databaseUrl,
-              chainConfig.chainId,
-              parsed.event.policyId,
-              parsed.event.amount.toString(),
-              timestamp,
-              policy.interval_seconds
+          if (existingPolicy && existingPolicy.charge_count > 0) {
+            // Check if this charge was already processed (idempotency)
+            // The first charge happens in createPolicy, so charge_count starts at 1
+            // Only update if this is a subsequent charge
+            const expectedChargeTime = new Date(
+              existingPolicy.last_charged_at!.getTime() + existingPolicy.interval_seconds * 1000
             )
+            // If the event timestamp is close to or after expected charge time, it's a new charge
+            if (timestamp >= expectedChargeTime || existingPolicy.charge_count === 1) {
+              // Skip if this is likely the first charge (emitted with PolicyCreated)
+              // We detect this by checking if charge_count is 1 and the timestamps are very close
+              const policyCreatedAt = existingPolicy.created_at.getTime()
+              const eventTime = timestamp.getTime()
+              const isFirstCharge = existingPolicy.charge_count === 1 &&
+                Math.abs(eventTime - policyCreatedAt) < 60000 // Within 1 minute of creation
+
+              if (!isFirstCharge) {
+                await updatePolicyAfterCharge(
+                  databaseUrl,
+                  chainConfig.chainId,
+                  parsed.event.policyId,
+                  parsed.event.amount.toString(),
+                  timestamp,
+                  existingPolicy.interval_seconds
+                )
+              }
+            }
           }
           // Webhook is queued by executor, not indexer (for our own charges)
           eventsProcessed++
