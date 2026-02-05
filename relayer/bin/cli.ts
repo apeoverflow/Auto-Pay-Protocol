@@ -1,7 +1,8 @@
 #!/usr/bin/env tsx
 import { Command } from 'commander'
-import { loadConfig, getEnabledChains } from '../src/config.js'
+import { loadConfig, getEnabledChains, RETRY_PRESETS } from '../src/config.js'
 import { createLogger } from '../src/utils/logger.js'
+import { formatRetryConfig } from '../src/executor/retry.js'
 
 const logger = createLogger('cli')
 const program = new Command()
@@ -116,6 +117,39 @@ program
     console.log('Webhooks:')
     console.log(`  Pending: ${status.webhooks.pending}`)
     console.log(`  Failed: ${status.webhooks.failed}`)
+    console.log()
+  })
+
+// ==================== Config Commands ====================
+
+program
+  .command('config:retry')
+  .description('Show current retry configuration')
+  .action(async () => {
+    const config = loadConfig()
+
+    console.log('\n=== Retry Configuration ===\n')
+    console.log(`Current: ${formatRetryConfig(config.retry)}`)
+    console.log()
+    console.log('Available presets:')
+    for (const [name, preset] of Object.entries(RETRY_PRESETS)) {
+      const formatMs = (ms: number) => {
+        if (ms >= 3600000) return `${ms / 3600000}hr`
+        if (ms >= 60000) return `${ms / 60000}min`
+        return `${ms / 1000}s`
+      }
+      const backoffs = preset.backoffMs.map(formatMs).join(' → ')
+      console.log(`  ${name}: ${preset.maxRetries} retries (${backoffs}), cancel after ${preset.maxConsecutiveFailures} failures`)
+    }
+    console.log()
+    console.log('To change, set environment variables:')
+    console.log('  RETRY_PRESET=aggressive|standard|conservative|custom')
+    console.log()
+    console.log('For custom preset:')
+    console.log('  RETRY_PRESET=custom')
+    console.log('  RETRY_MAX_RETRIES=3')
+    console.log('  RETRY_BACKOFF_MS=60000,300000,900000')
+    console.log('  RETRY_MAX_CONSECUTIVE_FAILURES=3')
     console.log()
   })
 
@@ -241,6 +275,31 @@ program
     console.log(`   Address: ${options.address}`)
     console.log(`   Webhook URL: ${options.webhookUrl}`)
     console.log()
+  })
+
+program
+  .command('merchant:list')
+  .description('List all registered merchants')
+  .action(async () => {
+    const config = loadConfig()
+    const { listMerchants } = await import('../src/db/merchants.js')
+
+    const merchants = await listMerchants(config.databaseUrl)
+
+    console.log('\n=== Registered Merchants ===\n')
+
+    if (merchants.length === 0) {
+      console.log('No merchants registered yet.')
+      console.log('\nUse: npm run cli -- merchant:add --address <addr> --webhook-url <url> --webhook-secret <secret>')
+    } else {
+      for (const m of merchants) {
+        console.log(`Address: ${m.address}`)
+        console.log(`  Webhook URL: ${m.webhook_url ?? '(not set)'}`)
+        console.log(`  Webhook Secret: ${m.webhook_secret ? '(configured)' : '(not set)'}`)
+        console.log(`  Registered: ${m.created_at}`)
+        console.log()
+      }
+    }
   })
 
 program.parse()
