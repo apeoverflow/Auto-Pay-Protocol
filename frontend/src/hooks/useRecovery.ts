@@ -28,7 +28,7 @@ interface UseRecoveryReturn {
 
 export function useRecovery(): UseRecoveryReturn {
   const { account } = useWallet()
-  const { publicClient, bundlerClient } = useChain()
+  const { publicClient, bundlerClient, chainConfig } = useChain()
 
   const [showRecovery, setShowRecovery] = React.useState(false)
   const [recoveryMnemonic, setRecoveryMnemonic] = React.useState<string | null>(null)
@@ -58,6 +58,11 @@ export function useRecovery(): UseRecoveryReturn {
         account,
         recoveryAddress: recoveryEoa.address,
         paymaster: true,
+        // Arc's bundler requires minimum gas fees that the paymaster doesn't set correctly
+        ...(chainConfig.minGasFees && {
+          maxPriorityFeePerGas: chainConfig.minGasFees.maxPriorityFeePerGas,
+          maxFeePerGas: chainConfig.minGasFees.maxFeePerGas,
+        }),
       })
 
       setRecoveryMnemonic(mnemonic)
@@ -70,7 +75,7 @@ export function useRecovery(): UseRecoveryReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [account, bundlerClient])
+  }, [account, bundlerClient, chainConfig])
 
   const validateRecoveryPhrase = React.useCallback(async (mnemonic: string) => {
     if (!publicClient) return
@@ -120,6 +125,11 @@ export function useRecovery(): UseRecoveryReturn {
         account: pendingRecoveryAccount,
         credential: newCredential,
         paymaster: true,
+        // Arc's bundler requires minimum gas fees that the paymaster doesn't set correctly
+        ...(chainConfig.minGasFees && {
+          maxPriorityFeePerGas: chainConfig.minGasFees.maxPriorityFeePerGas,
+          maxFeePerGas: chainConfig.minGasFees.maxFeePerGas,
+        }),
       })
 
       // Update auth state with new credential
@@ -140,7 +150,7 @@ export function useRecovery(): UseRecoveryReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [pendingRecoveryAccount, bundlerClient])
+  }, [pendingRecoveryAccount, bundlerClient, chainConfig])
 
   const clearRecovery = React.useCallback(() => {
     setRecoveryMnemonic(null)
