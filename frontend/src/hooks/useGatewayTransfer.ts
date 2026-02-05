@@ -17,6 +17,20 @@ import { useChain } from '../contexts/ChainContext'
 import { useWallet } from '../hooks'
 import { USDC_DECIMALS } from '../config'
 
+// Chain-specific wait times (in ms) for Gateway indexer to pick up deposit
+// L2s need longer waits due to L1 finality requirements
+const CHAIN_WAIT_TIMES: Record<number, { waitMs: number; name: string }> = {
+  0:  { waitMs: 5_000,   name: 'Ethereum Sepolia' },   // L1 - fast
+  1:  { waitMs: 5_000,   name: 'Avalanche Fuji' },     // L1 - fast
+  6:  { waitMs: 30_000,  name: 'Base Sepolia' },       // L2 - needs L1 finality
+  13: { waitMs: 8_000,   name: 'Sonic Testnet' },      // L1 - fast
+  14: { waitMs: 30_000,  name: 'World Chain' },        // L2 - needs L1 finality
+  16: { waitMs: 5_000,   name: 'Sei Atlantic' },       // L1 - fast
+  19: { waitMs: 5_000,   name: 'HyperEVM' },           // L1 - fast
+}
+
+const DEFAULT_WAIT = { waitMs: 15_000, name: 'Unknown Chain' }
+
 export interface GatewayTransferParams {
   sourceChain: GatewaySourceChain
   amount: string // e.g., "10.00"
@@ -148,12 +162,14 @@ export function useGatewayTransfer() {
 
       console.log('[Gateway] Deposit tx:', depositHash)
       const depositReceipt = await publicClient.waitForTransactionReceipt({ hash: depositHash })
-      console.log('[Gateway] Deposit confirmed, status:', depositReceipt.status)
+      console.log('[Gateway] Deposit confirmed on-chain, status:', depositReceipt.status)
 
       // Wait for Gateway indexer to pick up the deposit
-      setStatus('Waiting for Gateway to confirm...')
-      console.log('[Gateway] Waiting 5s for indexer...')
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      // Use chain-specific wait times based on block confirmation requirements
+      const waitConfig = CHAIN_WAIT_TIMES[params.sourceChain.domain] || DEFAULT_WAIT
+      setStatus(`Waiting for ${waitConfig.name} confirmation...`)
+      console.log(`[Gateway] Waiting ${waitConfig.waitMs}ms for ${waitConfig.name} indexer...`)
+      await new Promise(resolve => setTimeout(resolve, waitConfig.waitMs))
 
       // Step 3: Build the burn intent
       setStatus('Sign transfer message...')
