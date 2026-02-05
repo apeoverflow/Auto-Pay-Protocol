@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { SubscriptionCard } from './SubscriptionCard'
 import { usePolicies, useRevokePolicy } from '../../hooks'
-import { CreditCard, Loader2 } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
 
 interface SubscriptionsListProps {
   showAll?: boolean
@@ -29,6 +29,9 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
     }
   }
 
+  // For filtered views (dashboard), check displayPolicies; for full view, check policies
+  const isEmpty = showAll ? policies.length === 0 : displayPolicies.length === 0
+
   if (isLoading && policies.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-6">
@@ -37,15 +40,25 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
     )
   }
 
-  if (policies.length === 0) {
+  if (isEmpty) {
     return (
-      <div className="flex flex-col items-center justify-center py-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-          <CreditCard className="h-5 w-5 text-muted-foreground" />
+      <div className="flex flex-col items-center justify-center py-10 px-6">
+        {/* Decorative illustration */}
+        <div className="relative mb-5">
+          {/* Outer ring */}
+          <div className="absolute inset-0 rounded-full border-2 border-dashed border-primary/20 animate-[spin_20s_linear_infinite]" style={{ width: 72, height: 72, margin: -8 }} />
+          {/* Icon container */}
+          <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/10">
+            <Sparkles className="h-6 w-6 text-primary/60" />
+          </div>
+          {/* Floating dots */}
+          <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary/30" />
+          <div className="absolute -bottom-0.5 -left-1.5 h-1.5 w-1.5 rounded-full bg-primary/20" />
         </div>
-        <h3 className="mt-3 font-medium text-sm">No subscriptions yet</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Subscribe to services using your wallet
+
+        <h3 className="text-[15px] font-semibold text-foreground/90">No active subscriptions</h3>
+        <p className="mt-1.5 text-[13px] text-muted-foreground text-center max-w-[220px] leading-relaxed">
+          Your recurring payments will appear here once you subscribe to a service
         </p>
       </div>
     )

@@ -74,12 +74,7 @@ function MobileHeroStats({ balance, formatBal, address, copied, onCopy, onSend, 
         <div className="relative">
           {/* Top row: label + action buttons */}
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20">
-                <span className="text-[9px] font-bold text-blue-400">$</span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>Available Balance</span>
-            </div>
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>Available Balance</span>
 
             {/* Quick actions cluster */}
             <div className="flex items-center gap-1.5">
@@ -117,7 +112,9 @@ function MobileHeroStats({ balance, formatBal, address, copied, onCopy, onSend, 
         {/* Metric row inside hero */}
         <div className="relative flex items-stretch gap-0 mt-5 rounded-xl bg-white/[0.06] border border-white/[0.06]">
           <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
-            <span className="text-[13px] font-bold text-rose-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>{formatUSDC(monthlySpend)}</span>
+            <span className="text-[13px] font-bold text-rose-400 tabular-nums" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              {(Number(monthlySpend) / 1_000_000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
             <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest">Monthly</span>
           </div>
           <div className="w-px bg-white/[0.06] my-2" />
