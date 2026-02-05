@@ -95,10 +95,25 @@ make verify-arc-check  # Check if verification succeeded
 # Sync
 make generate-abis     # Generate ABI JSON files
 make sync              # Sync ABIs and addresses to frontend
+make reset-indexer-db  # Reset indexer DB after new deployment
 
 # Utils
 make wallet            # Show deployer address from PRIVATE_KEY
 ```
+
+### Reset Indexer Database
+
+After deploying a new contract, reset the indexer database to clear old data:
+
+```bash
+# Requires psql and DATABASE_URL (defaults to local docker-compose)
+make reset-indexer-db
+```
+
+This will:
+- Clear all policies, charges, and webhooks
+- Reset indexer state to start from the new deploy block
+- Preserve merchant webhook configurations
 
 ## Environment Variables
 

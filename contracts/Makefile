@@ -1,6 +1,6 @@
 -include .env
 
-.PHONY: help test deploy-arc verify-arc verify-arc-check generate-abis sync clean
+.PHONY: help test deploy-arc verify-arc verify-arc-check generate-abis sync clean reset-indexer-db
 
 help:
 	@echo ""
@@ -16,9 +16,9 @@ help:
 	@echo "  make verify-arc-check  Check if contract is verified"
 	@echo ""
 	@echo "\033[0;33mSync:\033[0m"
-	@echo "  make generate-abis   Generate ABI JSON files"
-	@echo "  make sync            Sync ABIs and addresses to frontend"
-	@echo "  make build-and-sync  Test, build, and sync to frontend"
+	@echo "  make generate-abis     Generate ABI JSON files"
+	@echo "  make sync              Sync ABIs and addresses to frontend + relayer"
+	@echo "  make reset-indexer-db  Reset indexer DB after new deployment"
 	@echo ""
 
 # ==================== Development ====================
@@ -54,6 +54,11 @@ generate-abis:
 sync: generate-abis
 	@./scripts/sync.sh
 
+
+# ==================== Database ====================
+
+reset-indexer-db:
+	@./scripts/reset-indexer-db.sh
 
 # ==================== Utils ====================
 
