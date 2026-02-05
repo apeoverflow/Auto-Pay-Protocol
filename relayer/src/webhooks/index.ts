@@ -107,10 +107,14 @@ export async function startWebhookSenderLoop(
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve()
+      return
+    }
     const timeout = setTimeout(resolve, ms)
     signal?.addEventListener('abort', () => {
       clearTimeout(timeout)
       resolve()
-    })
+    }, { once: true })
   })
 }
