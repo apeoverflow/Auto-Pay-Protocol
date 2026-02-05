@@ -2,37 +2,32 @@ import * as React from 'react'
 import { parseAbiItem, type Log } from 'viem'
 import { useWallet } from '../contexts/WalletContext'
 import { useChain } from '../contexts/ChainContext'
-import type { ActivityItem } from '../types/subscriptions'
+import { fetchActivityFromDb, type DbPolicy, type DbCharge } from '../lib/supabase'
 import { sleep } from '../lib/rateLimit'
+import type { ActivityItem } from '../types/subscriptions'
 
 /**
- * @deprecated USES INDEXED DATA - NEEDS REFACTOR
+ * Fetches activity feed for the connected wallet.
  *
- * This hook fetches activity by scanning multiple event logs:
- * - ChargeSucceeded (payments)
- * - PolicyCreated (subscriptions)
- * - PolicyRevoked (cancellations)
+ * DATA SOURCE PRIORITY:
+ * 1. Supabase (indexed data) - Full history, fast queries, pre-computed timestamps
+ * 2. Contract events (fallback) - Limited to ~9k blocks, multiple RPC calls
  *
- * CURRENT LIMITATIONS:
- * - Only sees last ~9,000 blocks due to RPC getLogs limits
- * - Activity older than this window is invisible
- * - Makes 3 sequential getLogs calls + block timestamp fetches
- * - Rate-limited with 300ms delays to avoid Arc RPC throttling
- *
- * REFACTOR TO:
- * - Call indexer API: GET /api/activity?payer={address}
- * - Indexer stores full history with pre-computed timestamps
- * - Single API call replaces multiple RPC calls
+ * Activity includes:
+ * - ChargeSucceeded events (payments)
+ * - PolicyCreated events (subscriptions)
+ * - PolicyRevoked events (cancellations)
  */
 
 interface UseActivityReturn {
   activity: ActivityItem[]
   isLoading: boolean
   error: string | null
+  dataSource: 'supabase' | 'contract' | null
   refetch: () => Promise<void>
 }
 
-// Event signatures from ArcPolicyManager
+// Event signatures from ArcPolicyManager (for contract fallback)
 const ChargeSucceededEvent = parseAbiItem(
   'event ChargeSucceeded(bytes32 indexed policyId, address indexed payer, address indexed merchant, uint128 amount, uint128 protocolFee)'
 )
@@ -56,6 +51,60 @@ const MAX_RANGE = 9000n
 // Delay between sequential requests to avoid rate limiting
 const REQUEST_DELAY = 300
 
+// Convert Supabase data to ActivityItems
+function dbToActivityItems(
+  policies: DbPolicy[],
+  charges: DbCharge[]
+): ActivityItem[] {
+  const items: ActivityItem[] = []
+
+  // Add charge events
+  for (const charge of charges) {
+    const policy = policies.find(p => p.id === charge.policy_id)
+    items.push({
+      id: `charge-${charge.tx_hash || charge.id}`,
+      type: 'charge',
+      timestamp: new Date(charge.completed_at || charge.created_at),
+      amount: BigInt(charge.amount),
+      token: 'USDC',
+      merchant: policy ? formatAddress(policy.merchant) : 'Unknown',
+      txHash: (charge.tx_hash || '0x') as `0x${string}`,
+      status: charge.status === 'success' ? 'confirmed' : 'failed',
+    })
+  }
+
+  // Add subscribe events (from policy creation)
+  for (const policy of policies) {
+    items.push({
+      id: `subscribe-${policy.created_tx}`,
+      type: 'subscribe',
+      timestamp: new Date(policy.created_at),
+      amount: BigInt(policy.charge_amount),
+      token: 'USDC',
+      merchant: formatAddress(policy.merchant),
+      txHash: policy.created_tx as `0x${string}`,
+      status: 'confirmed',
+    })
+
+    // Add cancel events if policy was revoked
+    if (!policy.active && policy.ended_at) {
+      items.push({
+        id: `cancel-${policy.id}`,
+        type: 'cancel',
+        timestamp: new Date(policy.ended_at),
+        merchant: formatAddress(policy.merchant),
+        txHash: policy.created_tx as `0x${string}`, // Use created_tx as fallback
+        status: 'confirmed',
+      })
+    }
+  }
+
+  // Sort by timestamp descending
+  items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+
+  return items
+}
+
 export function useActivity(): UseActivityReturn {
   const { account } = useWallet()
   const { publicClient, chainConfig } = useChain()
@@ -63,10 +112,12 @@ export function useActivity(): UseActivityReturn {
   const [activity, setActivity] = React.useState<ActivityItem[]>([])
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [dataSource, setDataSource] = React.useState<'supabase' | 'contract' | null>(null)
 
   const fetchActivity = React.useCallback(async () => {
-    if (!publicClient || !account?.address || !chainConfig.policyManager) {
+    if (!account?.address || !chainConfig.policyManager) {
       setActivity([])
+      setDataSource(null)
       return
     }
 
@@ -74,9 +125,30 @@ export function useActivity(): UseActivityReturn {
     setError(null)
 
     try {
-      const currentBlock = await publicClient.getBlockNumber()
+      // Try Supabase first (full indexed history)
+      const dbData = await fetchActivityFromDb(
+        account.address,
+        chainConfig.chain.id
+      )
 
-      // Use a single block range to avoid pagination rate limits
+      if (dbData !== null) {
+        // Successfully fetched from Supabase
+        const items = dbToActivityItems(dbData.policies, dbData.charges)
+        setActivity(items)
+        setDataSource('supabase')
+        return
+      }
+
+      // Fallback to contract events (limited history)
+      if (!publicClient) {
+        setActivity([])
+        setDataSource(null)
+        return
+      }
+
+      console.log('Supabase unavailable, falling back to contract events')
+
+      const currentBlock = await publicClient.getBlockNumber()
       const fromBlock = currentBlock > MAX_RANGE ? currentBlock - MAX_RANGE : 0n
 
       // Fetch events sequentially with delays to avoid rate limiting
@@ -171,13 +243,14 @@ export function useActivity(): UseActivityReturn {
       items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
       setActivity(items)
+      setDataSource('contract')
     } catch (err) {
       console.error('Failed to fetch activity:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch activity')
     } finally {
       setIsLoading(false)
     }
-  }, [publicClient, account?.address, chainConfig.policyManager])
+  }, [publicClient, account?.address, chainConfig.policyManager, chainConfig.chain.id])
 
   // Fetch activity on mount and when dependencies change
   React.useEffect(() => {
@@ -188,6 +261,7 @@ export function useActivity(): UseActivityReturn {
     activity,
     isLoading,
     error,
+    dataSource,
     refetch: fetchActivity,
   }
 }

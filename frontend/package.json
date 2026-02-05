@@ -15,6 +15,7 @@
     "@dynamic-labs/ethereum": "^4.57.2",
     "@dynamic-labs/sdk-react-core": "^4.57.2",
     "@radix-ui/react-slot": "^1.2.4",
+    "@supabase/supabase-js": "^2.95.1",
     "@tanstack/react-query": "^5.90.20",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

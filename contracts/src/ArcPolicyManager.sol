@@ -68,6 +68,7 @@ error InsufficientAllowance();
 error InsufficientBalance();
 error NotPolicyOwner();
 error NothingToWithdraw();
+error PolicyNotFailedEnough();
 
 contract ArcPolicyManager is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -80,6 +81,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
     uint256 public constant MAX_INTERVAL = 365 days;
     uint256 public constant PROTOCOL_FEE_BPS = 250; // 2.5%
     uint256 public constant BPS_DENOMINATOR = 10_000;
+    uint8 public constant MAX_RETRIES = 3;
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <------------- Immutables ---------------->
@@ -100,6 +102,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         uint32 interval;         // Seconds between charges
         uint32 lastCharged;      // Timestamp of last charge
         uint32 chargeCount;      // Number of successful charges
+        uint8 consecutiveFailures; // Consecutive soft-fail count (resets on success)
         uint32 endTime;          // 0 = active, non-zero = timestamp when policy ended
         bool active;             // Can be charged
         string metadataUrl;      // Off-chain metadata (plan details, terms, etc.)
@@ -147,6 +150,14 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
 
     event ChargeFailed(bytes32 indexed policyId, string reason);
 
+    event PolicyCancelledByFailure(
+        bytes32 indexed policyId,
+        address indexed payer,
+        address indexed merchant,
+        uint8 consecutiveFailures,
+        uint32 endTime
+    );
+
     event FeesWithdrawn(address indexed recipient, uint256 amount);
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
@@ -191,6 +202,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
             interval: interval,
             lastCharged: uint32(block.timestamp),
             chargeCount: 1,
+            consecutiveFailures: 0,
             endTime: 0,
             active: true,
             metadataUrl: metadataUrl
@@ -228,7 +240,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
     // <---------- Relayer Functions ------------>
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    function charge(bytes32 policyId) external nonReentrant {
+    function charge(bytes32 policyId) external nonReentrant returns (bool success) {
         Policy storage policy = policies[policyId];
 
         if (!policy.active) revert PolicyNotActive();
@@ -243,13 +255,25 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         address payer = policy.payer;
         address merchant = policy.merchant;
 
-        if (USDC.allowance(payer, address(this)) < chargeAmount) revert InsufficientAllowance();
-        if (USDC.balanceOf(payer) < chargeAmount) revert InsufficientBalance();
+        // Soft-fail on insufficient allowance/balance (don't revert)
+        if (USDC.allowance(payer, address(this)) < chargeAmount) {
+            policy.consecutiveFailures++;
+            policy.lastCharged = uint32(block.timestamp);
+            emit ChargeFailed(policyId, "Insufficient allowance");
+            return false;
+        }
+        if (USDC.balanceOf(payer) < chargeAmount) {
+            policy.consecutiveFailures++;
+            policy.lastCharged = uint32(block.timestamp);
+            emit ChargeFailed(policyId, "Insufficient balance");
+            return false;
+        }
 
         // update state
         policy.lastCharged = uint32(block.timestamp);
         policy.totalSpent += policy.chargeAmount;
         policy.chargeCount++;
+        policy.consecutiveFailures = 0;
         totalChargesProcessed++;
         totalVolumeProcessed += policy.chargeAmount;
 
@@ -265,18 +289,30 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         USDC.safeTransfer(merchant, merchantAmount);
 
         emit ChargeSucceeded(policyId, payer, merchant, uint128(merchantAmount), uint128(protocolFee));
+        return true;
     }
 
     function batchCharge(bytes32[] calldata policyIds) external returns (bool[] memory results) {
         results = new bool[](policyIds.length);
         for (uint256 i = 0; i < policyIds.length; i++) {
-            try this.charge(policyIds[i]) {
-                results[i] = true;
+            try this.charge(policyIds[i]) returns (bool success) {
+                results[i] = success;
             } catch {
                 results[i] = false;
                 emit ChargeFailed(policyIds[i], "Charge reverted");
             }
         }
+    }
+
+    function cancelFailedPolicy(bytes32 policyId) external {
+        Policy storage policy = policies[policyId];
+        if (!policy.active) revert PolicyNotActive();
+        if (policy.consecutiveFailures < MAX_RETRIES) revert PolicyNotFailedEnough();
+
+        policy.active = false;
+        policy.endTime = uint32(block.timestamp);
+
+        emit PolicyCancelledByFailure(policyId, policy.payer, policy.merchant, policy.consecutiveFailures, policy.endTime);
     }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
@@ -287,6 +323,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         Policy storage policy = policies[policyId];
 
         if (!policy.active) return (false, "Policy not active");
+        if (policy.consecutiveFailures >= MAX_RETRIES) return (false, "Max consecutive failures reached");
         if (block.timestamp < policy.lastCharged + policy.interval) {
             return (false, "Too soon to charge");
         }

@@ -13,8 +13,8 @@ export { useCharge } from './useCharge'
 export { useBrowserWalletAdapter } from './useBrowserWalletAdapter'
 export { useFundWallet } from './useFundWallet'
 
-// ⚠️ INDEXED DATA HOOKS - Need refactor to use indexer API
-// Currently fetch via getLogs (limited to ~9k blocks, misses old data)
-// See: CLAUDE.md "Indexed Data Requirements" section
-export { usePolicies } from './usePolicies' // TODO: GET /api/policies?payer={address}
-export { useActivity } from './useActivity' // TODO: GET /api/activity?payer={address}
+// Indexed data hooks - fetches from Supabase with contract fallback
+// Primary: Supabase (full history, fast queries)
+// Fallback: Contract events (limited to ~9k blocks)
+export { usePolicies } from './usePolicies'
+export { useActivity } from './useActivity'

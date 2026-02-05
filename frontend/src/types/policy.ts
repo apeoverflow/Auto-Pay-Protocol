@@ -10,6 +10,7 @@ export interface OnChainPolicy {
   interval: number      // seconds (uint32)
   lastCharged: number   // unix timestamp (uint32)
   chargeCount: number   // number of successful charges (uint32)
+  consecutiveFailures: number // consecutive soft-fail count (uint8)
   endTime: number       // unix timestamp when revoked (uint32), 0 if active
   active: boolean
   metadataUrl: string

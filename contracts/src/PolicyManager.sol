@@ -78,6 +78,7 @@ error InsufficientAllowance();
 error InsufficientBalance();
 error NotPolicyOwner();
 error NothingToWithdraw();
+error PolicyNotFailedEnough();
 
 contract PolicyManager is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -91,6 +92,7 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     uint256 public constant MAX_INTERVAL = 365 days;
     uint256 public constant PROTOCOL_FEE_BPS = 250; // 2.5%
     uint256 public constant BPS_DENOMINATOR = 10_000;
+    uint8 public constant MAX_RETRIES = 3;
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <------------- Immutables ---------------->
@@ -111,6 +113,7 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         uint128 totalSpent;      // Running total charged
         uint32 interval;         // Seconds between charges
         uint32 lastCharged;      // Timestamp of last charge
+        uint8 consecutiveFailures; // Consecutive soft-fail count (resets on success)
         bool active;             // Can be charged
         string metadataUrl;      // Off-chain metadata (plan details, terms, etc.)
     }
@@ -125,7 +128,7 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     // <--------------- Events ------------------>
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    event Policycreated(
+    event PolicyCreated(
         bytes32 indexed policyId,
         address indexed payer,
         bytes32 indexed merchantOnArc,
@@ -138,7 +141,15 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     event PolicyRevoked(
         bytes32 indexed policyId,
         address indexed payer,
-        bytes23 indexed merchantOnArc
+        bytes32 indexed merchantOnArc
+    );
+
+    event PolicyCancelledByFailure(
+        bytes32 indexed policyId,
+        address indexed payer,
+        bytes32 indexed merchantOnArc,
+        uint8 consecutiveFailures,
+        uint32 endTime
     );
 
     event ChargeSucceeded(
@@ -191,6 +202,8 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     function charge(bytes32 policyId) external nonReentrant returns (uint64 cctpNonce) {}
 
     function batchCharge(bytes32[] calldata policyIds) external returns (uint256 successCount) {}
+
+    function cancelFailedPolicy(bytes32 policyId) external {}
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <----------- View Functions -------------->

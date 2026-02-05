@@ -43,6 +43,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_RETRIES",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MIN_INTERVAL",
     "inputs": [],
     "outputs": [
@@ -138,7 +151,7 @@
   },
   {
     "type": "function",
-    "name": "charge",
+    "name": "cancelFailedPolicy",
     "inputs": [
       {
         "name": "policyId",
@@ -147,6 +160,25 @@
       }
     ],
     "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "charge",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "success",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -354,6 +386,11 @@
         "name": "chargeCount",
         "type": "uint32",
         "internalType": "uint32"
+      },
+      {
+        "name": "consecutiveFailures",
+        "type": "uint8",
+        "internalType": "uint8"
       },
       {
         "name": "endTime",
@@ -574,6 +611,43 @@
   },
   {
     "type": "event",
+    "name": "PolicyCancelledByFailure",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "payer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "merchant",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "consecutiveFailures",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "endTime",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PolicyCreated",
     "inputs": [
       {
@@ -712,6 +786,11 @@
   {
     "type": "error",
     "name": "PolicyNotActive",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PolicyNotFailedEnough",
     "inputs": []
   },
   {

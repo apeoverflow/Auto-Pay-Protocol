@@ -74,6 +74,7 @@ contract ArcPolicyManagerTest is Test {
             uint32 interval,
             uint32 lastCharged,
             uint32 chargeCount,
+            uint8 consecutiveFailures,
             uint32 endTime,
             bool active,
         ) = manager.policies(policyId);
@@ -86,6 +87,7 @@ contract ArcPolicyManagerTest is Test {
         assertEq(interval, INTERVAL);
         assertEq(lastCharged, block.timestamp); // Set to now
         assertEq(chargeCount, 1); // First charge counted
+        assertEq(consecutiveFailures, 0);
         assertEq(endTime, 0);
         assertTrue(active);
     }
@@ -148,7 +150,7 @@ contract ArcPolicyManagerTest is Test {
         manager.revokePolicy(policyId);
         vm.stopPrank();
 
-        (,,,,,,,, uint32 endTime, bool active,) = manager.policies(policyId);
+        (,,,,,,,,, uint32 endTime, bool active,) = manager.policies(policyId);
         assertFalse(active);
         assertEq(endTime, block.timestamp);
     }
@@ -202,7 +204,7 @@ contract ArcPolicyManagerTest is Test {
         assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + merchantAmount);
         assertEq(manager.accumulatedFees(), feesBefore + protocolFee);
 
-        (,,,, uint128 totalSpent,, uint32 lastCharged, uint32 chargeCount,,,) = manager.policies(policyId);
+        (,,,, uint128 totalSpent,, uint32 lastCharged, uint32 chargeCount,,,,) = manager.policies(policyId);
         assertEq(totalSpent, CHARGE_AMOUNT * 2); // First + second charge
         assertEq(lastCharged, block.timestamp);
         assertEq(chargeCount, 2);
@@ -237,7 +239,7 @@ contract ArcPolicyManagerTest is Test {
         vm.stopPrank();
 
         // First charge already happened on create
-        (,,,, uint128 totalSpentBefore,,, uint32 chargeCountBefore,,,) = manager.policies(policyId);
+        (,,,, uint128 totalSpentBefore,,, uint32 chargeCountBefore,,,,) = manager.policies(policyId);
         assertEq(totalSpentBefore, CHARGE_AMOUNT);
         assertEq(chargeCountBefore, 1);
 
@@ -247,7 +249,7 @@ contract ArcPolicyManagerTest is Test {
         // Second charge should work
         manager.charge(policyId);
 
-        (,,,, uint128 totalSpent,,, uint32 chargeCount,,,) = manager.policies(policyId);
+        (,,,, uint128 totalSpent,,, uint32 chargeCount,,,,) = manager.policies(policyId);
         assertEq(totalSpent, CHARGE_AMOUNT * 2);
         assertEq(chargeCount, 2);
     }
@@ -268,7 +270,7 @@ contract ArcPolicyManagerTest is Test {
         manager.charge(policyId);
     }
 
-    function test_Charge_RevertInsufficientAllowance() public {
+    function test_Charge_SoftFailInsufficientAllowance() public {
         vm.startPrank(payer);
         usdc.approve(address(manager), CHARGE_AMOUNT); // Only approve enough for first charge
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
@@ -276,12 +278,15 @@ contract ArcPolicyManagerTest is Test {
 
         vm.warp(block.timestamp + INTERVAL);
 
-        // No allowance remaining for second charge
-        vm.expectRevert(abi.encodeWithSignature("InsufficientAllowance()"));
-        manager.charge(policyId);
+        // No allowance remaining - should soft-fail (return false), not revert
+        bool success = manager.charge(policyId);
+        assertFalse(success);
+
+        (,,,,,,, , uint8 consecutiveFailures,,,) = manager.policies(policyId);
+        assertEq(consecutiveFailures, 1);
     }
 
-    function test_Charge_RevertInsufficientBalance() public {
+    function test_Charge_SoftFailInsufficientBalance() public {
         vm.startPrank(payer);
         usdc.approve(address(manager), type(uint256).max);
         bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
@@ -292,8 +297,12 @@ contract ArcPolicyManagerTest is Test {
 
         vm.warp(block.timestamp + INTERVAL);
 
-        vm.expectRevert(abi.encodeWithSignature("InsufficientBalance()"));
-        manager.charge(policyId);
+        // Should soft-fail (return false), not revert
+        bool success = manager.charge(policyId);
+        assertFalse(success);
+
+        (,,,,,,, , uint8 consecutiveFailures,,,) = manager.policies(policyId);
+        assertEq(consecutiveFailures, 1);
     }
 
     // --- View Functions ---
@@ -373,5 +382,186 @@ contract ArcPolicyManagerTest is Test {
         vm.prank(payer);
         vm.expectRevert();
         manager.setFeeRecipient(newRecipient);
+    }
+
+    // --- Consecutive Failure Tracking ---
+
+    function test_Charge_SoftFailure_IncrementsCounter() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT); // Only enough for first charge
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // Fail 3 times across intervals
+        for (uint8 i = 1; i <= 3; i++) {
+            vm.warp(block.timestamp + INTERVAL);
+            bool success = manager.charge(policyId);
+            assertFalse(success);
+
+            (,,,,,,,, uint8 failures,,,) = manager.policies(policyId);
+            assertEq(failures, i);
+        }
+    }
+
+    function test_Charge_ResetsCounterOnSuccess() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT); // Only enough for first charge
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // Soft-fail once (no allowance remaining)
+        vm.warp(block.timestamp + INTERVAL);
+        bool success = manager.charge(policyId);
+        assertFalse(success);
+
+        (,,,,,,,, uint8 failuresAfterFail,,,) = manager.policies(policyId);
+        assertEq(failuresAfterFail, 1);
+
+        // Re-approve and charge successfully
+        vm.prank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+
+        vm.warp(block.timestamp + INTERVAL);
+        success = manager.charge(policyId);
+        assertTrue(success);
+
+        (,,,,,,,, uint8 failuresAfterSuccess,,,) = manager.policies(policyId);
+        assertEq(failuresAfterSuccess, 0);
+    }
+
+    function test_Charge_SoftFailure_UpdatesLastCharged() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT); // Only enough for first charge
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        uint256 chargeTime = block.timestamp + INTERVAL;
+        vm.warp(chargeTime);
+        manager.charge(policyId);
+
+        (,,,,,, uint32 lastCharged,,,,, ) = manager.policies(policyId);
+        assertEq(lastCharged, chargeTime); // lastCharged updated even on failure
+    }
+
+    function test_CancelFailedPolicy_Success() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT); // Only enough for first charge
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // Accumulate 3 consecutive failures
+        for (uint8 i = 0; i < 3; i++) {
+            vm.warp(block.timestamp + INTERVAL);
+            manager.charge(policyId);
+        }
+
+        // Anyone can cancel
+        manager.cancelFailedPolicy(policyId);
+
+        (,,,,,,,,, uint32 endTime, bool active,) = manager.policies(policyId);
+        assertFalse(active);
+        assertEq(endTime, block.timestamp);
+    }
+
+    function test_CancelFailedPolicy_AnyoneCanCall() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        for (uint8 i = 0; i < 3; i++) {
+            vm.warp(block.timestamp + INTERVAL);
+            manager.charge(policyId);
+        }
+
+        // Third party (not payer or merchant) can cancel
+        address thirdParty = makeAddr("thirdParty");
+        vm.prank(thirdParty);
+        manager.cancelFailedPolicy(policyId);
+
+        (,,,,,,,,, uint32 endTime, bool active,) = manager.policies(policyId);
+        assertFalse(active);
+        assertTrue(endTime > 0);
+    }
+
+    function test_CancelFailedPolicy_RevertNotFailedEnough() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // 0 failures
+        vm.expectRevert(abi.encodeWithSignature("PolicyNotFailedEnough()"));
+        manager.cancelFailedPolicy(policyId);
+
+        // 1 failure
+        vm.warp(block.timestamp + INTERVAL);
+        manager.charge(policyId);
+        vm.expectRevert(abi.encodeWithSignature("PolicyNotFailedEnough()"));
+        manager.cancelFailedPolicy(policyId);
+
+        // 2 failures
+        vm.warp(block.timestamp + INTERVAL);
+        manager.charge(policyId);
+        vm.expectRevert(abi.encodeWithSignature("PolicyNotFailedEnough()"));
+        manager.cancelFailedPolicy(policyId);
+    }
+
+    function test_CancelFailedPolicy_RevertAlreadyInactive() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        manager.revokePolicy(policyId);
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSignature("PolicyNotActive()"));
+        manager.cancelFailedPolicy(policyId);
+    }
+
+    function test_CanCharge_FalseAtMaxFailures() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // Accumulate 3 consecutive failures
+        for (uint8 i = 0; i < 3; i++) {
+            vm.warp(block.timestamp + INTERVAL);
+            manager.charge(policyId);
+        }
+
+        vm.warp(block.timestamp + INTERVAL);
+        (bool canChargeResult, string memory reason) = manager.canCharge(policyId);
+        assertFalse(canChargeResult);
+        assertEq(reason, "Max consecutive failures reached");
+    }
+
+    function test_BatchCharge_WithSoftFailures() public {
+        // Create two policies: one with funds, one without
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId1 = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        address brokePayer = makeAddr("brokePayer");
+        usdc.mint(brokePayer, CHARGE_AMOUNT); // Only enough for first charge
+        vm.startPrank(brokePayer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId2 = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // Drain brokePayer
+        vm.prank(brokePayer);
+        usdc.transfer(merchant, usdc.balanceOf(brokePayer));
+
+        vm.warp(block.timestamp + INTERVAL);
+
+        bytes32[] memory policyIds = new bytes32[](2);
+        policyIds[0] = policyId1;
+        policyIds[1] = policyId2;
+
+        bool[] memory results = manager.batchCharge(policyIds);
+        assertTrue(results[0]);  // payer has funds
+        assertFalse(results[1]); // brokePayer is drained
     }
 }
