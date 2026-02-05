@@ -1,16 +1,7 @@
+import type { RetryConfig } from '../types.js'
 import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('executor:retry')
-
-export interface RetryConfig {
-  maxRetries: number
-  backoffMs: number[]  // Backoff times for each retry (e.g., [60000, 300000, 900000])
-}
-
-export const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 3,
-  backoffMs: [60_000, 300_000, 900_000], // 1min, 5min, 15min
-}
 
 export function shouldRetry(attemptCount: number, config: RetryConfig): boolean {
   return attemptCount < config.maxRetries
@@ -88,4 +79,16 @@ export function logRetryDecision(
       'Max retries exhausted or non-retryable error'
     )
   }
+}
+
+// Format retry config for display
+export function formatRetryConfig(config: RetryConfig): string {
+  const formatMs = (ms: number) => {
+    if (ms >= 3600000) return `${ms / 3600000}hr`
+    if (ms >= 60000) return `${ms / 60000}min`
+    return `${ms / 1000}s`
+  }
+
+  const backoffs = config.backoffMs.map(formatMs).join(' → ')
+  return `${config.preset} (${config.maxRetries} retries: ${backoffs}, cancel after ${config.maxConsecutiveFailures} failures)`
 }

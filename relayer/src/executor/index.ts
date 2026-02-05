@@ -1,7 +1,7 @@
 import type { RelayerConfig, ChainConfig, WebhookPayload } from '../types.js'
 import { chargePolicy, cancelFailedPolicyOnChain } from './charge.js'
-import { DEFAULT_RETRY_CONFIG, shouldRetry, isRetryableError, logRetryDecision } from './retry.js'
-import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures } from '../db/policies.js'
+import { shouldRetry, isRetryableError, logRetryDecision } from './retry.js'
+import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures, markPolicyCancelledByFailure } from '../db/policies.js'
 import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { createLogger } from '../utils/logger.js'
@@ -16,7 +16,8 @@ async function processChainCharges(
   const duePolices = await getPoliciesDueForCharge(
     config.databaseUrl,
     chainConfig.chainId,
-    config.executor.batchSize
+    config.executor.batchSize,
+    config.retry.maxConsecutiveFailures
   )
 
   if (duePolices.length === 0) {
@@ -95,12 +96,13 @@ async function processChainCharges(
       // Soft-fail: tx succeeded but charge returned false (balance/allowance)
       // The contract already incremented consecutiveFailures on-chain
 
-      // Track in database
+      // Track in database and update next_charge_at to prevent immediate retry
       const failures = await incrementConsecutiveFailures(
         config.databaseUrl,
         chainConfig.chainId,
         policy.id,
-        result.error ?? 'Insufficient balance or allowance'
+        result.error ?? 'Insufficient balance or allowance',
+        policy.interval_seconds
       )
 
       // Mark charge as failed
@@ -131,8 +133,8 @@ async function processChainCharges(
         chargeId
       )
 
-      // If 3+ consecutive failures, call cancelFailedPolicy on-chain
-      if (failures >= DEFAULT_RETRY_CONFIG.maxRetries) {
+      // If max consecutive failures reached, call cancelFailedPolicy on-chain
+      if (failures >= config.retry.maxConsecutiveFailures) {
         logger.info(
           { policyId: policy.id, failures },
           'Max consecutive failures reached, cancelling policy on-chain'
@@ -143,6 +145,14 @@ async function processChainCharges(
           chainConfig.chainId
         )
         if (cancelResult.success) {
+          // Update database to mark policy as cancelled
+          await markPolicyCancelledByFailure(
+            config.databaseUrl,
+            chainConfig.chainId,
+            policy.id,
+            new Date()
+          )
+
           // Queue cancellation webhook
           await queueWebhook(
             config.databaseUrl,
@@ -169,9 +179,9 @@ async function processChainCharges(
       // Hard failure: tx reverted or other error
       const attemptCount = policy.charge_count ?? 1
       const retryable = isRetryableError(new Error(result.error))
-      const willRetry = retryable && shouldRetry(attemptCount, DEFAULT_RETRY_CONFIG)
+      const willRetry = retryable && shouldRetry(attemptCount, config.retry)
 
-      logRetryDecision(policy.id, attemptCount, willRetry, result.error, DEFAULT_RETRY_CONFIG)
+      logRetryDecision(policy.id, attemptCount, willRetry, result.error, config.retry)
 
       if (!willRetry) {
         // Mark charge as failed
@@ -183,7 +193,7 @@ async function processChainCharges(
         )
 
         // Mark policy as needing attention if retries exhausted
-        if (attemptCount >= DEFAULT_RETRY_CONFIG.maxRetries) {
+        if (attemptCount >= config.retry.maxRetries) {
           await markPolicyNeedsAttention(
             config.databaseUrl,
             chainConfig.chainId,
