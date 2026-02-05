@@ -17,11 +17,13 @@ import {
   XCircle,
   Wallet,
   ArrowDownUp,
+  HelpCircle,
 } from 'lucide-react'
 import { USDC_DECIMALS } from '../config'
 import { parseContractError } from '../types/policy'
 import { ToastContainer, useToast } from '../components/ui/toast'
 import { FundWalletCard } from '../components/FundWallet'
+import { JsonHighlight } from '../components/ui/json-highlight'
 
 // Interval unit configuration
 const INTERVAL_UNITS = [
@@ -35,6 +37,34 @@ type IntervalUnit = typeof INTERVAL_UNITS[number]['value']
 
 const MIN_INTERVAL_SECONDS = 60 // 1 minute
 const MAX_INTERVAL_SECONDS = 365 * 24 * 60 * 60 // 1 year
+
+// Metadata template for merchants
+const METADATA_TEMPLATE = `{
+  "version": "1.0",
+  "plan": {
+    "name": "Pro Plan",
+    "description": "Access to all premium features",
+    "tier": "pro",
+    "features": [
+      "Unlimited projects",
+      "Priority support",
+      "API access"
+    ]
+  },
+  "merchant": {
+    "name": "Your Company",
+    "logo": "https://yoursite.com/logo.png",
+    "website": "https://yoursite.com",
+    "supportEmail": "support@yoursite.com",
+    "termsUrl": "https://yoursite.com/terms",
+    "privacyUrl": "https://yoursite.com/privacy"
+  },
+  "display": {
+    "color": "#6366F1",
+    "badge": "Most Popular",
+    "icon": "crown"
+  }
+}`
 
 export function DemoPage() {
   const { isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet, account, balance, fetchBalance } = useWallet()
@@ -141,6 +171,8 @@ export function DemoPage() {
   }, [createPolicy.policyId])
 
   const [copied, setCopied] = React.useState<string | null>(null)
+  const [showMetadataTemplate, setShowMetadataTemplate] = React.useState(false)
+
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
     setCopied(id)
@@ -415,20 +447,69 @@ export function DemoPage() {
                   </div>
 
                   {/* Metadata URL */}
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Metadata URL <span className="text-muted-foreground/50">(optional)</span>
-                    </label>
+                  <div className="relative">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Metadata URL <span className="text-muted-foreground/50">(optional)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowMetadataTemplate(!showMetadataTemplate)}
+                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/5 hover:bg-primary/10 rounded transition-colors"
+                      >
+                        <HelpCircle className="h-3 w-3" />
+                        {showMetadataTemplate ? 'Hide' : 'View'} Template
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={metadataUrl}
                       onChange={(e) => setMetadataUrl(e.target.value)}
-                      placeholder="https://..."
+                      placeholder="https://yoursite.com/plans/pro.json"
                       className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Optional JSON metadata (subscription name, icon, etc.)
+                      URL to JSON with plan name, description, merchant branding
                     </p>
+
+                    {/* Template Popup */}
+                    {showMetadataTemplate && (
+                      <>
+                        {/* Backdrop to close on click outside */}
+                        <div
+                          className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm"
+                          onClick={() => setShowMetadataTemplate(false)}
+                        />
+                        <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] z-50 p-6 bg-popover border border-border rounded-2xl shadow-2xl">
+                          <div className="flex items-center justify-between mb-5">
+                            <span className="text-lg font-semibold">Metadata Template</span>
+                            <button
+                              onClick={() => copyToClipboard(METADATA_TEMPLATE, 'metadata-template')}
+                              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+                            >
+                              {copied === 'metadata-template' ? (
+                                <>
+                                  <Check className="h-4 w-4" />
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-4 w-4" />
+                                  Copy Template
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <JsonHighlight
+                            json={METADATA_TEMPLATE}
+                            className="max-h-[450px]"
+                          />
+                          <p className="mt-5 text-sm text-muted-foreground">
+                            Host this JSON at a public URL. Billing details (amount, interval, cap) are stored on-chain.
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
