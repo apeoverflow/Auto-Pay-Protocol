@@ -94,7 +94,8 @@ export async function updatePolicyAfterCharge(
 export async function getPoliciesDueForCharge(
   databaseUrl: string,
   chainId: number,
-  limit: number
+  limit: number,
+  maxConsecutiveFailures: number = 3
 ): Promise<PolicyRow[]> {
   const db = getDb(databaseUrl)
 
@@ -103,7 +104,7 @@ export async function getPoliciesDueForCharge(
     FROM policies
     WHERE chain_id = ${chainId}
       AND active = true
-      AND consecutive_failures < 3
+      AND consecutive_failures < ${maxConsecutiveFailures}
       AND next_charge_at <= NOW()
     ORDER BY next_charge_at ASC
     LIMIT ${limit}
@@ -158,21 +159,28 @@ export async function incrementConsecutiveFailures(
   databaseUrl: string,
   chainId: number,
   policyId: string,
-  reason: string
+  reason: string,
+  intervalSeconds: number
 ): Promise<number> {
   const db = getDb(databaseUrl)
+
+  // On soft-fail, the contract updates lastCharged, so we need to update next_charge_at
+  // to prevent the executor from immediately retrying
+  const nextChargeAt = new Date(Date.now() + intervalSeconds * 1000)
 
   const rows = await db<{ consecutive_failures: number }[]>`
     UPDATE policies
     SET
       consecutive_failures = consecutive_failures + 1,
-      last_failure_reason = ${reason}
+      last_failure_reason = ${reason},
+      last_charged_at = NOW(),
+      next_charge_at = ${nextChargeAt}
     WHERE id = ${policyId} AND chain_id = ${chainId}
     RETURNING consecutive_failures
   `
 
   const failures = rows[0]?.consecutive_failures ?? 0
-  logger.debug({ policyId, chainId, failures, reason }, 'Incremented consecutive failures')
+  logger.debug({ policyId, chainId, failures, reason, nextChargeAt }, 'Incremented consecutive failures')
   return failures
 }
 

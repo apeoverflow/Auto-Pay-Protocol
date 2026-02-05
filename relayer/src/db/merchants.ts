@@ -61,3 +61,16 @@ export async function getMerchantWebhookConfig(
     webhookSecret: rows[0].webhook_secret,
   }
 }
+
+export async function listMerchants(
+  databaseUrl: string
+): Promise<MerchantRow[]> {
+  const db = getDb(databaseUrl)
+
+  const rows = await db<MerchantRow[]>`
+    SELECT * FROM merchants
+    ORDER BY created_at DESC
+  `
+
+  return rows
+}
