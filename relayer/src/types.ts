@@ -43,6 +43,7 @@ export interface RelayerConfig {
     timeoutMs: number
     maxRetries: number
   }
+  merchantAddresses: Set<string> | null // null = process all merchants
   port: number
   logLevel: string
 }

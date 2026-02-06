@@ -16,6 +16,7 @@ const logger = createLogger('indexer')
 export async function runIndexerOnce(
   chainConfig: ChainConfig,
   databaseUrl: string,
+  merchantAddresses: Set<string> | null,
   startBlock?: number
 ) {
   const client = createChainClient(chainConfig)
@@ -59,6 +60,11 @@ export async function runIndexerOnce(
     'Starting indexer run'
   )
 
+  const isMerchantMatch = (merchant: string): boolean => {
+    if (!merchantAddresses) return true
+    return merchantAddresses.has(merchant.toLowerCase())
+  }
+
   let eventsProcessed = 0
 
   for await (const { logs, fromBlock: batchFrom, toBlock: batchTo } of pollEvents(
@@ -82,6 +88,7 @@ export async function runIndexerOnce(
 
       switch (parsed.type) {
         case 'PolicyCreated':
+          if (!isMerchantMatch(parsed.event.merchant)) break
           await insertPolicy(
             databaseUrl,
             chainConfig.chainId,
@@ -107,6 +114,7 @@ export async function runIndexerOnce(
           break
 
         case 'PolicyRevoked':
+          if (!isMerchantMatch(parsed.event.merchant)) break
           await revokePolicy(
             databaseUrl,
             chainConfig.chainId,
@@ -129,6 +137,7 @@ export async function runIndexerOnce(
           break
 
         case 'ChargeSucceeded':
+          if (!isMerchantMatch(parsed.event.merchant)) break
           // Update policy state - but only if this isn't the first charge
           // (first charge is already counted when PolicyCreated is processed)
           const existingPolicy = await getPolicy(
@@ -177,6 +186,7 @@ export async function runIndexerOnce(
           break
 
         case 'PolicyCancelledByFailure':
+          if (!isMerchantMatch(parsed.event.merchant)) break
           await markPolicyCancelledByFailure(
             databaseUrl,
             chainConfig.chainId,
@@ -223,19 +233,21 @@ export async function runIndexerOnce(
 export async function backfillEvents(
   chainConfig: ChainConfig,
   databaseUrl: string,
+  merchantAddresses: Set<string> | null,
   fromBlock: number
 ) {
   // Reset indexer state to the specified block
   await setLastIndexedBlock(databaseUrl, chainConfig.chainId, fromBlock - 1)
 
   // Run indexer from that point
-  await runIndexerOnce(chainConfig, databaseUrl, fromBlock)
+  await runIndexerOnce(chainConfig, databaseUrl, merchantAddresses, fromBlock)
 }
 
 // Start continuous indexer loop
 export async function startIndexerLoop(
   chainConfig: ChainConfig,
   databaseUrl: string,
+  merchantAddresses: Set<string> | null,
   pollIntervalMs: number,
   signal: AbortSignal
 ) {
@@ -246,7 +258,7 @@ export async function startIndexerLoop(
 
   while (!signal.aborted) {
     try {
-      await runIndexerOnce(chainConfig, databaseUrl)
+      await runIndexerOnce(chainConfig, databaseUrl, merchantAddresses)
     } catch (error) {
       logger.error(
         { chainId: chainConfig.chainId, error },

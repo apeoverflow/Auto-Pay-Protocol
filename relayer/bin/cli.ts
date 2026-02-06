@@ -45,22 +45,31 @@ program
       process.exit(1)
     }
 
-    const startBlock = options.fromBlock
-      ? parseInt(options.fromBlock, 10)
-      : undefined
+    let startBlock: number | undefined
+    if (options.fromBlock) {
+      startBlock = parseInt(options.fromBlock, 10)
+      if (isNaN(startBlock) || startBlock < 0) {
+        logger.error('Invalid --from-block: must be a non-negative integer')
+        process.exit(1)
+      }
+    }
 
     logger.info({ chain: options.chain, startBlock }, 'Running indexer once...')
 
     const { runIndexerOnce } = await import('../src/indexer/index.js')
-    await runIndexerOnce(chainConfig, config.databaseUrl, startBlock)
+    await runIndexerOnce(chainConfig, config.databaseUrl, config.merchantAddresses, startBlock)
     logger.info('Indexer run complete')
   })
 
 program
   .command('charge')
   .description('Manually charge a policy')
-  .argument('<policyId>', 'Policy ID to charge')
+  .argument('<policyId>', 'Policy ID to charge (bytes32 hex string)')
   .action(async (policyId: string) => {
+    if (!/^0x[0-9a-fA-F]{64}$/.test(policyId)) {
+      logger.error('Invalid policyId: must be a 0x-prefixed 32-byte hex string (66 characters)')
+      process.exit(1)
+    }
     logger.info({ policyId }, 'Manually charging policy...')
     const config = loadConfig()
     const { chargePolicy } = await import('../src/executor/charge.js')
@@ -86,10 +95,14 @@ program
     }
 
     const fromBlock = parseInt(options.fromBlock, 10)
+    if (isNaN(fromBlock) || fromBlock < 0) {
+      logger.error('Invalid --from-block: must be a non-negative integer')
+      process.exit(1)
+    }
     logger.info({ chain: options.chain, fromBlock }, 'Backfilling events...')
 
     const { backfillEvents } = await import('../src/indexer/index.js')
-    await backfillEvents(chainConfig, config.databaseUrl, fromBlock)
+    await backfillEvents(chainConfig, config.databaseUrl, config.merchantAddresses, fromBlock)
     logger.info('Backfill complete')
   })
 

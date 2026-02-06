@@ -61,6 +61,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_RETRIES",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MIN_INTERVAL",
     "inputs": [],
     "outputs": [
@@ -204,6 +217,19 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cancelFailedPolicy",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -372,6 +398,11 @@
         "name": "lastCharged",
         "type": "uint32",
         "internalType": "uint32"
+      },
+      {
+        "name": "consecutiveFailures",
+        "type": "uint8",
+        "internalType": "uint8"
       },
       {
         "name": "active",
@@ -554,7 +585,7 @@
   },
   {
     "type": "event",
-    "name": "PolicyRevoked",
+    "name": "PolicyCancelledByFailure",
     "inputs": [
       {
         "name": "policyId",
@@ -570,16 +601,28 @@
       },
       {
         "name": "merchantOnArc",
-        "type": "bytes23",
+        "type": "bytes32",
         "indexed": true,
-        "internalType": "bytes23"
+        "internalType": "bytes32"
+      },
+      {
+        "name": "consecutiveFailures",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "endTime",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
       }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "Policycreated",
+    "name": "PolicyCreated",
     "inputs": [
       {
         "name": "policyId",
@@ -622,6 +665,31 @@
         "type": "string",
         "indexed": false,
         "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PolicyRevoked",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "payer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "merchantOnArc",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
       }
     ],
     "anonymous": false

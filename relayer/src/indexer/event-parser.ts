@@ -10,18 +10,6 @@ import type {
 
 type AbiType = typeof ArcPolicyManagerAbi
 
-// Event signatures (topic0)
-export const EVENT_SIGNATURES = {
-  PolicyCreated:
-    '0x9f7f5a9e7a98c2d9a5b4e8b7c3d2f1e0a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0', // Will be computed from ABI
-  PolicyRevoked:
-    '0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
-  ChargeSucceeded:
-    '0xb2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3',
-  ChargeFailed:
-    '0xc3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
-}
-
 export function parsePolicyCreated(log: Log): PolicyCreatedEvent | null {
   try {
     const decoded = decodeEventLog({

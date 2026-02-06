@@ -13,11 +13,16 @@ async function processChainCharges(
   chainConfig: ChainConfig,
   config: RelayerConfig
 ): Promise<{ processed: number; succeeded: number; failed: number }> {
+  const merchantList = config.merchantAddresses
+    ? Array.from(config.merchantAddresses)
+    : null
+
   const duePolices = await getPoliciesDueForCharge(
     config.databaseUrl,
     chainConfig.chainId,
     config.executor.batchSize,
-    config.retry.maxConsecutiveFailures
+    config.retry.maxConsecutiveFailures,
+    merchantList
   )
 
   if (duePolices.length === 0) {

@@ -19,6 +19,16 @@ export async function startRelayer() {
   const account = privateKeyToAccount(config.privateKey)
   logger.info({ wallet: account.address }, 'Relayer wallet')
 
+  // Log merchant filter status
+  if (config.merchantAddresses) {
+    logger.info(
+      { merchants: Array.from(config.merchantAddresses), count: config.merchantAddresses.size },
+      'Merchant filter ACTIVE - only processing listed merchants'
+    )
+  } else {
+    logger.info('Merchant filter INACTIVE - processing all merchants')
+  }
+
   // Run migrations
   logger.info('Running database migrations...')
   await runMigrations(config.databaseUrl)
@@ -45,6 +55,7 @@ export async function startRelayer() {
     startIndexerLoop(
       chainConfig,
       config.databaseUrl,
+      config.merchantAddresses,
       chainConfig.pollIntervalMs,
       abortController.signal
     )

@@ -95,11 +95,26 @@ export async function getPoliciesDueForCharge(
   databaseUrl: string,
   chainId: number,
   limit: number,
-  maxConsecutiveFailures: number = 3
+  maxConsecutiveFailures: number = 3,
+  merchantAddresses: string[] | null = null
 ): Promise<PolicyRow[]> {
   const db = getDb(databaseUrl)
 
-  const rows = await db<PolicyRow[]>`
+  if (merchantAddresses && merchantAddresses.length > 0) {
+    return db<PolicyRow[]>`
+      SELECT *
+      FROM policies
+      WHERE chain_id = ${chainId}
+        AND active = true
+        AND consecutive_failures < ${maxConsecutiveFailures}
+        AND next_charge_at <= NOW()
+        AND merchant IN ${db(merchantAddresses)}
+      ORDER BY next_charge_at ASC
+      LIMIT ${limit}
+    `
+  }
+
+  return db<PolicyRow[]>`
     SELECT *
     FROM policies
     WHERE chain_id = ${chainId}
@@ -109,8 +124,6 @@ export async function getPoliciesDueForCharge(
     ORDER BY next_charge_at ASC
     LIMIT ${limit}
   `
-
-  return rows
 }
 
 export async function getPolicy(

@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import type { RelayerConfig, ChainConfig, RetryConfig, RetryPreset } from './types.js'
+import { CHAIN_CONFIGS, getEnabledChainConfigs, getChainConfigById } from './contracts.js'
 
 export type { RelayerConfig, ChainConfig, RetryConfig, RetryPreset }
 
@@ -50,22 +51,24 @@ function parseRetryConfig(): RetryConfig {
   }
 }
 
-// Arc Testnet is the only deployed chain
-const ARC_TESTNET_CONFIG: ChainConfig = {
-  chainId: 5042002,
-  name: 'Arc Testnet',
-  rpcUrl: process.env.ARC_TESTNET_RPC || 'https://rpc.testnet.arc.network',
-  policyManagerAddress: '0xCa974B1EeC022B6E27bfA24D021F518C4d5b3734',
-  startBlock: 25313040,
-  pollIntervalMs: 15000, // 15 seconds
-  batchSize: 9000, // Arc limits to 10k blocks, use 9k for safety
-  confirmations: 2,
-  enabled: true,
-  // Arc bundler requires minimum 1 gwei priority fee
-  minGasFees: {
-    maxPriorityFeePerGas: 1_000_000_000n, // 1 gwei
-    maxFeePerGas: 50_000_000_000n, // 50 gwei
-  },
+function parseMerchantAddresses(): Set<string> | null {
+  const raw = process.env.MERCHANT_ADDRESSES?.trim()
+  if (!raw) return null
+
+  const addresses = raw
+    .split(',')
+    .map((addr) => addr.trim().toLowerCase())
+    .filter((addr) => addr.length > 0)
+
+  if (addresses.length === 0) return null
+
+  for (const addr of addresses) {
+    if (!/^0x[0-9a-f]{40}$/.test(addr)) {
+      throw new Error(`Invalid merchant address in MERCHANT_ADDRESSES: ${addr}`)
+    }
+  }
+
+  return new Set(addresses)
 }
 
 function getRequiredEnv(key: string): string {
@@ -90,9 +93,7 @@ export function loadConfig(): RelayerConfig {
   }
 
   return {
-    chains: {
-      arcTestnet: ARC_TESTNET_CONFIG,
-    },
+    chains: CHAIN_CONFIGS,
     privateKey,
     databaseUrl,
     indexer: {
@@ -105,6 +106,7 @@ export function loadConfig(): RelayerConfig {
       batchSize: 10,
     },
     retry: parseRetryConfig(),
+    merchantAddresses: parseMerchantAddresses(),
     webhooks: {
       timeoutMs: 10000, // 10 seconds
       maxRetries: 3,
@@ -114,13 +116,18 @@ export function loadConfig(): RelayerConfig {
   }
 }
 
-export function getEnabledChains(config: RelayerConfig): ChainConfig[] {
-  return Object.values(config.chains).filter((c) => c.enabled)
+export function getEnabledChains(_config: RelayerConfig): ChainConfig[] {
+  return getEnabledChainConfigs()
 }
 
 export function getChainConfig(
-  config: RelayerConfig,
+  _config: RelayerConfig,
   chainId: number
 ): ChainConfig | undefined {
-  return Object.values(config.chains).find((c) => c.chainId === chainId)
+  return getChainConfigById(chainId)
+}
+
+export function isMerchantAllowed(merchant: string, config: RelayerConfig): boolean {
+  if (!config.merchantAddresses) return true
+  return config.merchantAddresses.has(merchant.toLowerCase())
 }

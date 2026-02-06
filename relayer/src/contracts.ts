@@ -9,8 +9,8 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     chainId: 5042002,
     name: 'Arc Testnet',
     rpcUrl: process.env.ARC_TESTNET_RPC || 'https://rpc.testnet.arc.network',
-    policyManagerAddress: '0xCa974B1EeC022B6E27bfA24D021F518C4d5b3734' as `0x${string}`,
-    startBlock: 25313040,
+    policyManagerAddress: '0x0a681aC070ef81afb1c888D3370246633aE46A27' as `0x${string}`,
+    startBlock: 25531762,
     pollIntervalMs: 15000,
     batchSize: 9000,
     confirmations: 2,
@@ -27,11 +27,11 @@ export const DEPLOYMENTS = {
   "5042002": {
     "chainId": 5042002,
     "chainName": "arcTestnet",
-    "deployedAt": "2026-02-04T19:09:30Z",
+    "deployedAt": "2026-02-06T01:34:36Z",
     "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
-    "deployBlock": 25313040,
+    "deployBlock": 25531762,
     "contracts": {
-      "arcPolicyManager": "0xCa974B1EeC022B6E27bfA24D021F518C4d5b3734"
+      "arcPolicyManager": "0x0a681aC070ef81afb1c888D3370246633aE46A27"
     },
     "addresses": {
       "usdc": "0x3600000000000000000000000000000000000000",
