@@ -87,7 +87,7 @@ The unlimited USDC approval is safe because the PolicyManager enforces strict co
 
 The PolicyManager can only charge according to active policies -- it cannot arbitrarily drain funds.
 
-### How It Works
+### How Approval Works
 
 `setupWallet()` sends a user operation that:
 
@@ -131,7 +131,7 @@ interface CreatePolicyParams {
 }
 ```
 
-### Example
+### Create Policy Example
 
 ```typescript
 const policyId = await createPolicy({
@@ -143,7 +143,7 @@ const policyId = await createPolicy({
 })
 ```
 
-### How It Works
+### How Create Policy Works
 
 1. Encodes a `createPolicy` call to the ArcPolicyManager contract
 2. Sends a user operation via `bundlerClient.sendUserOperation` with paymaster (gas sponsored)
@@ -172,7 +172,7 @@ const {
 } = useRevokePolicy()
 ```
 
-### Example
+### Revoke Policy Example
 
 ```typescript
 const txHash = await revokePolicy('0xPOLICY_ID_HERE' as `0x${string}`)
@@ -392,18 +392,6 @@ interface OnChainPolicy {
   consecutiveFailures: number  // soft-fail count (uint8)
   endTime: number              // Unix timestamp when revoked (0 if active)
   active: boolean
-  metadataUrl: string
-}
-```
-
-### `CreatePolicyParams`
-
-```typescript
-interface CreatePolicyParams {
-  merchant: `0x${string}`
-  chargeAmount: bigint    // USDC amount (6 decimals)
-  interval: number        // seconds
-  spendingCap: bigint     // USDC amount (6 decimals)
   metadataUrl: string
 }
 ```

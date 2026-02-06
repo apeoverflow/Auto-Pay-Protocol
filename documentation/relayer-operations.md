@@ -232,8 +232,7 @@ Plan metadata customizes how subscriptions appear in the checkout UI. It contain
   },
   "display": {
     "color": "#6366f1",
-    "badge": "Popular",
-    "icon": "star"
+    "badge": "Popular"
   }
 }
 ```
@@ -266,7 +265,6 @@ Plan metadata customizes how subscriptions appear in the checkout UI. It contain
 |-------|------|-------------|
 | `color` | string | Brand color (hex) for UI styling |
 | `badge` | string | Badge text (e.g., "Most Popular", "Best Value") |
-| `icon` | string | Icon identifier |
 
 ### `metadata:add`
 
