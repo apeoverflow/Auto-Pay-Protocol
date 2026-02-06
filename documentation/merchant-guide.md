@@ -262,34 +262,58 @@ See the [Deployment Guide](./relayer-deployment.md) for setup instructions. A ba
 
 ## FAQ
 
-### Do I need to understand blockchain to use AutoPay?
+<details>
+<summary>Do I need to understand blockchain to use AutoPay?</summary>
 
 For basic setup, no. You need a wallet address and a backend that handles webhook notifications. The blockchain details are abstracted away. For custom integrations, basic familiarity with Ethereum addresses and USDC helps.
 
-### What is USDC?
+</details>
+
+<details>
+<summary>What is USDC?</summary>
 
 USDC is a stablecoin pegged 1:1 to the US dollar, issued by Circle. 1 USDC = $1 USD. It's the most widely used stablecoin for payments.
 
-### How do I convert USDC to fiat?
+</details>
+
+<details>
+<summary>How do I convert USDC to fiat?</summary>
 
 Transfer USDC from your merchant wallet to a centralized exchange (Coinbase, Kraken, etc.) and sell for USD, EUR, or your local currency. Many exchanges offer instant USDC-to-fiat conversion.
 
-### Can subscribers chargeback a payment?
+</details>
+
+<details>
+<summary>Can subscribers chargeback a payment?</summary>
 
 No. Crypto payments are final. There is no chargeback mechanism, which eliminates a major cost and risk for merchants.
 
-### What if the relayer goes down?
+</details>
+
+<details>
+<summary>What if the relayer goes down?</summary>
 
 No charges are executed while the relayer is offline. When it restarts, it catches up on any missed charges automatically. Subscribers are not charged twice. If you self-host, set up health monitoring to catch outages early.
 
-### Can I change the price of a plan?
+</details>
+
+<details>
+<summary>Can I change the price of a plan?</summary>
 
 You cannot change the price of existing subscriptions - the charge amount is locked on-chain. To change pricing, create a new plan and ask existing subscribers to cancel and re-subscribe. This protects subscribers from unexpected price increases.
 
-### What chains are supported?
+</details>
+
+<details>
+<summary>What chains are supported?</summary>
 
 Currently **Arc Testnet** only. Polygon and Arbitrum support is planned. When multi-chain is enabled, subscribers can pay from any supported chain and funds are bridged to your wallet via CCTP.
 
-### Is there a minimum subscription amount?
+</details>
+
+<details>
+<summary>Is there a minimum subscription amount?</summary>
 
 The smart contract accepts any amount greater than 0 USDC. Practically, very small amounts (under $1) may not be worth the protocol fee. There is no maximum.
+
+</details>

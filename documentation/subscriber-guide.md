@@ -154,34 +154,58 @@ The protocol fee is included in the charge amount - you don't pay extra on top o
 
 ## FAQ
 
-### Is my money safe?
+<details>
+<summary>Is my money safe?</summary>
 
 Yes. Your USDC stays in your wallet. The smart contract can only charge according to the exact terms of your active subscriptions. You can cancel at any time.
 
-### Can a merchant charge me more than the agreed amount?
+</details>
+
+<details>
+<summary>Can a merchant charge me more than the agreed amount?</summary>
 
 No. The charge amount is locked in the smart contract when you subscribe. The merchant cannot change it.
 
-### What if I want a refund?
+</details>
+
+<details>
+<summary>What if I want a refund?</summary>
 
 AutoPay does not handle refunds - contact the merchant directly. Since all charges are on-chain, there's a clear record of every payment.
 
-### What happens if I lose access to my device?
+</details>
+
+<details>
+<summary>What happens if I lose access to my device?</summary>
 
 Your wallet is tied to your passkey (biometric). If you lose your device, you may need to set up a new wallet. Your old subscriptions will fail after 3 missed charges and auto-cancel. Consult your passkey provider's recovery options.
 
-### Can I have multiple subscriptions?
+</details>
+
+<details>
+<summary>Can I have multiple subscriptions?</summary>
 
 Yes. You can have as many active subscriptions as you want, to different merchants and plans. Each is an independent policy with its own terms and spending cap.
 
-### What blockchain does this use?
+</details>
+
+<details>
+<summary>What blockchain does this use?</summary>
 
 AutoPay currently runs on **Arc Testnet** using USDC. Support for additional chains (Polygon, Arbitrum) is planned.
 
-### Do I need ETH or other tokens for gas?
+</details>
+
+<details>
+<summary>Do I need ETH or other tokens for gas?</summary>
 
 No. Gas fees are sponsored - you only need USDC in your wallet.
 
-### How do I see my on-chain transactions?
+</details>
+
+<details>
+<summary>How do I see my on-chain transactions?</summary>
 
 Your activity feed shows transaction hashes that link to the [Arc Testnet Explorer](https://testnet.arcscan.app), where you can verify every charge independently.
+
+</details>
