@@ -38,6 +38,15 @@ else
     exit 1
 fi
 
+# Stop relayer if running (it will re-index immediately otherwise)
+RELAYER_PIDS=$(pgrep -f "relayer.*cli\.ts\|tsx.*relayer" 2>/dev/null || true)
+if [ -n "$RELAYER_PIDS" ]; then
+    echo -e "${YELLOW}Stopping relayer (PIDs: $RELAYER_PIDS)...${NC}"
+    echo "$RELAYER_PIDS" | xargs kill 2>/dev/null || true
+    sleep 1
+    echo "  ✓ Relayer stopped"
+fi
+
 echo ""
 echo -e "${YELLOW}Clearing indexer database...${NC}"
 
