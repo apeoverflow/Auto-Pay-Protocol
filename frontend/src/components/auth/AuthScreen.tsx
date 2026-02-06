@@ -6,14 +6,18 @@ import { Alert, AlertTitle, AlertDescription } from '../ui/alert'
 import { StatusMessage } from '../common/StatusMessage'
 import { PasskeyLogin } from './PasskeyLogin'
 import { RecoveryScreen } from '../recovery/RecoveryScreen'
+import { DocsPage } from '../../pages/DocsPage'
 import {
   Fingerprint,
   KeyRound,
   CheckCircle,
   Loader2,
-  Shield,
-  Zap,
-  RefreshCw,
+  Wallet,
+  BadgePercent,
+  Globe,
+  BookOpen,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react'
 
 type AuthTab = 'passkey' | 'recovery'
@@ -21,6 +25,7 @@ type AuthTab = 'passkey' | 'recovery'
 export function AuthScreen() {
   const { showRecovery, setShowRecovery } = useRecovery()
   const [activeTab, setActiveTab] = React.useState<AuthTab>('passkey')
+  const [showDocs, setShowDocs] = React.useState(false)
 
   React.useEffect(() => {
     if (showRecovery) setActiveTab('recovery')
@@ -33,6 +38,31 @@ export function AuthScreen() {
 
   if (showRecovery && activeTab !== 'recovery') {
     return <RecoveryScreen onCancel={() => setShowRecovery(false)} />
+  }
+
+  // Show docs page with back button
+  if (showDocs) {
+    return (
+      <div className="flex h-screen flex-col bg-background overflow-hidden">
+        {/* Header with back button */}
+        <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border/50 bg-white/80 backdrop-blur-sm px-4">
+          <button
+            onClick={() => setShowDocs(false)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Sign In
+          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <img src="/logo.png" alt="AutoPayProtocol" className="h-6 w-auto opacity-80" />
+          </div>
+        </header>
+        {/* Docs content */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <DocsPage />
+        </div>
+      </div>
+    )
   }
 
   const tabs = [
@@ -59,35 +89,45 @@ export function AuthScreen() {
               className="auth-brand-logo"
             />
             <h1 className="auth-brand-headline">
-              Automated on-chain
+              Subscription payments
               <br />
-              subscription payments
+              at half the cost
             </h1>
-            <p className="auth-brand-sub">
-              Set up recurring USDC payments with smart contract security.
-              No intermediaries, no missed payments.
+            <p className="auth-brand-sub" style={{ color: 'hsl(220 15% 72%)' }}>
+              Accept recurring USDC payments for your newsletter, DAO, or SaaS.
+              2.5% fees — 50% less than traditional processors.
             </p>
 
-            <div className="auth-brand-features">
-              <div className="auth-feature">
-                <div className="auth-feature-icon">
-                  <Shield className="h-[18px] w-[18px]" />
+            <div className="auth-brand-features" style={{ gap: '14px' }}>
+              <div className="auth-feature" style={{ color: 'hsl(220 15% 80%)' }}>
+                <div className="auth-feature-icon" style={{ background: 'hsl(220 60% 50% / 0.2)', color: 'hsl(220 80% 70%)' }}>
+                  <Wallet className="h-[18px] w-[18px]" />
                 </div>
-                <span>Smart contract secured</span>
+                <span>Non-custodial — funds stay in user wallets</span>
               </div>
-              <div className="auth-feature">
-                <div className="auth-feature-icon">
-                  <Zap className="h-[18px] w-[18px]" />
+              <div className="auth-feature" style={{ color: 'hsl(220 15% 80%)' }}>
+                <div className="auth-feature-icon" style={{ background: 'hsl(150 60% 40% / 0.2)', color: 'hsl(150 70% 60%)' }}>
+                  <BadgePercent className="h-[18px] w-[18px]" />
                 </div>
-                <span>Instant USDC transfers</span>
+                <span>2.5% protocol fee vs 5%+ traditional</span>
               </div>
-              <div className="auth-feature">
-                <div className="auth-feature-icon">
-                  <RefreshCw className="h-[18px] w-[18px]" />
+              <div className="auth-feature" style={{ color: 'hsl(220 15% 80%)' }}>
+                <div className="auth-feature-icon" style={{ background: 'hsl(280 60% 50% / 0.2)', color: 'hsl(280 70% 70%)' }}>
+                  <Globe className="h-[18px] w-[18px]" />
                 </div>
-                <span>Automated recurring billing</span>
+                <span>Multi-chain USDC via Circle Gateway</span>
               </div>
             </div>
+
+            {/* Docs link */}
+            <button
+              onClick={() => setShowDocs(true)}
+              className="mt-8 flex items-center gap-2 text-[14px] font-medium text-white/60 hover:text-white transition-colors group"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span>Read the documentation</span>
+              <ArrowRight className="h-3.5 w-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            </button>
           </div>
 
           {/* decorative rings */}
@@ -102,7 +142,7 @@ export function AuthScreen() {
             <div className="auth-mobile-logo">
               <img src="/logo.png" alt="AutoPayProtocol" className="auth-mobile-logo-img" />
               <p className="auth-mobile-tagline">
-                Automated on-chain subscription payments
+                Subscription payments at half the cost
               </p>
             </div>
 
@@ -155,17 +195,17 @@ export function AuthScreen() {
       </div>
 
       {/* scene footer */}
-      <div className="auth-scene-footer">
+      <div className="auth-scene-footer" style={{ color: 'hsl(220 15% 60%)' }}>
         {/* "Secured by" on mobile */}
         <div className="auth-scene-footer-secured">
           <span className="auth-dot" />
           Secured by AutoPayProtocol
         </div>
         <div className="auth-scene-footer-meta">
-          <span>Polygon Amoy Testnet</span>
-          <div className="auth-footer-dot" />
+          <span>Arc Testnet</span>
+          <div className="auth-footer-dot" style={{ background: 'hsl(220 15% 45%)' }} />
           <span>USDC Payments</span>
-          <div className="auth-footer-dot" />
+          <div className="auth-footer-dot" style={{ background: 'hsl(220 15% 45%)' }} />
           <span>Powered by Circle</span>
         </div>
       </div>
