@@ -13,7 +13,7 @@ import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql'
 import yaml from 'react-syntax-highlighter/dist/esm/languages/prism/yaml'
 import toml from 'react-syntax-highlighter/dist/esm/languages/prism/toml'
 import { cn } from '../lib/utils'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, List, Search, X } from 'lucide-react'
 
 import overviewMd from '../../../documentation/overview.md?raw'
 import subscriberGuideMd from '../../../documentation/subscriber-guide.md?raw'
@@ -64,6 +64,103 @@ function MermaidDiagram({ chart }: { chart: string }) {
       ref={containerRef}
       className="my-4 flex justify-center overflow-x-auto rounded-lg border border-border/50 bg-white p-4"
     />
+  )
+}
+
+interface TocEntry {
+  level: number
+  text: string
+  slug: string
+}
+
+function extractHeadings(markdown: string): TocEntry[] {
+  const headings: TocEntry[] = []
+  // Match ## and ### headings (not inside code blocks)
+  let inCodeBlock = false
+  for (const line of markdown.split('\n')) {
+    if (line.startsWith('```')) {
+      inCodeBlock = !inCodeBlock
+      continue
+    }
+    if (inCodeBlock) continue
+    const match = line.match(/^(#{2,3})\s+(.+)$/)
+    if (match) {
+      const text = match[2]
+        .replace(/`([^`]+)`/g, '$1') // strip inline code backticks
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // strip links
+      headings.push({
+        level: match[1].length,
+        text,
+        slug: slugify(text),
+      })
+    }
+  }
+  return headings
+}
+
+function TableOfContents({
+  headings,
+  contentRef,
+}: {
+  headings: TocEntry[]
+  contentRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const [activeSlug, setActiveSlug] = React.useState<string>('')
+
+  React.useEffect(() => {
+    const container = contentRef.current
+    if (!container || headings.length === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the topmost visible heading
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible.length > 0) {
+          setActiveSlug(visible[0].target.id)
+        }
+      },
+      { root: container, rootMargin: '0px 0px -70% 0px', threshold: 0.1 }
+    )
+
+    const elements = headings
+      .map((h) => container.querySelector(`#${CSS.escape(h.slug)}`))
+      .filter(Boolean) as Element[]
+    elements.forEach((el) => observer.observe(el))
+
+    return () => observer.disconnect()
+  }, [headings, contentRef])
+
+  const scrollTo = (slug: string) => {
+    const container = contentRef.current
+    if (!container) return
+    const el = container.querySelector(`#${CSS.escape(slug)}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  if (headings.length === 0) return null
+
+  return (
+    <nav className="space-y-0.5">
+      {headings.map((h) => (
+        <button
+          key={h.slug}
+          onClick={() => scrollTo(h.slug)}
+          className={cn(
+            'block w-full text-left text-[12px] leading-relaxed py-0.5 transition-colors truncate',
+            h.level === 3 ? 'pl-3' : 'pl-0',
+            activeSlug === h.slug
+              ? 'text-primary font-medium'
+              : 'text-muted-foreground/60 hover:text-foreground/80'
+          )}
+        >
+          {h.text}
+        </button>
+      ))}
+    </nav>
   )
 }
 
@@ -118,6 +215,75 @@ const categories: DocCategory[] = [
 
 const allDocs = categories.flatMap((c) => c.docs)
 
+// Search
+interface SearchResult {
+  docId: DocId
+  docLabel: string
+  heading: string
+  slug: string
+  snippet: string
+}
+
+function searchDocs(query: string): SearchResult[] {
+  if (query.length < 2) return []
+  const q = query.toLowerCase()
+  const results: SearchResult[] = []
+
+  for (const doc of allDocs) {
+    const lines = doc.content.split('\n')
+    let currentHeading = doc.label
+    let currentSlug = ''
+    let inCodeBlock = false
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      if (line.startsWith('```')) {
+        inCodeBlock = !inCodeBlock
+        continue
+      }
+
+      // Track current heading
+      if (!inCodeBlock) {
+        const headingMatch = line.match(/^(#{1,4})\s+(.+)$/)
+        if (headingMatch) {
+          currentHeading = headingMatch[2]
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+          currentSlug = slugify(currentHeading)
+        }
+      }
+
+      if (line.toLowerCase().includes(q)) {
+        // Avoid duplicate results for same heading
+        if (results.length > 0) {
+          const last = results[results.length - 1]
+          if (last.docId === doc.id && last.slug === currentSlug) continue
+        }
+
+        // Build snippet: trim and highlight around match
+        const idx = line.toLowerCase().indexOf(q)
+        const start = Math.max(0, idx - 40)
+        const end = Math.min(line.length, idx + query.length + 40)
+        let snippet = (start > 0 ? '...' : '') +
+          line.slice(start, end).replace(/^#+\s+/, '').trim() +
+          (end < line.length ? '...' : '')
+
+        results.push({
+          docId: doc.id,
+          docLabel: doc.label,
+          heading: currentHeading,
+          slug: currentSlug,
+          snippet,
+        })
+
+        if (results.length >= 20) return results
+      }
+    }
+  }
+
+  return results
+}
+
 // Map markdown filenames to DocIds for cross-doc links
 const filenameToDocId: Record<string, DocId> = {
   'overview.md': 'overview',
@@ -143,9 +309,51 @@ function slugify(text: string): string {
 export function DocsPage() {
   const [activeDoc, setActiveDoc] = React.useState<DocId>('overview')
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
+  const [tocOpen, setTocOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [searchFocused, setSearchFocused] = React.useState(false)
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
   const contentRef = React.useRef<HTMLDivElement>(null)
 
+  const searchResults = React.useMemo(() => searchDocs(searchQuery), [searchQuery])
+  const showResults = searchFocused && searchQuery.length >= 2
+
+  const handleSearchSelect = React.useCallback((result: SearchResult) => {
+    setActiveDoc(result.docId)
+    setSearchQuery('')
+    setSearchFocused(false)
+    searchInputRef.current?.blur()
+    setMobileMenuOpen(false)
+    requestAnimationFrame(() => {
+      if (result.slug) {
+        const el = document.getElementById(result.slug)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          return
+        }
+      }
+      contentRef.current?.scrollTo(0, 0)
+    })
+  }, [])
+
+  // Keyboard shortcut: Cmd/Ctrl+K to focus search
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+      if (e.key === 'Escape') {
+        setSearchFocused(false)
+        searchInputRef.current?.blur()
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
+
   const currentDoc = allDocs.find((d) => d.id === activeDoc)!
+  const headings = React.useMemo(() => extractHeadings(currentDoc.content), [currentDoc.content])
 
   const navigateTo = React.useCallback((docId: DocId, hash?: string) => {
     setActiveDoc(docId)
@@ -165,9 +373,10 @@ export function DocsPage() {
 
   const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = React.useMemo(
     () => ({
-      code({ className, children, ...props }) {
+      code({ className, children, node, ...props }) {
         const match = /language-(\w+)/.exec(className || '')
         const codeString = String(children).replace(/\n$/, '')
+        const isBlock = node?.position && String(children).includes('\n')
         if (match?.[1] === 'mermaid') {
           return <MermaidDiagram chart={codeString} />
         }
@@ -176,6 +385,23 @@ export function DocsPage() {
             <SyntaxHighlighter
               style={oneDark}
               language={match[1]}
+              PreTag="div"
+              customStyle={{
+                margin: 0,
+                borderRadius: '0.5rem',
+                fontSize: '0.8rem',
+                lineHeight: 1.6,
+              }}
+            >
+              {codeString}
+            </SyntaxHighlighter>
+          )
+        }
+        if (isBlock) {
+          return (
+            <SyntaxHighlighter
+              style={oneDark}
+              language="text"
               PreTag="div"
               customStyle={{
                 margin: 0,
@@ -344,6 +570,38 @@ export function DocsPage() {
         </button>
         {mobileMenuOpen && (
           <div className="mt-2 rounded-lg border border-border/50 bg-background p-2 shadow-lg">
+            {/* Mobile search */}
+            <div className="relative mb-2 px-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                type="text"
+                placeholder="Search docs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-md border border-border/50 bg-muted/30 py-1.5 pl-8 pr-3 text-[13px] placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
+              />
+            </div>
+            {searchQuery.length >= 2 && (
+              <div className="mb-2 max-h-[40vh] overflow-y-auto rounded-md border border-border/30 bg-background">
+                {searchResults.length === 0 ? (
+                  <div className="px-3 py-3 text-center text-[12px] text-muted-foreground">No results</div>
+                ) : (
+                  searchResults.map((r, i) => (
+                    <button
+                      key={`m-${r.docId}-${r.slug}-${i}`}
+                      onClick={() => handleSearchSelect(r)}
+                      className="flex w-full flex-col gap-0.5 border-b border-border/30 px-3 py-2 text-left last:border-0 hover:bg-muted/50"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{r.docLabel}</span>
+                        <span className="truncate text-[12px] font-medium text-foreground/80">{r.heading}</span>
+                      </div>
+                      <span className="truncate text-[11px] text-muted-foreground">{r.snippet}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
             {categories.map((cat) => (
               <div key={cat.label}>
                 <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -372,6 +630,51 @@ export function DocsPage() {
       {/* Desktop sidebar */}
       <div className="hidden w-[220px] flex-shrink-0 border-r border-border/50 bg-muted/20 md:block">
         <div className="sticky top-0 p-4">
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search... ⌘K"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+              className="w-full rounded-lg border border-border/50 bg-background py-1.5 pl-8 pr-7 text-[13px] placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20"
+            />
+            {searchQuery && (
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground/80"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {showResults && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[60vh] overflow-y-auto rounded-lg border border-border/50 bg-background shadow-lg">
+                {searchResults.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-[12px] text-muted-foreground">No results found</div>
+                ) : (
+                  searchResults.map((r, i) => (
+                    <button
+                      key={`${r.docId}-${r.slug}-${i}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSearchSelect(r)}
+                      className="flex w-full flex-col gap-0.5 border-b border-border/30 px-3 py-2 text-left last:border-0 hover:bg-muted/50"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{r.docLabel}</span>
+                        <span className="truncate text-[12px] font-medium text-foreground/80">{r.heading}</span>
+                      </div>
+                      <span className="truncate text-[11px] text-muted-foreground">{r.snippet}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           {categories.map((cat) => (
             <div key={cat.label} className="mb-5">
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -398,13 +701,45 @@ export function DocsPage() {
         </div>
       </div>
 
-      {/* Content area */}
-      <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
-            {currentDoc.content}
-          </ReactMarkdown>
+      {/* Content area + TOC */}
+      <div className="flex min-h-0 flex-1">
+        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto">
+          {/* Mobile TOC */}
+          {headings.length > 0 && (
+            <div className="border-b border-border/50 px-4 py-2 md:hidden">
+              <button
+                onClick={() => setTocOpen(!tocOpen)}
+                className="flex w-full items-center gap-2 text-[12px] font-medium text-muted-foreground"
+              >
+                <List className="h-3.5 w-3.5" />
+                <span>On this page</span>
+                <ChevronDown className={cn('ml-auto h-3.5 w-3.5 transition-transform', tocOpen && 'rotate-180')} />
+              </button>
+              {tocOpen && (
+                <div className="pt-2 pb-1">
+                  <TableOfContents headings={headings} contentRef={contentRef} />
+                </div>
+              )}
+            </div>
+          )}
+          <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
+              {currentDoc.content}
+            </ReactMarkdown>
+          </div>
         </div>
+
+        {/* Desktop TOC sidebar */}
+        {headings.length > 0 && (
+          <div className="hidden w-[200px] flex-shrink-0 border-l border-border/50 lg:block">
+            <div className="sticky top-0 p-4">
+              <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                On this page
+              </div>
+              <TableOfContents headings={headings} contentRef={contentRef} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
