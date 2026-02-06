@@ -61,8 +61,7 @@ const METADATA_TEMPLATE = `{
   },
   "display": {
     "color": "#6366F1",
-    "badge": "Most Popular",
-    "icon": "crown"
+    "badge": "Most Popular"
   }
 }`
 
