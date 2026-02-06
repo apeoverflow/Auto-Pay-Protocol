@@ -13,8 +13,9 @@ import type { OnChainPolicy } from '../types/policy'
  * 1. Supabase (indexed data) - Full history, fast queries
  * 2. Contract events (fallback) - Limited to ~9k blocks, slower
  *
- * The Supabase database is populated by the relayer indexer which
- * continuously indexes PolicyCreated/PolicyRevoked events.
+ * REAL-TIME UPDATES:
+ * After write operations, call the update methods to refresh policy state
+ * directly from the contract without waiting for the indexer.
  */
 
 interface UsePoliciesReturn {
@@ -23,6 +24,8 @@ interface UsePoliciesReturn {
   error: string | null
   dataSource: 'supabase' | 'contract' | null
   refetch: () => Promise<void>
+  // Real-time update methods (read from contract, bypass Supabase)
+  refreshPolicyFromContract: (policyId: `0x${string}`) => Promise<void>
 }
 
 // PolicyCreated event signature (for contract fallback)
@@ -53,6 +56,64 @@ function dbPolicyToOnChainPolicy(db: DbPolicy): OnChainPolicy {
       : 0,
     active: db.active,
     metadataUrl: db.metadata_url || '',
+  }
+}
+
+// Fetch a single policy from the contract
+async function fetchPolicyFromContract(
+  publicClient: any,
+  policyManagerAddress: `0x${string}`,
+  policyId: `0x${string}`
+): Promise<OnChainPolicy> {
+  const policyData = await publicClient.readContract({
+    address: policyManagerAddress,
+    abi: ArcPolicyManagerAbi,
+    functionName: 'policies',
+    args: [policyId],
+  })
+
+  const [
+    payer,
+    merchant,
+    chargeAmount,
+    spendingCap,
+    totalSpent,
+    interval,
+    lastCharged,
+    chargeCount,
+    consecutiveFailures,
+    endTime,
+    active,
+    metadataUrl,
+  ] = policyData as [
+    `0x${string}`,
+    `0x${string}`,
+    bigint,
+    bigint,
+    bigint,
+    number,
+    number,
+    number,
+    number,
+    number,
+    boolean,
+    string
+  ]
+
+  return {
+    policyId,
+    payer,
+    merchant,
+    chargeAmount,
+    spendingCap,
+    totalSpent,
+    interval,
+    lastCharged,
+    chargeCount,
+    consecutiveFailures,
+    endTime,
+    active,
+    metadataUrl,
   }
 }
 
@@ -117,58 +178,7 @@ export function usePolicies(): UsePoliciesReturn {
       // Fetch current state for each policy
       const policyPromises = logs.map(async (log) => {
         const policyId = log.args.policyId as `0x${string}`
-
-        const policyData = await publicClient.readContract({
-          address: chainConfig.policyManager!,
-          abi: ArcPolicyManagerAbi,
-          functionName: 'policies',
-          args: [policyId],
-        })
-
-        // Map tuple to OnChainPolicy
-        const [
-          payer,
-          merchant,
-          chargeAmount,
-          spendingCap,
-          totalSpent,
-          interval,
-          lastCharged,
-          chargeCount,
-          consecutiveFailures,
-          endTime,
-          active,
-          metadataUrl,
-        ] = policyData as [
-          `0x${string}`,
-          `0x${string}`,
-          bigint,
-          bigint,
-          bigint,
-          number,
-          number,
-          number,
-          number,
-          number,
-          boolean,
-          string
-        ]
-
-        return {
-          policyId,
-          payer,
-          merchant,
-          chargeAmount,
-          spendingCap,
-          totalSpent,
-          interval,
-          lastCharged,
-          chargeCount,
-          consecutiveFailures,
-          endTime,
-          active,
-          metadataUrl,
-        } as OnChainPolicy
+        return fetchPolicyFromContract(publicClient, chainConfig.policyManager!, policyId)
       })
 
       const fetchedPolicies = await Promise.all(policyPromises)
@@ -184,6 +194,35 @@ export function usePolicies(): UsePoliciesReturn {
     }
   }, [publicClient, account?.address, chainConfig.policyManager, chainConfig.chain.id])
 
+  // Refresh a policy by fetching latest state from contract
+  // If policy doesn't exist in state, it will be added
+  const refreshPolicyFromContract = React.useCallback(
+    async (policyId: `0x${string}`) => {
+      if (!publicClient || !chainConfig.policyManager) return
+
+      try {
+        const policy = await fetchPolicyFromContract(
+          publicClient,
+          chainConfig.policyManager,
+          policyId
+        )
+
+        setPolicies((prev) => {
+          const exists = prev.some((p) => p.policyId === policyId)
+          if (exists) {
+            // Update existing policy
+            return prev.map((p) => (p.policyId === policyId ? policy : p))
+          }
+          // Add new policy at the beginning
+          return [policy, ...prev]
+        })
+      } catch (err) {
+        console.error('Failed to refresh policy from contract:', err)
+      }
+    },
+    [publicClient, chainConfig.policyManager]
+  )
+
   // Fetch policies on mount and when dependencies change
   React.useEffect(() => {
     fetchPolicies()
@@ -195,5 +234,6 @@ export function usePolicies(): UsePoliciesReturn {
     error,
     dataSource,
     refetch: fetchPolicies,
+    refreshPolicyFromContract,
   }
 }

@@ -16,6 +16,7 @@ const pageTitles: Record<NavItem, string> = {
   activity: 'Activity',
   bridge: 'Bridge Funds',
   demo: 'SDK Demo',
+  docs: 'Documentation',
   settings: 'Settings',
 }
 

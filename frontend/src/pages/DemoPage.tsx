@@ -22,8 +22,8 @@ import {
 import { USDC_DECIMALS } from '../config'
 import { parseContractError } from '../types/policy'
 import { ToastContainer, useToast } from '../components/ui/toast'
-import { FundWalletCard } from '../components/FundWallet'
 import { JsonHighlight } from '../components/ui/json-highlight'
+import type { NavItem } from '../components/layout'
 
 // Interval unit configuration
 const INTERVAL_UNITS = [
@@ -66,13 +66,14 @@ const METADATA_TEMPLATE = `{
   }
 }`
 
-export function DemoPage() {
-  const { isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet, account, balance, fetchBalance } = useWallet()
-  const { chainConfig } = useChain()
-  const { policies, refetch: refetchPolicies } = usePolicies()
+interface DemoPageProps {
+  onNavigate: (page: NavItem) => void
+}
 
-  // State for showing/hiding fund wallet section
-  const [showFundWallet, setShowFundWallet] = React.useState(false)
+export function DemoPage({ onNavigate }: DemoPageProps) {
+  const { isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet, account, balance } = useWallet()
+  const { chainConfig } = useChain()
+  const { policies, refetch: refetchPolicies, refreshPolicyFromContract } = usePolicies()
 
   // Form state
   const [merchant, setMerchant] = React.useState('')
@@ -148,7 +149,7 @@ export function DemoPage() {
     if (!merchant) return
 
     try {
-      await createPolicy.createPolicy({
+      const policyId = await createPolicy.createPolicy({
         merchant: merchant as `0x${string}`,
         chargeAmount: chargeAmountBigInt,
         interval: intervalSeconds,
@@ -156,8 +157,8 @@ export function DemoPage() {
         metadataUrl,
       })
 
-      // Refresh policies list
-      refetchPolicies()
+      // Fetch the new policy from contract (don't wait for indexer)
+      await refreshPolicyFromContract(policyId)
     } catch (err) {
       console.error('Create policy failed:', err)
     }
@@ -185,7 +186,8 @@ export function DemoPage() {
     try {
       await chargeHook.charge(policyId)
       toast.success('Charge successful')
-      refetchPolicies()
+      // Refresh policy state from contract (don't wait for indexer)
+      await refreshPolicyFromContract(policyId)
     } catch (err) {
       toast.error(parseContractError(err))
     } finally {
@@ -200,7 +202,8 @@ export function DemoPage() {
     try {
       await revokeHook.revokePolicy(policyId)
       toast.success('Subscription revoked')
-      refetchPolicies()
+      // Refresh policy state from contract (don't wait for indexer)
+      await refreshPolicyFromContract(policyId)
     } catch (err) {
       toast.error(parseContractError(err))
     } finally {
@@ -229,37 +232,25 @@ export function DemoPage() {
         {/* Wallet Setup Required */}
         {!isWalletSetup ? (
           <div className="max-w-lg mx-auto space-y-4">
-            {/* Fund Wallet Option */}
+            {/* Fund Wallet Link */}
             {account?.address && (
-              <div className="space-y-3">
-                <button
-                  onClick={() => setShowFundWallet(!showFundWallet)}
-                  className="w-full flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                      <ArrowDownUp className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-medium">Need USDC on Arc?</p>
-                      <p className="text-xs text-muted-foreground">
-                        Transfer from MetaMask on another chain
-                      </p>
-                    </div>
+              <button
+                onClick={() => onNavigate('bridge')}
+                className="w-full flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <ArrowDownUp className="h-4 w-4 text-primary" />
                   </div>
-                  <ArrowRight className={`h-4 w-4 text-muted-foreground transition-transform ${showFundWallet ? 'rotate-90' : ''}`} />
-                </button>
-
-                {showFundWallet && (
-                  <FundWalletCard
-                    destinationAddress={account.address}
-                    onSuccess={() => {
-                      fetchBalance()
-                      toast.success('Wallet funded successfully!')
-                    }}
-                  />
-                )}
-              </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Need USDC on Arc?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Transfer from MetaMask on another chain
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </button>
             )}
 
             {/* USDC Approval Card */}

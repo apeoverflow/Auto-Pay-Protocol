@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { SubscriptionCard } from './SubscriptionCard'
-import { usePolicies, useRevokePolicy } from '../../hooks'
+import { SubscriptionDetail } from './SubscriptionDetail'
+import { usePolicies, useRevokePolicy, useMetadataBatch } from '../../hooks'
+import type { OnChainPolicy } from '../../types/policy'
 import { Loader2, Sparkles } from 'lucide-react'
 
 interface SubscriptionsListProps {
@@ -12,6 +14,11 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
   const { policies, isLoading, refetch } = usePolicies()
   const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
   const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
+  const [selectedPolicy, setSelectedPolicy] = React.useState<OnChainPolicy | null>(null)
+
+  // Fetch metadata for all policies that have a metadataUrl
+  const metadataUrls = React.useMemo(() => policies.map(p => p.metadataUrl || null), [policies])
+  const metadataMap = useMetadataBatch(metadataUrls)
 
   const displayPolicies = showAll
     ? policies
@@ -22,6 +29,7 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
       setRevokingId(policyId)
       await revokePolicy(policyId)
       await refetch()
+      setSelectedPolicy(null)
     } catch (err) {
       console.error('Failed to cancel subscription:', err)
     } finally {
@@ -65,16 +73,32 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
   }
 
   return (
-    <div className={compact ? 'space-y-0' : 'space-y-2.5 md:space-y-3'}>
-      {displayPolicies.map(policy => (
-        <SubscriptionCard
-          key={policy.policyId}
-          policy={policy}
+    <>
+      <div className={compact ? 'space-y-0' : 'space-y-2.5 md:space-y-3'}>
+        {displayPolicies.map(policy => (
+          <SubscriptionCard
+            key={policy.policyId}
+            policy={policy}
+            metadata={policy.metadataUrl ? metadataMap.get(policy.metadataUrl) : null}
+            onCancel={handleCancel}
+            isCancelling={revokingId === policy.policyId && isRevoking}
+            compact={compact}
+            onClick={() => setSelectedPolicy(policy)}
+          />
+        ))}
+      </div>
+
+      {/* Detail drawer */}
+      {selectedPolicy && (
+        <SubscriptionDetail
+          policy={selectedPolicy}
+          metadata={selectedPolicy.metadataUrl ? metadataMap.get(selectedPolicy.metadataUrl) : null}
+          open={!!selectedPolicy}
+          onOpenChange={(open) => { if (!open) setSelectedPolicy(null) }}
           onCancel={handleCancel}
-          isCancelling={revokingId === policy.policyId && isRevoking}
-          compact={compact}
+          isCancelling={revokingId === selectedPolicy.policyId && isRevoking}
         />
-      ))}
-    </div>
+      )}
+    </>
   )
 }

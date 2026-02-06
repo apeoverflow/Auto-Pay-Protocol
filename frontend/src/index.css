@@ -1936,3 +1936,12 @@
   color: hsl(271 80% 50%);
   font-weight: 500;
 }
+
+/* ══════════════════════════════════════════════════
+   Docs Page — syntax highlighter overrides
+   ══════════════════════════════════════════════════ */
+
+.docs-markdown pre > div {
+  border-radius: 0.5rem !important;
+  font-size: 0.8rem !important;
+}

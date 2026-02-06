@@ -7,6 +7,7 @@ import {
   SettingsPage,
   DemoPage,
   BridgePage,
+  DocsPage,
 } from '../../pages'
 
 export function WalletDashboard() {
@@ -23,7 +24,9 @@ export function WalletDashboard() {
       case 'bridge':
         return <BridgePage />
       case 'demo':
-        return <DemoPage />
+        return <DemoPage onNavigate={setCurrentPage} />
+      case 'docs':
+        return <DocsPage />
       case 'settings':
         return <SettingsPage />
       default:

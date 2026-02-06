@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { parseAbiItem, type Log } from 'viem'
+import { parseAbiItem, decodeEventLog, type Log, type TransactionReceipt } from 'viem'
 import { useWallet } from '../contexts/WalletContext'
 import { useChain } from '../contexts/ChainContext'
+import { ArcPolicyManagerAbi } from '../config/deployments'
 import { fetchActivityFromDb, type DbPolicy, type DbCharge } from '../lib/supabase'
 import { sleep } from '../lib/rateLimit'
 import type { ActivityItem } from '../types/subscriptions'
@@ -13,10 +14,9 @@ import type { ActivityItem } from '../types/subscriptions'
  * 1. Supabase (indexed data) - Full history, fast queries, pre-computed timestamps
  * 2. Contract events (fallback) - Limited to ~9k blocks, multiple RPC calls
  *
- * Activity includes:
- * - ChargeSucceeded events (payments)
- * - PolicyCreated events (subscriptions)
- * - PolicyRevoked events (cancellations)
+ * REAL-TIME UPDATES:
+ * After write operations, call addActivityFromReceipt() with the transaction
+ * receipt to parse real events and add them to the activity feed.
  */
 
 interface UseActivityReturn {
@@ -25,6 +25,8 @@ interface UseActivityReturn {
   error: string | null
   dataSource: 'supabase' | 'contract' | null
   refetch: () => Promise<void>
+  // Real-time update - parse events from transaction receipt
+  addActivityFromReceipt: (receipt: TransactionReceipt) => void
 }
 
 // Event signatures from ArcPolicyManager (for contract fallback)
@@ -252,6 +254,71 @@ export function useActivity(): UseActivityReturn {
     }
   }, [publicClient, account?.address, chainConfig.policyManager, chainConfig.chain.id])
 
+  // Parse events from a transaction receipt and add to activity
+  const addActivityFromReceipt = React.useCallback(
+    (receipt: TransactionReceipt) => {
+      const newItems: ActivityItem[] = []
+
+      for (const log of receipt.logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi: ArcPolicyManagerAbi,
+            data: log.data,
+            topics: log.topics,
+          })
+
+          if (decoded.eventName === 'PolicyCreated') {
+            const args = decoded.args as unknown as { merchant: string; chargeAmount: bigint }
+            newItems.push({
+              id: `subscribe-${receipt.transactionHash}-${log.logIndex}`,
+              type: 'subscribe',
+              timestamp: new Date(),
+              amount: args.chargeAmount,
+              token: 'USDC',
+              merchant: formatAddress(args.merchant),
+              txHash: receipt.transactionHash,
+              status: 'confirmed',
+            })
+          } else if (decoded.eventName === 'ChargeSucceeded') {
+            const args = decoded.args as unknown as { merchant: string; amount: bigint }
+            newItems.push({
+              id: `charge-${receipt.transactionHash}-${log.logIndex}`,
+              type: 'charge',
+              timestamp: new Date(),
+              amount: args.amount,
+              token: 'USDC',
+              merchant: formatAddress(args.merchant),
+              txHash: receipt.transactionHash,
+              status: 'confirmed',
+            })
+          } else if (decoded.eventName === 'PolicyRevoked') {
+            const args = decoded.args as unknown as { merchant: string }
+            newItems.push({
+              id: `cancel-${receipt.transactionHash}-${log.logIndex}`,
+              type: 'cancel',
+              timestamp: new Date(),
+              merchant: formatAddress(args.merchant),
+              txHash: receipt.transactionHash,
+              status: 'confirmed',
+            })
+          }
+        } catch {
+          // Not an event we're interested in, skip
+        }
+      }
+
+      if (newItems.length > 0) {
+        setActivity((prev) => {
+          // Filter out duplicates by id
+          const existingIds = new Set(prev.map((item) => item.id))
+          const uniqueNewItems = newItems.filter((item) => !existingIds.has(item.id))
+          return [...uniqueNewItems, ...prev]
+        })
+      }
+    },
+    []
+  )
+
   // Fetch activity on mount and when dependencies change
   React.useEffect(() => {
     fetchActivity()
@@ -263,6 +330,7 @@ export function useActivity(): UseActivityReturn {
     error,
     dataSource,
     refetch: fetchActivity,
+    addActivityFromReceipt,
   }
 }
 

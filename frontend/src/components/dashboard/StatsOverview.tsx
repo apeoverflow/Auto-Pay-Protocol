@@ -1,5 +1,6 @@
+import { useMemo } from 'react'
 import { formatUSDC } from '../../types/subscriptions'
-import { usePolicies, useWallet, useChain } from '../../hooks'
+import { usePolicies, useWallet, useChain, useMetadataBatch } from '../../hooks'
 import { ArrowUpRight, Calendar, CreditCard, Wallet, Copy, Check, Send } from 'lucide-react'
 
 interface StatCardProps {
@@ -144,6 +145,10 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
   const { balance } = useWallet()
   const { policies } = usePolicies()
 
+  // Fetch metadata for policies that have a metadataUrl
+  const metadataUrls = useMemo(() => policies.map(p => p.metadataUrl || null), [policies])
+  const metadataMap = useMetadataBatch(metadataUrls)
+
   const formatBalance = (bal: string | null) => {
     if (bal === null) return '$0.00'
     const value = parseFloat(bal)
@@ -194,7 +199,12 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
   }
 
   const nextChargeTime = getNextChargeTime()
-  const nextMerchant = nextPolicy ? `${nextPolicy.policy.merchant.slice(0, 6)}...` : 'No active subs'
+  const nextPolicyMetadata = nextPolicy?.policy.metadataUrl
+    ? metadataMap.get(nextPolicy.policy.metadataUrl)
+    : null
+  const nextMerchant = nextPolicy
+    ? (nextPolicyMetadata?.merchant?.name || `${nextPolicy.policy.merchant.slice(0, 6)}...`)
+    : 'No active subs'
 
   return (
     <>

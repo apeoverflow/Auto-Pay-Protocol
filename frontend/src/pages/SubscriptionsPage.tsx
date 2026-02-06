@@ -15,7 +15,7 @@ const filterLabels: { key: StatusFilter; label: string }[] = [
 ]
 
 export function SubscriptionsPage() {
-  const { policies, isLoading, error, refetch } = usePolicies()
+  const { policies, isLoading, error, refetch, refreshPolicyFromContract } = usePolicies()
   const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
   const { chainConfig } = useChain()
   const [filter, setFilter] = React.useState<StatusFilter>('all')
@@ -26,7 +26,8 @@ export function SubscriptionsPage() {
     try {
       setRevokingId(policyId)
       await revokePolicy(policyId)
-      await refetch()
+      // Refresh policy state from contract (don't wait for indexer)
+      await refreshPolicyFromContract(policyId)
     } catch (err) {
       console.error('Failed to cancel subscription:', err)
     } finally {

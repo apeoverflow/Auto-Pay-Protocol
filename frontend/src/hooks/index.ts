@@ -18,3 +18,7 @@ export { useFundWallet } from './useFundWallet'
 // Fallback: Contract events (limited to ~9k blocks)
 export { usePolicies } from './usePolicies'
 export { useActivity } from './useActivity'
+
+// Metadata fetching
+export { useMetadata, useMetadataBatch } from './useMetadata'
+export type { PolicyMetadata } from './useMetadata'

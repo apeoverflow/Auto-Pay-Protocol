@@ -82,16 +82,6 @@ export function useGatewayTransfer() {
     const maxFee = percentageFee > minFee ? percentageFee : minFee
     const requiredAmount = transferAmount + maxFee
 
-    console.log('[Gateway] Starting transfer', {
-      transferAmount: transferAmount.toString(),
-      maxFee: maxFee.toString(),
-      requiredAmount: requiredAmount.toString(),
-      sourceChain: params.sourceChain.name,
-      sourceDomain: params.sourceChain.domain,
-      depositor: address,
-      recipient: params.recipientAddress,
-    })
-
     setIsLoading(true)
     setStatus('Preparing transfer...')
     setError(null)
@@ -107,8 +97,6 @@ export function useGatewayTransfer() {
         functionName: 'balanceOf',
         args: [address],
       })
-
-      console.log('[Gateway] USDC balance:', balance.toString())
 
       if (balance < requiredAmount) {
         const balanceFormatted = (Number(balance) / 1e6).toFixed(2)
@@ -127,8 +115,6 @@ export function useGatewayTransfer() {
         args: [address, sourceChain.GatewayWallet],
       })
 
-      console.log('[Gateway] Allowance:', allowance.toString(), 'GatewayWallet:', sourceChain.GatewayWallet)
-
       if (allowance < requiredAmount) {
         setStatus('Approving USDC (sign in wallet)...')
 
@@ -139,19 +125,11 @@ export function useGatewayTransfer() {
           args: [sourceChain.GatewayWallet, requiredAmount],
         })
 
-        console.log('[Gateway] Approve tx:', approveHash)
         await publicClient.waitForTransactionReceipt({ hash: approveHash })
-        console.log('[Gateway] Approve confirmed')
       }
 
       // Step 2: Deposit USDC into GatewayWallet (transfer amount + max fee)
       setStatus('Depositing to Gateway (sign in wallet)...')
-
-      console.log('[Gateway] Depositing to GatewayWallet:', {
-        gatewayWallet: sourceChain.GatewayWallet,
-        token: sourceChain.USDCAddress,
-        amount: requiredAmount.toString(),
-      })
 
       const depositHash = await walletClient.writeContract({
         address: sourceChain.GatewayWallet,
@@ -160,15 +138,12 @@ export function useGatewayTransfer() {
         args: [sourceChain.USDCAddress, requiredAmount],
       })
 
-      console.log('[Gateway] Deposit tx:', depositHash)
-      const depositReceipt = await publicClient.waitForTransactionReceipt({ hash: depositHash })
-      console.log('[Gateway] Deposit confirmed on-chain, status:', depositReceipt.status)
+      await publicClient.waitForTransactionReceipt({ hash: depositHash })
 
       // Wait for Gateway indexer to pick up the deposit
       // Use chain-specific wait times based on block confirmation requirements
       const waitConfig = CHAIN_WAIT_TIMES[params.sourceChain.domain] || DEFAULT_WAIT
       setStatus(`Waiting for ${waitConfig.name} confirmation...`)
-      console.log(`[Gateway] Waiting ${waitConfig.waitMs}ms for ${waitConfig.name} indexer...`)
       await new Promise(resolve => setTimeout(resolve, waitConfig.waitMs))
 
       // Step 3: Build the burn intent
@@ -196,12 +171,7 @@ export function useGatewayTransfer() {
         },
       }
 
-      console.log('[Gateway] Burn intent:', JSON.stringify(burnIntent, null, 2))
-
       // Step 4: Sign the burn intent with MetaMask
-      // Note: EIP-712 types expect strings for uint256 values
-      // Using type assertion to satisfy wagmi's strict typing while Gateway API expects strings
-      console.log('[Gateway] Requesting signature...')
       const signature = await signTypedDataAsync({
         types: EIP712_TYPES,
         domain: EIP712_DOMAIN,
@@ -209,14 +179,10 @@ export function useGatewayTransfer() {
         message: burnIntent,
       } as Parameters<typeof signTypedDataAsync>[0])
 
-      console.log('[Gateway] Signature obtained:', signature.slice(0, 20) + '...')
-
       // Step 5: Submit to Gateway API
       setStatus('Getting attestation...')
 
       const requestBody = [{ burnIntent, signature }]
-      console.log('[Gateway] Submitting to Gateway API:', GATEWAY_API_URL + '/transfer')
-      console.log('[Gateway] Request body:', JSON.stringify(requestBody, null, 2))
 
       const response = await fetch(`${GATEWAY_API_URL}/transfer`, {
         method: 'POST',
@@ -224,11 +190,8 @@ export function useGatewayTransfer() {
         body: JSON.stringify(requestBody),
       })
 
-      console.log('[Gateway] Response status:', response.status)
-
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('[Gateway] API error response:', errorText)
         throw new Error(`Gateway API failed: ${response.status} - ${errorText}`)
       }
 
@@ -272,7 +235,6 @@ export function useGatewayTransfer() {
       setStatus('Transfer complete!')
       return transferResult
     } catch (err) {
-      console.error('Gateway transfer failed:', err)
       const message = err instanceof Error ? err.message : 'Transfer failed'
       setError(message)
       setStatus('')

@@ -1,15 +1,19 @@
+import { useState } from 'react'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { formatUSDC, formatInterval } from '../../types/subscriptions'
 import type { OnChainPolicy } from '../../types/policy'
+import type { PolicyMetadata } from '../../hooks'
 import { useChain } from '../../hooks'
 import { Clock, ExternalLink, Loader2 } from 'lucide-react'
 
 interface SubscriptionCardProps {
   policy: OnChainPolicy
+  metadata?: PolicyMetadata | null
   onCancel?: (policyId: `0x${string}`) => void
   isCancelling?: boolean
   compact?: boolean
+  onClick?: () => void
 }
 
 // Generate color theme based on merchant address
@@ -47,12 +51,22 @@ function getRemainingTime(nextChargeTimestamp: number): string {
   return '<1 min'
 }
 
-export function SubscriptionCard({ policy, onCancel, isCancelling, compact = false }: SubscriptionCardProps) {
+export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, compact = false, onClick }: SubscriptionCardProps) {
   const { chainConfig } = useChain()
   const theme = getMerchantTheme(policy.merchant)
   const status = policy.active ? 'active' : 'cancelled'
   const statusLabel = status.charAt(0).toUpperCase() + status.slice(1)
   const inactive = !policy.active
+
+  const [logoFailed, setLogoFailed] = useState(false)
+
+  // Metadata-derived display values (fall back to address-based defaults)
+  const displayName = metadata?.merchant?.name || metadata?.plan?.name || formatAddress(policy.merchant)
+  const planName = metadata?.plan?.name
+  const merchantLogo = !logoFailed ? metadata?.merchant?.logo : undefined
+  const avatarLetters = metadata?.merchant?.name
+    ? metadata.merchant.name.slice(0, 2).toUpperCase()
+    : policy.merchant.slice(2, 4).toUpperCase()
 
   // Calculate next charge time
   const nextChargeTime = policy.lastCharged + policy.interval
@@ -63,11 +77,23 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
 
   if (compact) {
     return (
-      <div className={`flex items-center justify-between py-2.5 md:py-3.5 border-b border-border/40 last:border-0 group row-hover px-1 -mx-1 ${inactive ? 'opacity-50' : ''}`}>
+      <div
+        className={`flex items-center justify-between py-2.5 md:py-3.5 border-b border-border/40 last:border-0 group row-hover px-1 -mx-1 ${inactive ? 'opacity-50' : ''} ${onClick ? 'cursor-pointer' : ''}`}
+        onClick={onClick}
+      >
         <div className="flex items-center gap-2.5 md:gap-3.5 min-w-0">
-          <div className={`flex h-8 w-8 md:h-10 md:w-10 flex-shrink-0 items-center justify-center rounded-lg md:rounded-xl text-white text-xs md:text-sm font-semibold shadow-sm ring-1 ring-black/5 ${inactive ? 'bg-muted-foreground/30 grayscale' : `bg-gradient-to-br ${theme.gradient}`}`}>
-            {policy.merchant.slice(2, 4).toUpperCase()}
-          </div>
+          {merchantLogo ? (
+            <img
+              src={merchantLogo}
+              alt={displayName}
+              onError={() => setLogoFailed(true)}
+              className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 rounded-lg md:rounded-xl object-cover shadow-sm ring-1 ring-black/5 ${inactive ? 'grayscale opacity-50' : ''}`}
+            />
+          ) : (
+            <div className={`flex h-8 w-8 md:h-10 md:w-10 flex-shrink-0 items-center justify-center rounded-lg md:rounded-xl text-white text-xs md:text-sm font-semibold shadow-sm ring-1 ring-black/5 ${inactive ? 'bg-muted-foreground/30 grayscale' : `bg-gradient-to-br ${theme.gradient}`}`}>
+              {avatarLetters}
+            </div>
+          )}
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 md:gap-2">
               <a
@@ -76,7 +102,7 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
                 rel="noopener noreferrer"
                 className="font-semibold text-[13px] md:text-sm truncate hover:underline"
               >
-                {formatAddress(policy.merchant)}
+                {displayName}
               </a>
               <Badge variant={status === 'active' ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
                 {statusLabel}
@@ -99,7 +125,7 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onCancel(policy.policyId)}
+            onClick={(e) => { e.stopPropagation(); onCancel(policy.policyId) }}
             disabled={isCancelling}
             className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 text-xs flex-shrink-0"
           >
@@ -112,7 +138,10 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
 
   /* Full card: mobile-optimized, desktop-enhanced */
   return (
-    <div className={`group relative overflow-hidden rounded-xl border bg-card transition-all duration-200 ${inactive ? 'border-border/40 opacity-50' : 'border-border hover:shadow-md'}`}>
+    <div
+      className={`group relative overflow-hidden rounded-xl border bg-card transition-all duration-200 ${inactive ? 'border-border/40 opacity-50' : 'border-border hover:shadow-md'} ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       {/* Left accent bar — hover-only for active, hidden for inactive */}
       {!inactive && (
         <div className={`absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b ${theme.gradient} rounded-l-xl transition-opacity duration-200 opacity-0 group-hover:opacity-100`} />
@@ -120,9 +149,18 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
 
       <div className="flex items-center gap-3 md:gap-3 p-3 md:p-3.5">
         {/* Avatar */}
-        <div className={`flex h-9 w-9 md:h-10 md:w-10 flex-shrink-0 items-center justify-center rounded-lg md:rounded-xl font-semibold text-xs md:text-sm shadow-sm ring-1 ring-black/5 ${inactive ? 'bg-muted-foreground/25 text-muted-foreground/60' : `bg-gradient-to-br ${theme.gradient} text-white`}`}>
-          {policy.merchant.slice(2, 4).toUpperCase()}
-        </div>
+        {merchantLogo ? (
+          <img
+            src={merchantLogo}
+            alt={displayName}
+            onError={() => setLogoFailed(true)}
+            className={`h-9 w-9 md:h-10 md:w-10 flex-shrink-0 rounded-lg md:rounded-xl object-cover shadow-sm ring-1 ring-black/5 ${inactive ? 'grayscale opacity-50' : ''}`}
+          />
+        ) : (
+          <div className={`flex h-9 w-9 md:h-10 md:w-10 flex-shrink-0 items-center justify-center rounded-lg md:rounded-xl font-semibold text-xs md:text-sm shadow-sm ring-1 ring-black/5 ${inactive ? 'bg-muted-foreground/25 text-muted-foreground/60' : `bg-gradient-to-br ${theme.gradient} text-white`}`}>
+            {avatarLetters}
+          </div>
+        )}
 
         {/* Info */}
         <div className="flex-1 min-w-0">
@@ -134,7 +172,7 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
               className="font-semibold text-[13px] md:text-[14px] truncate hover:underline"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {formatAddress(policy.merchant)}
+              {displayName}
             </a>
             <Badge variant={status === 'active' ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
               {statusLabel}
@@ -151,6 +189,12 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
 
           {/* Meta row */}
           <div className="flex items-center gap-2 md:gap-2.5 text-[11px] md:text-xs text-muted-foreground mt-0.5">
+            {planName && metadata?.merchant?.name && (
+              <>
+                <span className="font-medium text-foreground/60">{planName}</span>
+                <span className="text-muted-foreground/30">&middot;</span>
+              </>
+            )}
             <span className="font-semibold text-foreground/80 tabular-nums">{formatUSDC(policy.chargeAmount)}</span>
             <span className="text-muted-foreground/30">/</span>
             <span className="font-medium">{formatInterval(policy.interval)}</span>
@@ -177,7 +221,7 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onCancel(policy.policyId)}
+              onClick={(e) => { e.stopPropagation(); onCancel(policy.policyId) }}
               disabled={isCancelling}
               className="hidden md:inline-flex text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 text-xs flex-shrink-0"
             >
@@ -186,7 +230,7 @@ export function SubscriptionCard({ policy, onCancel, isCancelling, compact = fal
             </Button>
             {/* Mobile */}
             <button
-              onClick={() => onCancel(policy.policyId)}
+              onClick={(e) => { e.stopPropagation(); onCancel(policy.policyId) }}
               disabled={isCancelling}
               className="md:hidden text-[11px] font-medium text-muted-foreground/60 hover:text-destructive transition-colors flex-shrink-0 disabled:opacity-50"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
