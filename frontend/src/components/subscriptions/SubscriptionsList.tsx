@@ -11,7 +11,7 @@ interface SubscriptionsListProps {
 }
 
 export function SubscriptionsList({ showAll = false, compact = false }: SubscriptionsListProps) {
-  const { policies, isLoading, refetch } = usePolicies()
+  const { policies, isLoading, refreshPolicyFromContract } = usePolicies()
   const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
   const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
   const [selectedPolicy, setSelectedPolicy] = React.useState<OnChainPolicy | null>(null)
@@ -28,7 +28,8 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
     try {
       setRevokingId(policyId)
       await revokePolicy(policyId)
-      await refetch()
+      // Read updated policy state directly from contract (bypasses Supabase indexer delay)
+      await refreshPolicyFromContract(policyId)
       setSelectedPolicy(null)
     } catch (err) {
       console.error('Failed to cancel subscription:', err)
