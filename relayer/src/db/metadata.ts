@@ -49,6 +49,7 @@ export async function upsertPlanMetadata(
     VALUES (${id}, ${merchantAddress.toLowerCase()}, ${db.json(jsonValue)}, NOW())
     ON CONFLICT (id) DO UPDATE
     SET
+      merchant_address = ${merchantAddress.toLowerCase()},
       metadata = ${db.json(jsonValue)},
       updated_at = NOW()
   `
