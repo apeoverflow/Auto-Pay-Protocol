@@ -40,11 +40,9 @@ export function AuthScreen() {
     return <RecoveryScreen onCancel={() => setShowRecovery(false)} />
   }
 
-  // Show docs page with back button
   if (showDocs) {
     return (
       <div className="flex h-screen flex-col bg-background overflow-hidden">
-        {/* Header with back button */}
         <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border/50 bg-white/80 backdrop-blur-sm px-4">
           <button
             onClick={() => setShowDocs(false)}
@@ -57,7 +55,6 @@ export function AuthScreen() {
             <img src="/logo.png" alt="AutoPayProtocol" className="h-6 w-auto opacity-80" />
           </div>
         </header>
-        {/* Docs content */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <DocsPage />
         </div>
@@ -67,18 +64,13 @@ export function AuthScreen() {
 
   const tabs = [
     { id: 'passkey' as const, label: 'Passkey', icon: Fingerprint },
-    { id: 'recovery' as const, label: 'Recover', icon: KeyRound },
+    { id: 'recovery' as const, label: 'Restore', icon: KeyRound },
   ]
 
   return (
     <div className="auth-scene">
-      {/* background layers */}
-      <div className="auth-orb auth-orb--1" />
-      <div className="auth-orb auth-orb--2" />
-      <div className="auth-orb auth-orb--3" />
       <div className="auth-grid" />
 
-      {/* split layout */}
       <div className="auth-split">
         {/* ─── left: brand panel ─── */}
         <div className="auth-brand">
@@ -86,70 +78,63 @@ export function AuthScreen() {
             <img
               src="/logo.png"
               alt="AutoPayProtocol"
-              className="auth-brand-logo"
+              className="auth-brand-logo auth-stagger auth-stagger-1"
             />
-            <h1 className="auth-brand-headline">
-              Subscription payments
+            <h1 className="auth-brand-headline auth-stagger auth-stagger-2">
+              Cut your payment
               <br />
-              at half the cost
+              fees in half
             </h1>
-            <p className="auth-brand-sub" style={{ color: 'hsl(220 15% 72%)' }}>
-              Accept recurring USDC payments for your newsletter, DAO, or SaaS.
-              2.5% fees — 50% less than traditional processors.
+            <p className="auth-brand-sub auth-stagger auth-stagger-3">
+              Recurring USDC payments for newsletters, DAOs, and SaaS. Just 2.5% per transaction.
             </p>
 
-            <div className="auth-brand-features" style={{ gap: '14px' }}>
-              <div className="auth-feature" style={{ color: 'hsl(220 15% 80%)' }}>
-                <div className="auth-feature-icon" style={{ background: 'hsl(220 60% 50% / 0.2)', color: 'hsl(220 80% 70%)' }}>
-                  <Wallet className="h-[18px] w-[18px]" />
+            <div className="auth-brand-features auth-stagger auth-stagger-4">
+              <div className="auth-feature">
+                <div className="auth-feature-icon auth-feature-icon--wallet">
+                  <Wallet className="h-4 w-4" />
                 </div>
                 <span>Non-custodial — funds stay in user wallets</span>
               </div>
-              <div className="auth-feature" style={{ color: 'hsl(220 15% 80%)' }}>
-                <div className="auth-feature-icon" style={{ background: 'hsl(150 60% 40% / 0.2)', color: 'hsl(150 70% 60%)' }}>
-                  <BadgePercent className="h-[18px] w-[18px]" />
+              <div className="auth-feature">
+                <div className="auth-feature-icon auth-feature-icon--fee">
+                  <BadgePercent className="h-4 w-4" />
                 </div>
                 <span>2.5% protocol fee vs 5%+ traditional</span>
               </div>
-              <div className="auth-feature" style={{ color: 'hsl(220 15% 80%)' }}>
-                <div className="auth-feature-icon" style={{ background: 'hsl(280 60% 50% / 0.2)', color: 'hsl(280 70% 70%)' }}>
-                  <Globe className="h-[18px] w-[18px]" />
+              <div className="auth-feature">
+                <div className="auth-feature-icon auth-feature-icon--chain">
+                  <Globe className="h-4 w-4" />
                 </div>
                 <span>Multi-chain USDC via Circle Gateway</span>
               </div>
             </div>
 
-            {/* Docs link */}
             <button
               onClick={() => setShowDocs(true)}
-              className="mt-8 flex items-center gap-2 text-[14px] font-medium text-white/60 hover:text-white transition-colors group"
+              className="auth-docs-link auth-stagger auth-stagger-5"
             >
               <BookOpen className="h-4 w-4" />
-              <span>Read the documentation</span>
-              <ArrowRight className="h-3.5 w-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+              Documentation
+              <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
-
-          {/* decorative rings */}
-          <div className="auth-ring auth-ring--1" />
-          <div className="auth-ring auth-ring--2" />
         </div>
 
         {/* ─── right: form panel ─── */}
         <div className="auth-form-panel">
-          <div className="auth-form-inner">
-            {/* mobile logo + tagline */}
+          <div className="auth-form-inner auth-card-enter">
             <div className="auth-mobile-logo">
               <img src="/logo.png" alt="AutoPayProtocol" className="auth-mobile-logo-img" />
               <p className="auth-mobile-tagline">
-                Subscription payments at half the cost
+                Cut your payment fees in half
               </p>
             </div>
 
             <div className="auth-form-header">
               <h2 className="auth-form-title">Sign in</h2>
               <p className="auth-form-desc">
-                Choose your preferred authentication method
+                Access your wallet to continue
               </p>
             </div>
 
@@ -195,17 +180,16 @@ export function AuthScreen() {
       </div>
 
       {/* scene footer */}
-      <div className="auth-scene-footer" style={{ color: 'hsl(220 15% 60%)' }}>
-        {/* "Secured by" on mobile */}
+      <div className="auth-scene-footer">
         <div className="auth-scene-footer-secured">
           <span className="auth-dot" />
           Secured by AutoPayProtocol
         </div>
         <div className="auth-scene-footer-meta">
           <span>Arc Testnet</span>
-          <div className="auth-footer-dot" style={{ background: 'hsl(220 15% 45%)' }} />
+          <div className="auth-footer-dot" />
           <span>USDC Payments</span>
-          <div className="auth-footer-dot" style={{ background: 'hsl(220 15% 45%)' }} />
+          <div className="auth-footer-dot" />
           <span>Powered by Circle</span>
         </div>
       </div>
@@ -243,7 +227,7 @@ function RecoveryInline({ onCancel }: { onCancel: () => void }) {
         <h3 className="text-[15px] font-semibold text-white mb-1">
           Recover your wallet
         </h3>
-        <p className="text-[13px] text-[hsl(220,15%,52%)]">
+        <p className="text-[13px] text-[hsl(220,15%,55%)]">
           Enter your 12-word recovery phrase to regain access
         </p>
       </div>
