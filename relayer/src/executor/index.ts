@@ -58,12 +58,12 @@ async function processChainCharges(
         result.protocolFee ?? '0'
       )
 
-      // Update policy state
+      // Update policy state — use full charge_amount (not net amount from event)
       await updatePolicyAfterCharge(
         config.databaseUrl,
         chainConfig.chainId,
         policy.id,
-        result.amount ?? policy.charge_amount,
+        policy.charge_amount,
         new Date(),
         policy.interval_seconds
       )

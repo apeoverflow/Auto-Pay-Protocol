@@ -1,5 +1,5 @@
 {
-  "name": "@autopay/relayer",
+  "name": "@autopayprotocol/relayer",
   "version": "0.1.0",
   "description": "AutoPay Protocol relayer service - indexes events, executes charges, sends webhooks",
   "type": "module",

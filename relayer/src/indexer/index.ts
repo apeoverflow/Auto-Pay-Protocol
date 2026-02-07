@@ -166,7 +166,7 @@ export async function runIndexerOnce(
                   databaseUrl,
                   chainConfig.chainId,
                   parsed.event.policyId,
-                  parsed.event.amount.toString(),
+                  existingPolicy.charge_amount,
                   timestamp,
                   existingPolicy.interval_seconds
                 )

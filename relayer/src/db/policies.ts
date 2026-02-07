@@ -20,7 +20,7 @@ export async function insertPolicy(
     INSERT INTO policies (
       id, chain_id, payer, merchant, charge_amount, spending_cap,
       interval_seconds, last_charged_at, next_charge_at, charge_count,
-      active, metadata_url, created_at, created_block, created_tx
+      total_spent, active, metadata_url, created_at, created_block, created_tx
     ) VALUES (
       ${event.policyId},
       ${chainId},
@@ -32,6 +32,7 @@ export async function insertPolicy(
       ${timestamp},
       ${nextChargeAt},
       ${1},
+      ${event.chargeAmount.toString()},
       ${true},
       ${event.metadataUrl || null},
       ${timestamp},
