@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '../components/ui/drawer'
 import { ArrowRight, CreditCard, Activity, ChevronRight, Clock, Send, Loader2, ArrowDownUp } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { useWallet, usePolicies } from '../hooks'
+import { useWallet, usePolicies, useMetadataBatch } from '../hooks'
 import { formatUSDC } from '../types/subscriptions'
 
 interface DashboardPageProps {
@@ -28,11 +28,20 @@ function getMerchantGradient(address: string) {
   return gradients[index]
 }
 
+function getNextChargeTimestamp(lastCharged: number, interval: number): number {
+  const next = lastCharged + interval
+  const now = Math.floor(Date.now() / 1000)
+  if (next > now) return next
+  const elapsed = now - lastCharged
+  const periods = Math.ceil(elapsed / interval)
+  return lastCharged + periods * interval
+}
+
 function getRemainingTime(nextChargeTimestamp: number): string {
   const now = Math.floor(Date.now() / 1000)
   const diff = nextChargeTimestamp - now
 
-  if (diff < 0) return 'Overdue'
+  if (diff < 0) return 'Soon'
 
   const days = Math.floor(diff / 86400)
   const hours = Math.floor((diff % 86400) / 3600)
@@ -45,6 +54,8 @@ function getRemainingTime(nextChargeTimestamp: number): string {
 /* ── Mobile: horizontally scrollable subscription chips ── */
 function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
   const { policies, isLoading } = usePolicies()
+  const metadataUrls = React.useMemo(() => policies.map(p => p.metadataUrl || null), [policies])
+  const metadataMap = useMetadataBatch(metadataUrls)
   const activePolicies = policies.filter(p => p.active)
 
   if (isLoading && policies.length === 0) {
@@ -92,7 +103,12 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
       <div className="relative -mx-3">
         <div className="flex gap-2.5 overflow-x-auto pb-1 px-3 scrollbar-hide">
           {activePolicies.map(policy => {
-            const nextChargeTime = policy.lastCharged + policy.interval
+            const nextChargeTime = getNextChargeTimestamp(policy.lastCharged, policy.interval)
+            const meta = policy.metadataUrl ? metadataMap.get(policy.metadataUrl) : undefined
+            const displayName = meta?.merchant?.name || meta?.plan?.name || `${policy.merchant.slice(0, 6)}...${policy.merchant.slice(-4)}`
+            const avatarLetters = meta?.merchant?.name
+              ? meta.merchant.name.slice(0, 2).toUpperCase()
+              : policy.merchant.slice(2, 4).toUpperCase()
             return (
               <button
                 key={policy.policyId}
@@ -100,11 +116,11 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
                 className="flex-shrink-0 flex items-center gap-2.5 rounded-xl bg-card border border-border/50 pl-2.5 pr-3.5 py-2.5 shadow-sm active:scale-[0.97] transition-all duration-150 hover:shadow-md"
               >
                 <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${getMerchantGradient(policy.merchant)} text-white text-[11px] font-bold shadow-sm`}>
-                  {policy.merchant.slice(2, 4).toUpperCase()}
+                  {avatarLetters}
                 </div>
                 <div className="text-left">
                   <p className="text-[12px] font-semibold text-foreground leading-tight">
-                    {policy.merchant.slice(0, 6)}...{policy.merchant.slice(-4)}
+                    {displayName}
                   </p>
                   <div className="flex items-center gap-1 mt-0.5">
                     <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{formatUSDC(policy.chargeAmount)}</span>

@@ -7,16 +7,26 @@ import {
   SettingsPage,
   DemoPage,
   BridgePage,
-  DocsPage,
 } from '../../pages'
 
-export function WalletDashboard() {
+export function WalletDashboard({ onNavigateDocs }: { onNavigateDocs?: () => void }) {
   const [currentPage, setCurrentPage] = React.useState<NavItem>('dashboard')
+
+  const handleNavigate = React.useCallback(
+    (page: NavItem) => {
+      if (page === 'docs') {
+        onNavigateDocs?.()
+        return
+      }
+      setCurrentPage(page)
+    },
+    [onNavigateDocs],
+  )
 
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage onNavigate={setCurrentPage} />
+        return <DashboardPage onNavigate={handleNavigate} />
       case 'subscriptions':
         return <SubscriptionsPage />
       case 'activity':
@@ -24,18 +34,16 @@ export function WalletDashboard() {
       case 'bridge':
         return <BridgePage />
       case 'demo':
-        return <DemoPage onNavigate={setCurrentPage} />
-      case 'docs':
-        return <DocsPage />
+        return <DemoPage onNavigate={handleNavigate} />
       case 'settings':
         return <SettingsPage />
       default:
-        return <DashboardPage onNavigate={setCurrentPage} />
+        return <DashboardPage onNavigate={handleNavigate} />
     }
   }
 
   return (
-    <DashboardLayout currentPage={currentPage} onNavigate={setCurrentPage}>
+    <DashboardLayout currentPage={currentPage} onNavigate={handleNavigate}>
       {renderPage()}
     </DashboardLayout>
   )

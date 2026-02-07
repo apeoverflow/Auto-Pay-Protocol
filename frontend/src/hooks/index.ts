@@ -1,3 +1,4 @@
+export { useRoute } from './useRoute'
 export { useAuth } from './useAuth'
 export { useWallet } from './useWallet'
 export { useTransfer } from './useTransfer'

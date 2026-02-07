@@ -29,6 +29,7 @@ export interface ActivityItem {
   amount?: bigint
   token?: string
   merchant?: string
+  metadataUrl?: string
   subscription?: Subscription
   txHash: `0x${string}`
   status: 'confirmed' | 'pending' | 'failed'

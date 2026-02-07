@@ -179,11 +179,19 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
     return sum + BigInt(Math.floor(Number(p.chargeAmount) * monthlyMultiplier))
   }, 0n)
 
-  // Find the next charge time
+  // Find the next charge time (fast-forward past stale data)
   const now = Math.floor(Date.now() / 1000)
   const nextPolicy = activePolicies
-    .map(p => ({ policy: p, nextCharge: p.lastCharged + p.interval }))
-    .filter(p => p.nextCharge > now)
+    .map(p => {
+      const raw = p.lastCharged + p.interval
+      let nextCharge = raw
+      if (nextCharge <= now) {
+        const elapsed = now - p.lastCharged
+        const periods = Math.ceil(elapsed / p.interval)
+        nextCharge = p.lastCharged + periods * p.interval
+      }
+      return { policy: p, nextCharge }
+    })
     .sort((a, b) => a.nextCharge - b.nextCharge)[0]
 
   const getNextChargeTime = (): string => {

@@ -70,6 +70,7 @@ function dbToActivityItems(
       amount: BigInt(charge.amount),
       token: 'USDC',
       merchant: policy ? formatAddress(policy.merchant) : 'Unknown',
+      metadataUrl: policy?.metadata_url || undefined,
       txHash: (charge.tx_hash || '0x') as `0x${string}`,
       status: charge.status === 'success' ? 'confirmed' : 'failed',
     })
@@ -84,6 +85,7 @@ function dbToActivityItems(
       amount: BigInt(policy.charge_amount),
       token: 'USDC',
       merchant: formatAddress(policy.merchant),
+      metadataUrl: policy.metadata_url || undefined,
       txHash: policy.created_tx as `0x${string}`,
       status: 'confirmed',
     })
@@ -95,6 +97,7 @@ function dbToActivityItems(
         type: 'cancel',
         timestamp: new Date(policy.ended_at),
         merchant: formatAddress(policy.merchant),
+        metadataUrl: policy.metadata_url || undefined,
         txHash: policy.created_tx as `0x${string}`, // Use created_tx as fallback
         status: 'confirmed',
       })
@@ -196,6 +199,14 @@ export function useActivity(): UseActivityReturn {
         blockTimestamps.set(blockNumber, Number(block.timestamp))
       }
 
+      // Build merchant→metadataUrl lookup from create logs
+      const merchantMetadata = new Map<string, string>()
+      for (const log of createLogs) {
+        if (log.args.metadataUrl) {
+          merchantMetadata.set(log.args.merchant.toLowerCase(), log.args.metadataUrl)
+        }
+      }
+
       const items: ActivityItem[] = []
 
       // Process charge events
@@ -208,6 +219,7 @@ export function useActivity(): UseActivityReturn {
           amount: log.args.amount,
           token: 'USDC',
           merchant: formatAddress(log.args.merchant),
+          metadataUrl: merchantMetadata.get(log.args.merchant.toLowerCase()),
           txHash: log.transactionHash,
           status: 'confirmed',
         })
@@ -223,6 +235,7 @@ export function useActivity(): UseActivityReturn {
           amount: log.args.chargeAmount,
           token: 'USDC',
           merchant: formatAddress(log.args.merchant),
+          metadataUrl: log.args.metadataUrl || undefined,
           txHash: log.transactionHash,
           status: 'confirmed',
         })
@@ -236,6 +249,7 @@ export function useActivity(): UseActivityReturn {
           type: 'cancel',
           timestamp: new Date((timestamp || 0) * 1000),
           merchant: formatAddress(log.args.merchant),
+          metadataUrl: merchantMetadata.get(log.args.merchant.toLowerCase()),
           txHash: log.transactionHash,
           status: 'confirmed',
         })

@@ -6,7 +6,6 @@ import { Alert, AlertTitle, AlertDescription } from '../ui/alert'
 import { StatusMessage } from '../common/StatusMessage'
 import { PasskeyLogin } from './PasskeyLogin'
 import { RecoveryScreen } from '../recovery/RecoveryScreen'
-import { DocsPage } from '../../pages/DocsPage'
 import {
   Fingerprint,
   KeyRound,
@@ -16,16 +15,14 @@ import {
   BadgePercent,
   Globe,
   BookOpen,
-  ArrowLeft,
   ArrowRight,
 } from 'lucide-react'
 
 type AuthTab = 'passkey' | 'recovery'
 
-export function AuthScreen() {
+export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {
   const { showRecovery, setShowRecovery } = useRecovery()
   const [activeTab, setActiveTab] = React.useState<AuthTab>('passkey')
-  const [showDocs, setShowDocs] = React.useState(false)
 
   React.useEffect(() => {
     if (showRecovery) setActiveTab('recovery')
@@ -40,28 +37,6 @@ export function AuthScreen() {
     return <RecoveryScreen onCancel={() => setShowRecovery(false)} />
   }
 
-  if (showDocs) {
-    return (
-      <div className="flex h-screen flex-col bg-background overflow-hidden">
-        <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border/50 bg-white/80 backdrop-blur-sm px-4">
-          <button
-            onClick={() => setShowDocs(false)}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Sign In
-          </button>
-          <div className="ml-auto flex items-center gap-2">
-            <img src="/logo.png" alt="AutoPayProtocol" className="h-6 w-auto opacity-80" />
-          </div>
-        </header>
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <DocsPage />
-        </div>
-      </div>
-    )
-  }
-
   const tabs = [
     { id: 'passkey' as const, label: 'Passkey', icon: Fingerprint },
     { id: 'recovery' as const, label: 'Restore', icon: KeyRound },
@@ -72,8 +47,31 @@ export function AuthScreen() {
       <div className="auth-grid" />
 
       <div className="auth-split">
+        {/* ─── payment stream bridge ─── */}
+        <div className="auth-stream" aria-hidden="true">
+          <div className="auth-stream-rail" />
+          {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+            <React.Fragment key={n}>
+              <div className={`auth-token auth-token--${n}`} />
+              <div className={`auth-token auth-token--${n} auth-seg auth-seg--1`} />
+              <div className={`auth-token auth-token--${n} auth-seg auth-seg--2`} />
+              <div className={`auth-token auth-token--${n} auth-seg auth-seg--3`} />
+              <div className={`auth-token auth-token--${n} auth-seg auth-seg--4`} />
+              <div className={`auth-token auth-token--${n} auth-seg auth-seg--5`} />
+              <div className={`auth-token auth-token--${n} auth-seg auth-seg--6`} />
+            </React.Fragment>
+          ))}
+        </div>
+
         {/* ─── left: brand panel ─── */}
         <div className="auth-brand">
+          {/* ambient aurora */}
+          <div className="auth-aurora" aria-hidden="true">
+            <div className="auth-orb auth-orb--1" />
+            <div className="auth-orb auth-orb--2" />
+            <div className="auth-orb auth-orb--3" />
+            <div className="auth-grain" />
+          </div>
           <div className="auth-brand-content">
             <img
               src="/logo.png"
@@ -81,26 +79,36 @@ export function AuthScreen() {
               className="auth-brand-logo auth-stagger auth-stagger-1"
             />
             <h1 className="auth-brand-headline auth-stagger auth-stagger-2">
-              Cut your payment
-              <br />
-              fees in half
+              Cut your payment fees in <strong>half</strong>
             </h1>
             <p className="auth-brand-sub auth-stagger auth-stagger-3">
-              Recurring USDC payments for newsletters, DAOs, and SaaS. Just 2.5% per transaction.
+              Recurring USDC payments for newsletters, DAOs, and SaaS.
             </p>
 
-            <div className="auth-brand-features auth-stagger auth-stagger-4">
+            {/* micro-stats */}
+            <div className="auth-bento auth-stagger auth-stagger-4">
+              <div className="auth-bento-card">
+                <span className="auth-bento-value">50%</span>
+                <span className="auth-bento-label">cheaper fees</span>
+              </div>
+              <div className="auth-bento-card">
+                <span className="auth-bento-value">12+</span>
+                <span className="auth-bento-label">chains supported</span>
+              </div>
+            </div>
+
+            <div className="auth-brand-features auth-stagger auth-stagger-5">
               <div className="auth-feature">
                 <div className="auth-feature-icon auth-feature-icon--wallet">
                   <Wallet className="h-4 w-4" />
                 </div>
-                <span>Non-custodial — funds stay in user wallets</span>
+                <span>Non-custodial — full wallet ownership & control</span>
               </div>
               <div className="auth-feature">
                 <div className="auth-feature-icon auth-feature-icon--fee">
                   <BadgePercent className="h-4 w-4" />
                 </div>
-                <span>2.5% protocol fee vs 5%+ traditional</span>
+                <span>No intermediaries or hidden processing fees</span>
               </div>
               <div className="auth-feature">
                 <div className="auth-feature-icon auth-feature-icon--chain">
@@ -111,8 +119,8 @@ export function AuthScreen() {
             </div>
 
             <button
-              onClick={() => setShowDocs(true)}
-              className="auth-docs-link auth-stagger auth-stagger-5"
+              onClick={() => onNavigateDocs?.()}
+              className="auth-docs-link auth-stagger auth-stagger-6"
             >
               <BookOpen className="h-4 w-4" />
               Documentation
@@ -186,7 +194,7 @@ export function AuthScreen() {
           Secured by AutoPayProtocol
         </div>
         <div className="auth-scene-footer-meta">
-          <span>Arc Testnet</span>
+          <span><span className="auth-chain-dot" />Arc Testnet</span>
           <div className="auth-footer-dot" />
           <span>USDC Payments</span>
           <div className="auth-footer-dot" />
@@ -224,10 +232,10 @@ function RecoveryInline({ onCancel }: { onCancel: () => void }) {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-[15px] font-semibold text-white mb-1">
+        <h3 className="text-[15px] font-semibold text-gray-900 mb-1">
           Recover your wallet
         </h3>
-        <p className="text-[13px] text-[hsl(220,15%,55%)]">
+        <p className="text-[13px] text-gray-500">
           Enter your 12-word recovery phrase to regain access
         </p>
       </div>

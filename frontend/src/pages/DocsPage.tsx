@@ -306,23 +306,41 @@ function slugify(text: string): string {
     .trim()
 }
 
-export function DocsPage() {
+// Extract plain text from React children (handles <code> elements etc.)
+function getTextContent(children: React.ReactNode): string {
+  if (typeof children === 'string') return children
+  if (typeof children === 'number') return String(children)
+  if (Array.isArray(children)) return children.map(getTextContent).join('')
+  if (React.isValidElement(children) && children.props) {
+    return getTextContent((children.props as { children?: React.ReactNode }).children)
+  }
+  return ''
+}
+
+export function DocsPage({ hideLogo = false }: { hideLogo?: boolean } = {}) {
   const [activeDoc, setActiveDoc] = React.useState<DocId>('overview')
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const [tocOpen, setTocOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [searchFocused, setSearchFocused] = React.useState(false)
+  const [searchOpen, setSearchOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const contentRef = React.useRef<HTMLDivElement>(null)
 
   const searchResults = React.useMemo(() => searchDocs(searchQuery), [searchQuery])
-  const showResults = searchFocused && searchQuery.length >= 2
+
+  const openSearch = React.useCallback(() => {
+    setSearchOpen(true)
+    setTimeout(() => searchInputRef.current?.focus(), 50)
+  }, [])
+
+  const closeSearch = React.useCallback(() => {
+    setSearchOpen(false)
+    setSearchQuery('')
+  }, [])
 
   const handleSearchSelect = React.useCallback((result: SearchResult) => {
     setActiveDoc(result.docId)
-    setSearchQuery('')
-    setSearchFocused(false)
-    searchInputRef.current?.blur()
+    closeSearch()
     setMobileMenuOpen(false)
     requestAnimationFrame(() => {
       if (result.slug) {
@@ -334,23 +352,22 @@ export function DocsPage() {
       }
       contentRef.current?.scrollTo(0, 0)
     })
-  }, [])
+  }, [closeSearch])
 
-  // Keyboard shortcut: Cmd/Ctrl+K to focus search
+  // Keyboard shortcut: Cmd/Ctrl+K to open search, Escape to close
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        searchInputRef.current?.focus()
+        openSearch()
       }
-      if (e.key === 'Escape') {
-        setSearchFocused(false)
-        searchInputRef.current?.blur()
+      if (e.key === 'Escape' && searchOpen) {
+        closeSearch()
       }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [])
+  }, [searchOpen, openSearch, closeSearch])
 
   const currentDoc = allDocs.find((d) => d.id === activeDoc)!
   const headings = React.useMemo(() => extractHeadings(currentDoc.content), [currentDoc.content])
@@ -427,7 +444,7 @@ export function DocsPage() {
         return <div className="my-4 overflow-x-auto rounded-lg border border-border/50">{children}</div>
       },
       h1({ children }) {
-        const text = String(children)
+        const text = getTextContent(children)
         return (
           <h1 id={slugify(text)} className="mb-6 text-2xl font-bold tracking-tight text-foreground">
             {children}
@@ -435,7 +452,7 @@ export function DocsPage() {
         )
       },
       h2({ children }) {
-        const text = String(children)
+        const text = getTextContent(children)
         return (
           <h2
             id={slugify(text)}
@@ -446,7 +463,7 @@ export function DocsPage() {
         )
       },
       h3({ children }) {
-        const text = String(children)
+        const text = getTextContent(children)
         return (
           <h3 id={slugify(text)} className="mb-3 mt-8 text-lg font-semibold text-foreground">
             {children}
@@ -454,7 +471,7 @@ export function DocsPage() {
         )
       },
       h4({ children }) {
-        const text = String(children)
+        const text = getTextContent(children)
         return (
           <h4 id={slugify(text)} className="mb-2 mt-6 text-base font-semibold text-foreground">
             {children}
@@ -570,38 +587,14 @@ export function DocsPage() {
         </button>
         {mobileMenuOpen && (
           <div className="mt-2 rounded-lg border border-border/50 bg-background p-2 shadow-lg">
-            {/* Mobile search */}
-            <div className="relative mb-2 px-1">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
-              <input
-                type="text"
-                placeholder="Search docs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-md border border-border/50 bg-muted/30 py-1.5 pl-8 pr-3 text-[13px] placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
-              />
-            </div>
-            {searchQuery.length >= 2 && (
-              <div className="mb-2 max-h-[40vh] overflow-y-auto rounded-md border border-border/30 bg-background">
-                {searchResults.length === 0 ? (
-                  <div className="px-3 py-3 text-center text-[12px] text-muted-foreground">No results</div>
-                ) : (
-                  searchResults.map((r, i) => (
-                    <button
-                      key={`m-${r.docId}-${r.slug}-${i}`}
-                      onClick={() => handleSearchSelect(r)}
-                      className="flex w-full flex-col gap-0.5 border-b border-border/30 px-3 py-2 text-left last:border-0 hover:bg-muted/50"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{r.docLabel}</span>
-                        <span className="truncate text-[12px] font-medium text-foreground/80">{r.heading}</span>
-                      </div>
-                      <span className="truncate text-[11px] text-muted-foreground">{r.snippet}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
+            {/* Mobile search trigger */}
+            <button
+              onClick={openSearch}
+              className="mb-2 flex w-full items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-3 py-1.5 text-[13px] text-muted-foreground/60"
+            >
+              <Search className="h-3.5 w-3.5" />
+              Search docs...
+            </button>
             {categories.map((cat) => (
               <div key={cat.label}>
                 <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -630,51 +623,21 @@ export function DocsPage() {
       {/* Desktop sidebar */}
       <div className="hidden w-[220px] flex-shrink-0 border-r border-border/50 bg-muted/20 md:block">
         <div className="sticky top-0 p-4">
-          {/* Search */}
-          <div className="relative mb-4">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search... ⌘K"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
-              className="w-full rounded-lg border border-border/50 bg-background py-1.5 pl-8 pr-7 text-[13px] placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20"
-            />
-            {searchQuery && (
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground/80"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-            {showResults && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[60vh] overflow-y-auto rounded-lg border border-border/50 bg-background shadow-lg">
-                {searchResults.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-[12px] text-muted-foreground">No results found</div>
-                ) : (
-                  searchResults.map((r, i) => (
-                    <button
-                      key={`${r.docId}-${r.slug}-${i}`}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => handleSearchSelect(r)}
-                      className="flex w-full flex-col gap-0.5 border-b border-border/30 px-3 py-2 text-left last:border-0 hover:bg-muted/50"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{r.docLabel}</span>
-                        <span className="truncate text-[12px] font-medium text-foreground/80">{r.heading}</span>
-                      </div>
-                      <span className="truncate text-[11px] text-muted-foreground">{r.snippet}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
+          {/* Logo (hidden when embedded in signed-in view) */}
+          {!hideLogo && (
+            <div className="mb-5 flex justify-center">
+              <img src="/logo.png" alt="AutoPay" className="h-10 w-auto brightness-0 opacity-60" />
+            </div>
+          )}
+          {/* Search trigger */}
+          <button
+            onClick={openSearch}
+            className="mb-4 flex w-full items-center gap-2 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-[13px] text-muted-foreground/50 transition-colors hover:border-border hover:text-muted-foreground"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="flex-1 text-left">Search...</span>
+            <kbd className="hidden rounded border border-border/50 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium lg:inline">⌘K</kbd>
+          </button>
           {categories.map((cat) => (
             <div key={cat.label} className="mb-5">
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -732,7 +695,7 @@ export function DocsPage() {
         {/* Desktop TOC sidebar */}
         {headings.length > 0 && (
           <div className="hidden w-[200px] flex-shrink-0 border-l border-border/50 lg:block">
-            <div className="sticky top-0 p-4">
+            <div className="sticky top-0 max-h-screen overflow-y-auto p-4">
               <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 On this page
               </div>
@@ -741,6 +704,75 @@ export function DocsPage() {
           </div>
         )}
       </div>
+
+      {/* Search modal overlay */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]" onClick={closeSearch}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-lg rounded-xl border border-border bg-background shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Search input */}
+            <div className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
+              <Search className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search documentation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
+              />
+              {searchQuery ? (
+                <button
+                  onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
+                  className="text-muted-foreground/50 hover:text-foreground/80"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <kbd className="rounded border border-border/50 bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  ESC
+                </kbd>
+              )}
+            </div>
+
+            {/* Results */}
+            <div className="max-h-[50vh] overflow-y-auto">
+              {searchQuery.length < 2 ? (
+                <div className="px-4 py-8 text-center text-sm text-muted-foreground/60">
+                  Type to search across all documentation
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No results for &ldquo;{searchQuery}&rdquo;
+                </div>
+              ) : (
+                <div className="py-2">
+                  {searchResults.map((r, i) => (
+                    <button
+                      key={`${r.docId}-${r.slug}-${i}`}
+                      onClick={() => handleSearchSelect(r)}
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                    >
+                      <span className="mt-0.5 flex-shrink-0 rounded bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        {r.docLabel}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-foreground">{r.heading}</div>
+                        <div className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground line-clamp-2">
+                          {r.snippet}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

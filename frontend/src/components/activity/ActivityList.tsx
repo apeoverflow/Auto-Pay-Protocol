@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Card, CardContent } from '../ui/card'
 import { ActivityItemRow } from './ActivityItem'
-import { useActivity } from '../../hooks'
+import { useActivity, useMetadataBatch } from '../../hooks'
 import type { ActivityItem } from '../../types/subscriptions'
 import { Activity, Filter, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { Button } from '../ui/button'
@@ -24,6 +24,8 @@ const PAGE_SIZE = 8
 
 export function ActivityList({ showAll = false, limit = 5, compact = false }: ActivityListProps) {
   const { activity, isLoading, error } = useActivity()
+  const metadataUrls = React.useMemo(() => activity.map(a => a.metadataUrl || null), [activity])
+  const metadataMap = useMetadataBatch(metadataUrls)
   const [filter, setFilter] = React.useState<FilterType>('all')
   const [page, setPage] = React.useState(0)
 
@@ -93,7 +95,7 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
       <div className="divide-y divide-border/50">
         {displayedActivity.map(item => (
           <div key={item.id} className="px-4">
-            <ActivityItemRow item={item} compact />
+            <ActivityItemRow item={item} compact metadata={item.metadataUrl ? metadataMap.get(item.metadataUrl) : undefined} />
           </div>
         ))}
       </div>
@@ -127,7 +129,7 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
         <CardContent className="divide-y divide-border/40 p-0">
           {displayedActivity.map(item => (
             <div key={item.id} className="px-4 md:px-5">
-              <ActivityItemRow item={item} />
+              <ActivityItemRow item={item} metadata={item.metadataUrl ? metadataMap.get(item.metadataUrl) : undefined} />
             </div>
           ))}
         </CardContent>

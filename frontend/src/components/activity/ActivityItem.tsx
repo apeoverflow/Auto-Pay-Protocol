@@ -1,6 +1,7 @@
 import { Badge } from '../ui/badge'
 import { formatUSDC } from '../../types/subscriptions'
 import type { ActivityItem as ActivityItemType } from '../../types/subscriptions'
+import type { PolicyMetadata } from '../../hooks/useMetadata'
 import { useChain } from '../../hooks'
 import {
   CreditCard,
@@ -13,6 +14,7 @@ import {
 interface ActivityItemProps {
   item: ActivityItemType
   compact?: boolean
+  metadata?: PolicyMetadata | null
 }
 
 const typeConfig: Record<ActivityItemType['type'], {
@@ -53,17 +55,20 @@ const statusVariants: Record<ActivityItemType['status'], 'success' | 'warning' |
   failed: 'destructive',
 }
 
-export function ActivityItemRow({ item, compact = false }: ActivityItemProps) {
+export function ActivityItemRow({ item, compact = false, metadata }: ActivityItemProps) {
   const { chainConfig } = useChain()
   const config = typeConfig[item.type]
+  const merchantName = metadata?.merchant?.name || metadata?.plan?.name || item.merchant
 
   const formatDate = (date: Date) => {
     const now = new Date()
     const diff = now.getTime() - date.getTime()
+    const mins = Math.floor(diff / (1000 * 60))
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-    if (hours < 1) return 'Just now'
+    if (mins < 1) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
     if (hours < 24) return `${hours}h ago`
     if (days < 7) return `${days}d ago`
     return date.toLocaleDateString()
@@ -87,7 +92,7 @@ export function ActivityItemRow({ item, compact = false }: ActivityItemProps) {
               {config.label}
             </span>
             {item.merchant && (
-              <span className="text-[11px] text-muted-foreground/70 truncate">{item.merchant}</span>
+              <span className="text-[11px] text-muted-foreground/70 truncate">{merchantName}</span>
             )}
           </div>
           <span className="text-[10px] text-muted-foreground/50">{formatDate(item.timestamp)}</span>
@@ -115,8 +120,8 @@ export function ActivityItemRow({ item, compact = false }: ActivityItemProps) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
           <span className="font-semibold text-sm sm:text-[15px]">{config.label}</span>
-          {item.merchant && (
-            <span className="text-muted-foreground text-sm">- {item.merchant}</span>
+          {merchantName && (
+            <span className="text-muted-foreground text-sm">- {merchantName}</span>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-0.5">

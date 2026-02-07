@@ -35,11 +35,27 @@ function formatAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
+/**
+ * Compute the next future charge timestamp.
+ * If lastCharged + interval is in the past (relayer already charged but
+ * frontend data is stale), fast-forward by whole intervals to the next
+ * future occurrence.
+ */
+function getNextChargeTimestamp(lastCharged: number, interval: number): number {
+  const next = lastCharged + interval
+  const now = Math.floor(Date.now() / 1000)
+  if (next > now) return next
+  // Fast-forward past now
+  const elapsed = now - lastCharged
+  const periods = Math.ceil(elapsed / interval)
+  return lastCharged + periods * interval
+}
+
 function getRemainingTime(nextChargeTimestamp: number): string {
   const now = Math.floor(Date.now() / 1000)
   const diff = nextChargeTimestamp - now
 
-  if (diff < 0) return 'Overdue'
+  if (diff < 0) return 'Soon'
 
   const days = Math.floor(diff / 86400)
   const hours = Math.floor((diff % 86400) / 3600)
@@ -68,8 +84,8 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
     ? metadata.merchant.name.slice(0, 2).toUpperCase()
     : policy.merchant.slice(2, 4).toUpperCase()
 
-  // Calculate next charge time
-  const nextChargeTime = policy.lastCharged + policy.interval
+  // Calculate next charge time (fast-forwards past stale data)
+  const nextChargeTime = getNextChargeTimestamp(policy.lastCharged, policy.interval)
 
   // Build explorer links
   const policyExplorerUrl = `${chainConfig.explorer}/address/${chainConfig.policyManager}`

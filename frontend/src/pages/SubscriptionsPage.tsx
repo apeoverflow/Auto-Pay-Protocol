@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard'
-import { usePolicies, useRevokePolicy, useChain } from '../hooks'
+import { usePolicies, useRevokePolicy, useChain, useMetadataBatch } from '../hooks'
 import type { OnChainPolicy } from '../types/policy'
 import { Search, CreditCard, Loader2, ExternalLink } from 'lucide-react'
 import { Input } from '../components/ui/input'
@@ -18,6 +18,8 @@ export function SubscriptionsPage() {
   const { policies, isLoading, error, refetch, refreshPolicyFromContract } = usePolicies()
   const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
   const { chainConfig } = useChain()
+  const metadataUrls = React.useMemo(() => policies.map(p => p.metadataUrl || null), [policies])
+  const metadataMap = useMetadataBatch(metadataUrls)
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [search, setSearch] = React.useState('')
   const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
@@ -45,18 +47,23 @@ export function SubscriptionsPage() {
       result = result.filter(p => !p.active)
     }
 
-    // Search by merchant address or metadata URL
+    // Search by merchant name, address, or metadata URL
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(p =>
-        p.merchant.toLowerCase().includes(q) ||
-        p.metadataUrl.toLowerCase().includes(q) ||
-        p.policyId.toLowerCase().includes(q)
-      )
+      result = result.filter(p => {
+        const meta = p.metadataUrl ? metadataMap.get(p.metadataUrl) : undefined
+        const name = meta?.merchant?.name || meta?.plan?.name || ''
+        return (
+          name.toLowerCase().includes(q) ||
+          p.merchant.toLowerCase().includes(q) ||
+          p.metadataUrl.toLowerCase().includes(q) ||
+          p.policyId.toLowerCase().includes(q)
+        )
+      })
     }
 
     return result
-  }, [policies, filter, search])
+  }, [policies, filter, search, metadataMap])
 
   const counts = React.useMemo(() => ({
     all: policies.length,
@@ -160,6 +167,7 @@ export function SubscriptionsPage() {
             <SubscriptionCard
               key={policy.policyId}
               policy={policy}
+              metadata={policy.metadataUrl ? metadataMap.get(policy.metadataUrl) : null}
               onCancel={handleCancel}
               isCancelling={revokingId === policy.policyId && isRevoking}
             />
