@@ -110,7 +110,24 @@ The system has three main components:
 
 ### Current Network
 
-AutoPay is live on **Arc Testnet** with USDC. Polygon and Arbitrum support is planned.
+AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is coming via [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains), which enables subscribers to pay from any supported chain with funds automatically bridged to the merchant.
+
+#### Supported Chains (via Circle Gateway)
+
+| Mainnet | Testnet |
+|---------|---------|
+| Arbitrum | Arc Testnet |
+| Avalanche | Avalanche Fuji |
+| Base | Base Sepolia |
+| Ethereum | Ethereum Sepolia |
+| HyperEVM | HyperEVM Testnet |
+| OP | Sei Atlantic |
+| Polygon PoS | Solana Devnet |
+| Sei | Sonic Testnet |
+| Solana | World Chain Sepolia |
+| Sonic | |
+| Unichain | |
+| World Chain | |
 
 ---
 

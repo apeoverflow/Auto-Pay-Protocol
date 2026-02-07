@@ -307,7 +307,7 @@ You cannot change the price of existing subscriptions - the charge amount is loc
 <details>
 <summary>What chains are supported?</summary>
 
-Currently **Arc Testnet** only. Polygon and Arbitrum support is planned. When multi-chain is enabled, subscribers can pay from any supported chain and funds are bridged to your wallet via CCTP.
+Currently **Arc Testnet** only. Multi-chain support is coming via [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains), which will let subscribers pay from any of 12+ supported chains (Ethereum, Arbitrum, Base, Polygon, Solana, Avalanche, and more) with funds automatically bridged to your wallet.
 
 </details>
 
