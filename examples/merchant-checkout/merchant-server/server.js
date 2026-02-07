@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
-import { createHmac } from 'crypto'
+import { verifyWebhook } from '@autopayprotocol/sdk'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { createClient } from '@supabase/supabase-js'
@@ -148,26 +148,30 @@ app.post('/api/claim-policy', verifyAuth, async (req, res) => {
 // =====================================================================
 
 app.post('/webhook', async (req, res) => {
-  const signature = req.headers['x-autopay-signature']
   const timestamp = req.headers['x-autopay-timestamp']
 
   console.log(`\n📨 Webhook received at ${timestamp}`)
 
-  // Step 1: Verify webhook signature
+  // Step 1: Verify webhook signature using @autopayprotocol/sdk
+  let event, data
   if (WEBHOOK_SECRET) {
-    const payload = JSON.stringify(req.body)
-    const expected = createHmac('sha256', WEBHOOK_SECRET)
-      .update(payload)
-      .digest('hex')
-
-    if (signature !== expected) {
+    try {
+      const payload = JSON.stringify(req.body)
+      const signature = req.headers['x-autopay-signature']
+      const verified = verifyWebhook(payload, signature, WEBHOOK_SECRET)
+      event = verified.type
+      data = verified.data
+      console.log('✓ Signature verified')
+    } catch (err) {
       console.log('⚠️  Invalid signature — rejecting')
-      return res.status(401).json({ error: 'Invalid signature' })
+      return res.status(401).json({ error: err.message })
     }
-    console.log('✓ Signature verified')
+  } else {
+    // No secret configured — parse without verification (dev only)
+    event = req.body.event
+    data = req.body.data
   }
 
-  const { event, data } = req.body
   console.log(`📥 Event: ${event}`)
 
   // Step 2: Handle each event type
@@ -510,10 +514,10 @@ app.listen(PORT, () => {
 ╠══════════════════════════════════════════════════════════╣
 ║                                                          ║
 ║  Home:     http://localhost:${PORT}                         ║
-║  Merchant: ${MERCHANT_ADDRESS}  ║
-║  Checkout: ${CHECKOUT_URL}                       ║
-║  Relayer:  ${RELAYER_URL}                    ║
-║  Supabase: ${supabase ? 'Connected' : 'Not configured (set SUPABASE_KEY)'}${supabase ? '                         ' : ''}║
+║  Merchant: ${MERCHANT_ADDRESS}    ║
+║  Checkout: ${CHECKOUT_URL}                ║
+║  Relayer:  ${RELAYER_URL}                         ║
+║  Supabase: ${supabase ? 'Connected' : 'Not configured (set SUPABASE_KEY)'}${supabase ? '                         ' : ''}            ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
   `)
