@@ -5,7 +5,7 @@ A Stripe-like checkout flow for AutoPay. Demonstrates how a merchant generates c
 ## Architecture
 
 ```
-Merchant Server (:3002)              Main Frontend (:5173/checkout)      On-chain
+Merchant Server (:3002)              autopayprotocol.com/checkout         On-chain
 ─────────────────────                ──────────────────────────────      ────────
 
 GET / (plan cards)
@@ -31,19 +31,9 @@ GET / (plan cards)
 - Node.js 18+
 - A Circle Modular Wallets API key ([console.circle.com](https://console.circle.com))
 - Testnet USDC on Arc Testnet (use the [Circle faucet](https://faucet.circle.com/))
-- The main frontend running (`cd frontend && npm run dev`)
+- The AutoPay frontend at [autopayprotocol.com](https://autopayprotocol.com)
 
-### 1. Start the Main Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The checkout page is available at [http://localhost:5173/checkout](http://localhost:5173/checkout) (needs query params from merchant server).
-
-### 2. Merchant Server
+### 1. Merchant Server
 
 ```bash
 cd examples/merchant-checkout/merchant-server
@@ -53,7 +43,7 @@ npm run dev
 
 Opens at [http://localhost:3002](http://localhost:3002) — shows plan cards with "Subscribe" buttons.
 
-### 3. Try It
+### 2. Try It
 
 1. Open [http://localhost:3002](http://localhost:3002)
 2. Click "Subscribe with AutoPay" on a plan
@@ -65,7 +55,7 @@ Opens at [http://localhost:3002](http://localhost:3002) — shows plan cards wit
 The merchant generates a URL with these query params:
 
 ```
-http://localhost:5173/checkout?merchant=0x...&metadata_url=http://localhost:3002/metadata/pro-plan&success_url=http://localhost:3002/success&cancel_url=http://localhost:3002/cancel
+https://autopayprotocol.com/checkout?merchant=0x...&metadata_url=http://localhost:3002/metadata/pro-plan&success_url=http://localhost:3002/success&cancel_url=http://localhost:3002/cancel
 ```
 
 | Parameter | Description |

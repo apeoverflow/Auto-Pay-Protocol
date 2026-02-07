@@ -12,21 +12,21 @@ The example has three components that work together:
 
 ```mermaid
 graph TD
-    subgraph Relayer["Relayer (port 3420)"]
-        F[Charge Executor]
+    subgraph Relayer["Relayer :3420"]
         G[Metadata API]
+        F[Charge Executor]
     end
 
-    subgraph Merchant["Merchant Server (port 3002)"]
-        A[Pricing Page]
+    subgraph Merchant["Merchant Server :3002"]
         B[Webhook Handler]
         C[Access Gate]
+        A[Pricing Page]
     end
 
     D[(Supabase DB)]
-    E[AutoPay Frontend\nCheckout Page\nport 5173]
+    E["AutoPay Frontend<br/>Checkout Page"]
 
-    A -- "fetch plans" --> G
+    G -- "fetch plans" --> A
     A -- "checkout URL" --> E
     E -- "redirect on success" --> A
     F -- "POST /webhook" --> B
@@ -101,7 +101,7 @@ sequenceDiagram
 Fetches plans from the relayer's metadata API and renders cards with pricing, features, and a "Subscribe" button. The button links to the AutoPay checkout with query params:
 
 ```
-http://localhost:5173/checkout?
+https://autopayprotocol.com/checkout?
   merchant=0x2B8b...
   metadata_url=http://localhost:3420/metadata/pro-plan
   amount=0.10
@@ -262,7 +262,7 @@ Plans are JSON files served by the relayer. The example includes two demo plans 
 ### Prerequisites
 
 - Node.js >= 20
-- AutoPay frontend running on port 5173 (`cd frontend && npm run dev`)
+- AutoPay frontend available at [autopayprotocol.com](https://autopayprotocol.com)
 - Relayer running on port 3420 (`cd relayer && npm run dev`)
 - Supabase project (for auth and subscriber tracking)
 
@@ -299,7 +299,7 @@ The server starts at `http://localhost:3002`. Visit it to see the pricing page.
 |----------|---------|-------------|
 | `PORT` | `3002` | Server port |
 | `MERCHANT_ADDRESS` | — | Your wallet address for receiving payments |
-| `CHECKOUT_URL` | `http://localhost:5173/checkout` | AutoPay frontend checkout URL |
+| `CHECKOUT_URL` | `https://autopayprotocol.com/checkout` | AutoPay frontend checkout URL |
 | `RELAYER_URL` | `http://localhost:3420` | Relayer API for metadata |
 | `WEBHOOK_SECRET` | `test-secret-123` | Shared secret for webhook verification |
 | `SUPABASE_URL` | — | Supabase project URL |
