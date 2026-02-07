@@ -380,12 +380,20 @@
   background: hsl(260 60% 60%);
 }
 
+/* ── links row ── */
+.auth-links-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
 /* ── docs link ── */
 .auth-docs-link {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 2rem;
+  margin-top: 0;
   padding: 0;
   background: none;
   border: none;

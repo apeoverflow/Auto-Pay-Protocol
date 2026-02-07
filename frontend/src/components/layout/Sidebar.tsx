@@ -9,6 +9,7 @@ import {
   Beaker,
   ArrowDownUp,
   BookOpen,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { useAuth } from '../../hooks'
@@ -128,6 +129,17 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
                 {item.label}
               </button>
             ))}
+            <a
+              href="https://merchant-checkout-demo-production.up.railway.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200 text-white/40 hover:bg-white/[0.04] hover:text-white/60"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-md text-current">
+                <ExternalLink className="h-4 w-4" />
+              </span>
+              Live Demo
+            </a>
           </div>
         </div>
 

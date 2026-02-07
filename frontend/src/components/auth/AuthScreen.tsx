@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Shield,
   Zap,
+  ExternalLink,
 } from 'lucide-react'
 
 type AuthTab = 'passkey' | 'recovery'
@@ -120,14 +121,26 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
               </div>
             </div>
 
-            <button
-              onClick={() => onNavigateDocs?.()}
-              className="auth-docs-link auth-stagger auth-stagger-6"
-            >
-              <BookOpen className="h-4 w-4" />
-              Documentation
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
+            <div className="auth-links-row auth-stagger auth-stagger-6">
+              <button
+                onClick={() => onNavigateDocs?.()}
+                className="auth-docs-link"
+              >
+                <BookOpen className="h-4 w-4" />
+                Documentation
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+              <a
+                href="https://merchant-checkout-demo-production.up.railway.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="auth-docs-link"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Live Demo
+                <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            </div>
           </div>
         </div>
 
