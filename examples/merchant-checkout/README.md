@@ -114,7 +114,7 @@ LOADING → PLAN_SUMMARY → AUTH → WALLET_SETUP → CONFIRM → PROCESSING �
 
 ## Webhooks
 
-The merchant server includes a `/webhook` endpoint for relayer notifications. See the [webhook-receiver example](../../webhook-receiver/) for the full reference implementation.
+The merchant server includes a `/webhook` endpoint for relayer notifications. See the [webhook-receiver example](../webhook-receiver/) for the full reference implementation.
 
 ## File Structure
 

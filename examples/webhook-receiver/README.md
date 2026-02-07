@@ -30,7 +30,7 @@ Example backend service that receives webhook notifications from the AutoPay rel
 ### 1. Install Dependencies
 
 ```bash
-cd webhook-receiver
+cd examples/webhook-receiver
 npm install
 ```
 
@@ -44,23 +44,7 @@ The server will start on `http://localhost:3500`.
 
 ### 3. Register Your Merchant
 
-The relayer needs to know where to send webhooks for your merchant address.
-
-```bash
-# Set the database URL (same as relayer's .env)
-export DATABASE_URL="postgres://user:pass@host:5432/db"
-
-# Register your merchant
-node register-merchant.js <MERCHANT_ADDRESS> http://localhost:3500/webhook <SECRET>
-```
-
-**Example:**
-```bash
-node register-merchant.js \
-  0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B \
-  http://localhost:3500/webhook \
-  my-super-secret-key-123
-```
+Register your merchant's webhook URL with the relayer so it knows where to send events. This is done via the relayer's merchant registration API or CLI — see the [SDK Integration Guide](../../documentation/sdk-backend.md) for details.
 
 ---
 
@@ -224,7 +208,6 @@ if (!verifySignature(body, signature, process.env.WEBHOOK_SECRET)) {
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | For registration | Relayer's Postgres connection string |
 | `WEBHOOK_SECRET` | Recommended | Secret for signature verification |
 | `PORT` | Optional | Server port (default: 3500) |
 
@@ -248,10 +231,7 @@ const WEBHOOK_SECRET = 'your-webhook-secret-here'
 
 ### 1. Use HTTPS
 
-In production, your webhook URL must use HTTPS:
-```bash
-node register-merchant.js 0x... https://api.yoursite.com/webhook secret
-```
+In production, your webhook URL must use HTTPS.
 
 ### 2. Store Secret Securely
 
@@ -284,10 +264,9 @@ Always verify the `X-AutoPay-Signature` header in production to prevent spoofed 
 ## File Structure
 
 ```
-webhook-receiver/
+examples/webhook-receiver/
 ├── package.json           # Dependencies
 ├── server.js              # Webhook receiver server
-├── register-merchant.js   # Script to register merchant in relayer DB
 └── README.md              # This file
 ```
 
@@ -422,19 +401,13 @@ export async function POST(req: NextRequest) {
 
 ### Webhooks Not Arriving
 
-1. Check merchant is registered:
-   ```bash
-   # In relayer directory
-   npm run cli -- status
-   ```
-
+1. Check merchant is registered with the relayer
 2. Check relayer logs for webhook errors
-
 3. Verify your webhook URL is accessible from the relayer
 
 ### Invalid Signature Errors
 
-1. Ensure the secret in `server.js` matches what you used in `register-merchant.js`
+1. Ensure the secret in your receiver matches what's registered with the relayer
 2. Make sure you're verifying against the raw body, not parsed JSON
 
 ### Duplicate Webhooks
