@@ -2,10 +2,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY examples/merchant-checkout/merchant-server/package.json examples/merchant-checkout/merchant-server/package-lock.json* ./
 RUN npm install --production
 
-COPY . .
+COPY examples/merchant-checkout/merchant-server/ .
 
 EXPOSE 3002
 
