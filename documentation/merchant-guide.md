@@ -148,7 +148,7 @@ Each webhook includes the subscriber's wallet address, policy ID, amounts, and a
 You have two options:
 
 1. **Use the AutoPay frontend** - Point subscribers to the hosted checkout with your plan details pre-filled
-2. **Build your own** - Use the React hooks from the [Frontend Integration Guide](./sdk-frontend.md) to embed checkout in your own site
+2. **Build your own** - See the [Checkout Example](./merchant-checkout-example.md) for a full merchant server with checkout links
 
 ---
 
