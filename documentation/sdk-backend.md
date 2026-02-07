@@ -141,7 +141,7 @@ const url = createCheckoutUrl({
   cancelUrl: 'https://yoursite.com/cancel',
   spendingCap: 119.88,             // optional — max total USDC
 })
-// → "https://app.autopay.xyz/checkout?merchant=0x...&amount=9.99&interval=2592000&..."
+// → "https://autopayprotocol.com/checkout?merchant=0x...&amount=9.99&interval=2592000&..."
 ```
 
 **Interval presets:** `'weekly'` (7 days), `'biweekly'` (14 days), `'monthly'` (30 days), `'quarterly'` (90 days), `'yearly'` (365 days). You can also pass raw seconds for custom intervals.
