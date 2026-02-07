@@ -80,11 +80,29 @@ if (event.type === 'charge.succeeded') {
 
 | Export | Value |
 |--------|-------|
-| `intervals.monthly` | `2_592_000` |
+| `intervals.minute` | `60` |
 | `intervals.weekly` | `604_800` |
-| `intervals.custom(14, 'days')` | `1_209_600` |
+| `intervals.biweekly` | `1_209_600` |
+| `intervals.monthly` | `2_592_000` |
+| `intervals.quarterly` | `7_776_000` |
+| `intervals.yearly` | `31_536_000` |
+| `intervals.custom(count, unit)` | Custom interval — units: `'minutes'`, `'hours'`, `'days'`, `'months'`, `'years'` |
 | `PROTOCOL_FEE_BPS` | `250` (2.5%) |
+| `USDC_DECIMALS` | `6` |
+| `MIN_INTERVAL` | `60` (1 minute) |
+| `MAX_INTERVAL` | `31_536_000` (365 days) |
+| `MAX_RETRIES` | `3` |
+| `DEFAULT_CHECKOUT_BASE_URL` | `'https://app.autopay.xyz'` |
 | `chains` | Chain configs (Polygon Amoy, Arbitrum Sepolia, Arc Testnet) |
+
+### Error Classes
+
+| Class | Code |
+|-------|------|
+| `AutoPayError` | Base error with `code` property |
+| `AutoPayWebhookError` | `'WEBHOOK_VERIFICATION_FAILED'` |
+| `AutoPayCheckoutError` | `'INVALID_CHECKOUT_PARAMS'` |
+| `AutoPayMetadataError` | `'INVALID_METADATA'` |
 
 ### Webhook Event Types
 
@@ -98,10 +116,14 @@ All events share `{ type, timestamp, data: { policyId, chainId, payer, merchant 
 | `policy.revoked` | `endTime` |
 | `policy.cancelled_by_failure` | `consecutiveFailures`, `endTime` |
 
+### Exported Types
+
+`CheckoutOptions`, `SuccessRedirect`, `IntervalPreset`, `WebhookEvent`, `WebhookEventType`, `ChargeSucceededEvent`, `ChargeFailedEvent`, `PolicyCreatedEvent`, `PolicyRevokedEvent`, `PolicyCancelledByFailureEvent`, `CheckoutMetadata`, `FeeBreakdown`, `MetadataValidationResult`, `ChainConfig`
+
 ## Zero Dependencies
 
 This package has **zero runtime dependencies**. It only uses Node.js built-in `crypto`.
 
 ## License
 
-MIT
+Apache-2.0
