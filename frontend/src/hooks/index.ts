@@ -18,7 +18,10 @@ export { useFundWallet } from './useFundWallet'
 // Primary: Supabase (full history, fast queries)
 // Fallback: Contract events (limited to ~9k blocks)
 export { usePolicies } from './usePolicies'
-export { useActivity } from './useActivity'
+export { useActivity, invalidateActivity } from './useActivity'
+
+// Checkout
+export { useCheckoutParams } from './useCheckoutParams'
 
 // Metadata fetching
 export { useMetadata, useMetadataBatch } from './useMetadata'

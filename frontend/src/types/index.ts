@@ -57,3 +57,6 @@ export * from './subscriptions'
 
 // Re-export policy types
 export * from './policy'
+
+// Re-export checkout types
+export * from './checkout'

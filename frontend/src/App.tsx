@@ -1,10 +1,21 @@
-import { Component, type ReactNode, useState, useCallback, useRef } from 'react'
+import { Component, type ReactNode, useCallback, useRef, useState } from 'react'
 import { useAuth, useWallet, useRoute } from './hooks'
 import type { Route } from './hooks/useRoute'
+import { getRouteLayout, navItemToRoute, routeToNavItem, isDashboardRoute } from './hooks/useRoute'
+import type { NavItem } from './components/layout/Sidebar'
 import { isConfigured } from './config'
 import { AuthScreen } from './components/auth'
-import { WalletDashboard } from './components/wallet'
-import { DocsPage } from './pages'
+import { DashboardLayout } from './components/layout'
+import {
+  DashboardPage,
+  SubscriptionsPage,
+  ActivityPage,
+  SettingsPage,
+  DemoPage,
+  BridgePage,
+  DocsPage,
+  CheckoutPage,
+} from './pages'
 import { NotConfiguredView, LoadingView } from './views'
 import { ArrowLeft } from 'lucide-react'
 
@@ -51,6 +62,10 @@ function App() {
   const [displayedRoute, setDisplayedRoute] = useState<Route>(route)
   const pendingRoute = useRef<Route | null>(null)
 
+  // Redirect logged-in users from / to /dashboard
+  const effectiveRoute = route === '/' && isLoggedIn ? '/dashboard' : route
+
+  // Animated navigation between routes
   const animatedNavigate = useCallback(
     (to: Route) => {
       if (phase !== 'idle' || to === displayedRoute) return
@@ -71,28 +86,57 @@ function App() {
     }
   }, [phase, navigate])
 
-  const navigateToDocs = useCallback(() => animatedNavigate('/docs'), [animatedNavigate])
-  const navigateHome = useCallback(() => animatedNavigate('/'), [animatedNavigate])
+  // Handle sidebar navigation: maps NavItem to Route
+  const handleSidebarNavigate = useCallback(
+    (item: NavItem) => {
+      const targetRoute = navItemToRoute(item)
+      const layout = getRouteLayout(targetRoute)
 
-  // Derive animation classes
+      if (layout === 'fullscreen') {
+        // Docs gets animated transition
+        animatedNavigate(targetRoute)
+      } else {
+        // Dashboard-to-dashboard: direct navigate (no animation)
+        navigate(targetRoute)
+        setDisplayedRoute(targetRoute)
+      }
+    },
+    [animatedNavigate, navigate],
+  )
+
+  // Sync displayedRoute when route changes via popstate (back/forward)
+  if (route !== displayedRoute && phase === 'idle') {
+    // Only sync if not mid-animation
+    const r = route === '/' && isLoggedIn ? '/dashboard' : route
+    if (r !== displayedRoute) {
+      setDisplayedRoute(r)
+    }
+  }
+
+  // Derive animation classes for docs transitions
   const exitClass =
     phase === 'exiting'
-      ? displayedRoute === '/'
+      ? getRouteLayout(displayedRoute) !== 'fullscreen' && getRouteLayout(pendingRoute.current ?? displayedRoute) === 'fullscreen'
         ? 'route-exit-to-docs'
-        : 'route-docs-exit'
+        : getRouteLayout(displayedRoute) === 'fullscreen'
+          ? 'route-docs-exit'
+          : 'route-fade-out'
       : ''
 
   const enterClass =
     phase === 'entering'
-      ? displayedRoute === '/docs'
+      ? getRouteLayout(displayedRoute) === 'fullscreen'
         ? 'route-docs-enter'
         : 'route-auth-enter'
       : ''
 
   const animClass = exitClass || enterClass
 
-  // Docs page — shown regardless of auth state
-  if (displayedRoute === '/docs') {
+  // Use effectiveRoute for initial render, displayedRoute during animations
+  const activeRoute = phase === 'idle' ? (effectiveRoute as Route) : displayedRoute
+
+  // ── Fullscreen: Docs ──
+  if (activeRoute === '/docs') {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div
@@ -102,7 +146,7 @@ function App() {
           <div className="flex h-screen flex-col bg-background overflow-hidden">
             <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border/50 bg-white/80 backdrop-blur-sm px-4">
               <button
-                onClick={navigateHome}
+                onClick={() => animatedNavigate(isLoggedIn ? '/dashboard' : '/')}
                 className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -118,13 +162,66 @@ function App() {
     )
   }
 
-  // Home route — normal auth / dashboard flow
-  const homeContent = (() => {
-    if (!isConfigured) return <NotConfiguredView />
-    if (!isLoggedIn) return <AuthScreen onNavigateDocs={navigateToDocs} />
-    if (isLoading || !account) return <LoadingView />
-    return <WalletDashboard onNavigateDocs={navigateToDocs} />
-  })()
+  // ── Fullscreen: Checkout ──
+  if (activeRoute === '/checkout') {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden">
+        <div className="route-layer">
+          <CheckoutPage />
+        </div>
+      </div>
+    )
+  }
+
+  // ── Auth screen (/ route, not logged in) ──
+  if (activeRoute === '/' || !isLoggedIn) {
+    const content = (() => {
+      if (!isConfigured) return <NotConfiguredView />
+      return <AuthScreen onNavigateDocs={() => animatedNavigate('/docs')} />
+    })()
+
+    return (
+      <div className="relative h-screen w-screen overflow-hidden">
+        <div
+          className={`route-layer ${animClass}`}
+          onAnimationEnd={onAnimationEnd}
+        >
+          {content}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Dashboard routes (requires auth + wallet) ──
+  if (isLoading || !account) {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden">
+        <div className="route-layer">
+          <LoadingView />
+        </div>
+      </div>
+    )
+  }
+
+  const currentNavItem = routeToNavItem(activeRoute)
+
+  const renderPage = () => {
+    switch (activeRoute) {
+      case '/subscriptions':
+        return <SubscriptionsPage />
+      case '/activity':
+        return <ActivityPage />
+      case '/bridge':
+        return <BridgePage />
+      case '/settings':
+        return <SettingsPage />
+      case '/demo':
+        return <DemoPage onNavigate={handleSidebarNavigate} />
+      case '/dashboard':
+      default:
+        return <DashboardPage onNavigate={(page) => handleSidebarNavigate(page)} />
+    }
+  }
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -132,7 +229,9 @@ function App() {
         className={`route-layer ${animClass}`}
         onAnimationEnd={onAnimationEnd}
       >
-        {homeContent}
+        <DashboardLayout currentPage={currentNavItem} onNavigate={handleSidebarNavigate}>
+          {renderPage()}
+        </DashboardLayout>
       </div>
     </div>
   )

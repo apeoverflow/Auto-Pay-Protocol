@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { SubscriptionCard } from './SubscriptionCard'
 import { SubscriptionDetail } from './SubscriptionDetail'
-import { usePolicies, useRevokePolicy, useMetadataBatch } from '../../hooks'
+import { usePolicies, useRevokePolicy, useMetadataBatch, invalidateActivity } from '../../hooks'
 import type { OnChainPolicy } from '../../types/policy'
 import { Loader2, Sparkles } from 'lucide-react'
 
@@ -30,6 +30,8 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
       await revokePolicy(policyId)
       // Read updated policy state directly from contract (bypasses Supabase indexer delay)
       await refreshPolicyFromContract(policyId)
+      // Trigger activity refresh across all instances
+      invalidateActivity()
       setSelectedPolicy(null)
     } catch (err) {
       console.error('Failed to cancel subscription:', err)

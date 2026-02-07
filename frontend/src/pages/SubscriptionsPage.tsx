@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard'
-import { usePolicies, useRevokePolicy, useChain, useMetadataBatch } from '../hooks'
+import { usePolicies, useRevokePolicy, useChain, useMetadataBatch, invalidateActivity } from '../hooks'
 import type { OnChainPolicy } from '../types/policy'
 import { Search, CreditCard, Loader2, ExternalLink } from 'lucide-react'
 import { Input } from '../components/ui/input'
@@ -30,6 +30,7 @@ export function SubscriptionsPage() {
       await revokePolicy(policyId)
       // Refresh policy state from contract (don't wait for indexer)
       await refreshPolicyFromContract(policyId)
+      invalidateActivity()
     } catch (err) {
       console.error('Failed to cancel subscription:', err)
     } finally {

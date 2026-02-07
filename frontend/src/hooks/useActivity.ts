@@ -110,6 +110,15 @@ function dbToActivityItems(
   return items
 }
 
+// ── Module-level invalidation so all useActivity() instances can be triggered ──
+type ActivityRefetchFn = () => void
+const activityListeners = new Set<ActivityRefetchFn>()
+
+/** Call from anywhere to trigger all useActivity() instances to refetch */
+export function invalidateActivity() {
+  for (const fn of activityListeners) fn()
+}
+
 export function useActivity(): UseActivityReturn {
   const { account } = useWallet()
   const { publicClient, chainConfig } = useChain()
@@ -336,6 +345,13 @@ export function useActivity(): UseActivityReturn {
   // Fetch activity on mount and when dependencies change
   React.useEffect(() => {
     fetchActivity()
+  }, [fetchActivity])
+
+  // Subscribe to cross-instance invalidation
+  React.useEffect(() => {
+    const handler = () => { fetchActivity() }
+    activityListeners.add(handler)
+    return () => { activityListeners.delete(handler) }
   }, [fetchActivity])
 
   return {

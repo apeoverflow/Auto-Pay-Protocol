@@ -117,6 +117,14 @@ async function fetchPolicyFromContract(
   }
 }
 
+// ── Module-level pub-sub so all usePolicies() instances share updates ──
+type PolicyListener = (updated: OnChainPolicy) => void
+const policyListeners = new Set<PolicyListener>()
+
+function notifyPolicyUpdate(policy: OnChainPolicy) {
+  for (const listener of policyListeners) listener(policy)
+}
+
 export function usePolicies(): UsePoliciesReturn {
   const { account } = useWallet()
   const { publicClient, chainConfig } = useChain()
@@ -125,6 +133,21 @@ export function usePolicies(): UsePoliciesReturn {
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [dataSource, setDataSource] = React.useState<'supabase' | 'contract' | null>(null)
+
+  // Subscribe to cross-instance policy updates
+  React.useEffect(() => {
+    const handler: PolicyListener = (updated) => {
+      setPolicies((prev) => {
+        const exists = prev.some((p) => p.policyId === updated.policyId)
+        if (exists) {
+          return prev.map((p) => (p.policyId === updated.policyId ? updated : p))
+        }
+        return [updated, ...prev]
+      })
+    }
+    policyListeners.add(handler)
+    return () => { policyListeners.delete(handler) }
+  }, [])
 
   const fetchPolicies = React.useCallback(async () => {
     if (!account?.address || !chainConfig.policyManager) {
@@ -207,15 +230,8 @@ export function usePolicies(): UsePoliciesReturn {
           policyId
         )
 
-        setPolicies((prev) => {
-          const exists = prev.some((p) => p.policyId === policyId)
-          if (exists) {
-            // Update existing policy
-            return prev.map((p) => (p.policyId === policyId ? policy : p))
-          }
-          // Add new policy at the beginning
-          return [policy, ...prev]
-        })
+        // Broadcast to all usePolicies() instances (including this one)
+        notifyPolicyUpdate(policy)
       } catch (err) {
         console.error('Failed to refresh policy from contract:', err)
       }
