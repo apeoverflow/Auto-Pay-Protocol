@@ -8,6 +8,17 @@ AutoPay is a non-custodial crypto subscription payment protocol. It lets users p
 
 ---
 
+## Who Are These Docs For?
+
+| If you are a... | Start here |
+|-----------------|------------|
+| **Subscriber** (paying for services) | [Subscriber Guide](./subscriber-guide.md) |
+| **Merchant / business owner** (accepting payments) | [Merchant Guide](./merchant-guide.md) |
+| **Backend developer** (handling webhook events) | [SDK Integration Guide](./sdk-backend.md) |
+| **Relayer operator** (running the charge service) | [Running Locally](./relayer-local-setup.md) or [Deployment](./relayer-deployment.md) |
+
+---
+
 ## How It Works
 
 ```mermaid
@@ -128,17 +139,6 @@ AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is powered by 
 | Sonic | |
 | Unichain | |
 | World Chain | |
-
----
-
-## Who Are These Docs For?
-
-| If you are a... | Start here |
-|-----------------|------------|
-| **Subscriber** (paying for services) | [Subscriber Guide](./subscriber-guide.md) |
-| **Merchant / business owner** (accepting payments) | [Merchant Guide](./merchant-guide.md) |
-| **Backend developer** (handling webhook events) | [SDK Integration Guide](./sdk-backend.md) |
-| **Relayer operator** (running the charge service) | [Running Locally](./relayer-local-setup.md) or [Deployment](./relayer-deployment.md) |
 
 ---
 
