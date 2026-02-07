@@ -18,12 +18,12 @@ import { ChevronDown, List, Search, X } from 'lucide-react'
 import overviewMd from '../../../documentation/overview.md?raw'
 import subscriberGuideMd from '../../../documentation/subscriber-guide.md?raw'
 import merchantGuideMd from '../../../documentation/merchant-guide.md?raw'
-import sdkFrontendMd from '../../../documentation/sdk-frontend.md?raw'
 import sdkBackendMd from '../../../documentation/sdk-backend.md?raw'
 import relayerLocalSetupMd from '../../../documentation/relayer-local-setup.md?raw'
 import relayerConfigMd from '../../../documentation/relayer-configuration.md?raw'
 import relayerOperationsMd from '../../../documentation/relayer-operations.md?raw'
 import relayerDeploymentMd from '../../../documentation/relayer-deployment.md?raw'
+import merchantCheckoutExampleMd from '../../../documentation/merchant-checkout-example.md?raw'
 
 SyntaxHighlighter.registerLanguage('typescript', typescript)
 SyntaxHighlighter.registerLanguage('ts', typescript)
@@ -168,12 +168,12 @@ type DocId =
   | 'overview'
   | 'subscriber-guide'
   | 'merchant-guide'
-  | 'sdk-frontend'
   | 'sdk-backend'
   | 'relayer-local-setup'
   | 'relayer-config'
   | 'relayer-operations'
   | 'relayer-deployment'
+  | 'merchant-checkout-example'
 
 interface DocEntry {
   id: DocId
@@ -198,8 +198,8 @@ const categories: DocCategory[] = [
   {
     label: 'SDK Integration',
     docs: [
-      { id: 'sdk-frontend', label: 'Frontend Guide', content: sdkFrontendMd },
       { id: 'sdk-backend', label: 'Backend Guide', content: sdkBackendMd },
+      { id: 'merchant-checkout-example', label: 'Checkout Example', content: merchantCheckoutExampleMd },
     ],
   },
   {
@@ -289,8 +289,8 @@ const filenameToDocId: Record<string, DocId> = {
   'overview.md': 'overview',
   'subscriber-guide.md': 'subscriber-guide',
   'merchant-guide.md': 'merchant-guide',
-  'sdk-frontend.md': 'sdk-frontend',
   'sdk-backend.md': 'sdk-backend',
+  'merchant-checkout-example.md': 'merchant-checkout-example',
   'relayer-local-setup.md': 'relayer-local-setup',
   'relayer-configuration.md': 'relayer-config',
   'relayer-operations.md': 'relayer-operations',
