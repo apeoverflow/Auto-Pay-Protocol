@@ -1,6 +1,6 @@
 # @autopayprotocol/sdk
 
-Server-side utility package for merchants integrating with [AutoPay Protocol](https://autopay.xyz).
+Server-side utility package for merchants integrating with [AutoPay Protocol](https://autopayprotocol.com).
 
 This SDK does **not** interact with the blockchain or manage wallets. It provides typed, zero-dependency helpers for the things merchants need on their backend: building checkout URLs, verifying webhook signatures, and working with USDC amounts/intervals.
 
@@ -92,7 +92,7 @@ if (event.type === 'charge.succeeded') {
 | `MIN_INTERVAL` | `60` (1 minute) |
 | `MAX_INTERVAL` | `31_536_000` (365 days) |
 | `MAX_RETRIES` | `3` |
-| `DEFAULT_CHECKOUT_BASE_URL` | `'https://app.autopay.xyz'` |
+| `DEFAULT_CHECKOUT_BASE_URL` | `'https://autopayprotocol.com'` |
 | `chains` | Chain configs (Polygon Amoy, Arbitrum Sepolia, Arc Testnet) |
 
 ### Error Classes

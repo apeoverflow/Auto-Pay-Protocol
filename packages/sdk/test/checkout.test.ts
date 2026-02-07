@@ -35,7 +35,7 @@ describe('createCheckoutUrl', () => {
     const url = createCheckoutUrl(validOptions)
     const parsed = new URL(url)
 
-    expect(parsed.origin).toBe('https://app.autopay.xyz')
+    expect(parsed.origin).toBe('https://autopayprotocol.com')
     expect(parsed.pathname).toBe('/checkout')
     expect(parsed.searchParams.get('merchant')).toBe(validOptions.merchant)
     expect(parsed.searchParams.get('amount')).toBe('9.99')

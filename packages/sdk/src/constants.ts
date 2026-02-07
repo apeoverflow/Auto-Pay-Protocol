@@ -85,4 +85,4 @@ export const chains: Record<string, ChainConfig> = {
 }
 
 /** Default checkout base URL */
-export const DEFAULT_CHECKOUT_BASE_URL = 'https://app.autopay.xyz'
+export const DEFAULT_CHECKOUT_BASE_URL = 'https://autopayprotocol.com'

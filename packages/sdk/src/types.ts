@@ -19,7 +19,7 @@ export interface CheckoutOptions {
   cancelUrl: string
   /** Optional spending cap in human-readable USDC. Omit for unlimited. */
   spendingCap?: number
-  /** Optional base URL override (default: https://app.autopay.xyz) */
+  /** Optional base URL override (default: https://autopayprotocol.com) */
   baseUrl?: string
 }
 
