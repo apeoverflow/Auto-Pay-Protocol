@@ -2,7 +2,7 @@
   "name": "@autopayprotocol/sdk",
   "version": "0.1.1",
   "description": "Merchant SDK for AutoPay Protocol — checkout URLs, webhook verification, USDC helpers",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/apeoverflow/Auto-Pay-Protocol.git",
