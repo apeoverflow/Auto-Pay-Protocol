@@ -63,7 +63,18 @@ Auto-Pay-Protocol/
 │       ├── contexts/   # Auth & wallet state
 │       └── hooks/      # Contract interaction hooks
 ├── relayer/            # Off-chain charge automation
-    └── src/
+│   └── src/
+│       ├── indexer/    # Event indexing from chains
+│       ├── executor/   # Charge execution logic
+│       ├── webhooks/   # Merchant notifications
+│       ├── api/        # Health check endpoint
+│       └── db/         # Postgres client & queries
+├── packages/
+│   └── sdk/            # Merchant SDK (@autopayprotocol/sdk)
+├── examples/
+│   ├── merchant-checkout/  # Example merchant checkout integration
+│   └── webhook-receiver/   # Example webhook handler
+└── docs/               # Architecture & integration docs
 ```
 
 ## Getting Started
@@ -124,25 +135,29 @@ docker compose up -d
 
 ## Smart Contract Interface
 
-### PolicyManager.sol
+### ArcPolicyManager.sol (Arc Testnet)
 
 ```solidity
-// Create a subscription policy
+// Create a subscription policy (first charge happens immediately)
 function createPolicy(
-    bytes32 merchantOnArc,
+    address merchant,
     uint128 chargeAmount,
     uint32 interval,
-    uint128 spendingCap
+    uint128 spendingCap,
+    string calldata metadataUrl
 ) external returns (bytes32 policyId);
 
 // Cancel a subscription
 function revokePolicy(bytes32 policyId) external;
 
-// Execute a charge (called by relayer)
-function charge(bytes32 policyId) external returns (uint64 cctpNonce);
+// Execute a recurring charge (called by relayer)
+function charge(bytes32 policyId) external returns (bool success);
 
 // Check if policy can be charged
 function canCharge(bytes32 policyId) external view returns (bool, string memory);
+
+// Cancel after 3 consecutive failures (callable by anyone)
+function cancelFailedPolicy(bytes32 policyId) external;
 ```
 
 ## Testnet Addresses
@@ -180,18 +195,27 @@ ARC_TESTNET_RPC=https://rpc-testnet.arc.network
 - [Product Requirements (PRD)](./docs/PRD.md)
 - [Smart Contract Specification](./docs/SMART_CONTRACTS.md)
 - [Relayer Architecture](./docs/RELAYER.md)
+- [Merchant Integration Guide](./docs/MERCHANT_INTEGRATION.md)
+- [SDK Documentation](./docs/SDK.md)
 - [Business Plan](./docs/BUSINESS_PLAN.md)
 
 ## Roadmap
 
 - [x] Product requirements & architecture
 - [x] Smart contract design
+- [x] Smart contract implementation (ArcPolicyManager)
 - [x] Frontend with Circle Modular Wallets
-- [ ] PolicyManager contract implementation
+- [x] Relayer implementation (indexer, executor, webhooks)
+- [x] Merchant SDK (`@autopayprotocol/sdk`)
 - [ ] Contract deployment to testnets
-- [ ] Relayer implementation
 - [ ] End-to-end testing
 - [ ] Mainnet launch
+
+## Interested in Integrating?
+
+If you're a merchant or project interested in accepting recurring crypto payments, reach out — we'd love to help you get set up.
+
+**Email**: [autopayprotocol@proton.me](mailto:autopayprotocol@proton.me)
 
 ## Contributing
 
