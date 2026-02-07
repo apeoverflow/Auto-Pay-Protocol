@@ -694,7 +694,7 @@ export function DocsPage({ hideLogo = false }: { hideLogo?: boolean } = {}) {
 
         {/* Desktop TOC sidebar */}
         {headings.length > 0 && (
-          <div className="hidden w-[200px] flex-shrink-0 border-l border-border/50 lg:block">
+          <div className="hidden w-fit min-w-[180px] flex-shrink-0 border-l border-border/50 lg:block">
             <div className="sticky top-0 max-h-screen overflow-y-auto p-4">
               <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 On this page

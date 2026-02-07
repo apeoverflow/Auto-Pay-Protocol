@@ -2775,6 +2775,15 @@ details > *:not(summary) {
   animation: route-auth-enter 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.route-fade-out {
+  animation: route-fade-out 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes route-fade-out {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 @keyframes route-exit-to-docs {
   0%   { opacity: 1; transform: scale(1); filter: blur(0px); }
   100% { opacity: 0; transform: scale(0.92); filter: blur(6px); }
@@ -2799,7 +2808,8 @@ details > *:not(summary) {
   .route-exit-to-docs,
   .route-docs-enter,
   .route-docs-exit,
-  .route-auth-enter {
+  .route-auth-enter,
+  .route-fade-out {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
