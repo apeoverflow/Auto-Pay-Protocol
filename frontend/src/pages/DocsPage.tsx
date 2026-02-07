@@ -685,7 +685,7 @@ export function DocsPage({ hideLogo = false }: { hideLogo?: boolean } = {}) {
               )}
             </div>
           )}
-          <div className="mx-auto max-w-3xl px-4 py-8 md:px-8">
+          <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
               {currentDoc.content}
             </ReactMarkdown>
