@@ -846,6 +846,7 @@
   display: none;
 }
 
+
 /* ── form header ── */
 .auth-form-header {
   margin-bottom: 1.5rem;
@@ -1832,6 +1833,7 @@
   0%, 100% { scale: 1; }
   50%      { scale: 1.35; }
 }
+
 
 /* ── reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
