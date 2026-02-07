@@ -1,6 +1,6 @@
 {
   "name": "@autopayprotocol/sdk",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Merchant SDK for AutoPay Protocol — checkout URLs, webhook verification, USDC helpers",
   "license": "Apache-2.0",
   "repository": {
