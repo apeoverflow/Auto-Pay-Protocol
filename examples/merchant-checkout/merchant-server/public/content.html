@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium Content - DemoApp</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .container {
+      max-width: 720px;
+      width: 100%;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.85rem;
+      border-radius: 2rem;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: white;
+    }
+    .subtitle {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .video-wrapper {
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+      aspect-ratio: 16/9;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    .video-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .meta {
+      font-size: 0.75rem;
+      color: #475569;
+    }
+    .meta code {
+      background: #1e293b;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.7rem;
+    }
+    .back {
+      display: inline-block;
+      margin-top: 1.25rem;
+      color: #6366f1;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .back:hover { text-decoration: underline; }
+
+    /* Locked state */
+    .locked {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 1rem;
+      padding: 3rem 2rem;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+    .locked .lock-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    .locked h1 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .locked p {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+    }
+    .locked .cta {
+      display: inline-block;
+      padding: 0.65rem 1.75rem;
+      background: #6366f1;
+      color: white;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    .locked .cta:hover { opacity: 0.9; }
+
+    /* Loading */
+    .loading { color: #94a3b8; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 3px solid #334155;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Verifying your subscription...</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/auth.js"></script>
+  <script>
+    const container = document.getElementById('content')
+
+    async function checkAccess() {
+      // Require authentication
+      const session = await requireAuth()
+      if (!session) return // redirecting to login
+
+      try {
+        const res = await fetch('/api/check-access', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        })
+        const data = await res.json()
+
+        if (data.access) {
+          showContent(data)
+          return
+        }
+
+        showLocked(data.reason || data.status)
+      } catch {
+        showLocked()
+      }
+    }
+
+    function showContent(data) {
+      const statusLabel = data?.status === 'past_due' ? 'Past Due' : 'Active Subscriber'
+      const statusColor = data?.status === 'past_due' ? 'rgba(234, 179, 8, 0.15); color: #facc15' : 'rgba(16, 185, 129, 0.15); color: #34d399'
+      const pid = data?.policyId || ''
+      const pidDisplay = pid ? `${pid.slice(0, 10)}...${pid.slice(-6)}` : 'linked'
+      container.innerHTML = `
+        <span class="badge" style="background:${statusColor}">&#10003; ${statusLabel}</span>
+        <h1>Exclusive Premium Content</h1>
+        <p class="subtitle">Thank you for subscribing! Enjoy your premium access.</p>
+        <div class="video-wrapper">
+          <iframe
+            src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&controls=1"
+            allow="autoplay; encrypted-media"
+            allowfullscreen
+          ></iframe>
+        </div>
+        <div class="meta">
+          Subscription: <code>${pidDisplay}</code>
+          ${data?.totalCharges ? ` &middot; ${data.totalCharges} charge${data.totalCharges !== 1 ? 's' : ''}` : ''}
+        </div>
+        <a href="/" class="back">&larr; Back to plans</a>
+        <span style="margin: 0 0.5rem; color: #334155;">&middot;</span>
+        <a href="#" class="back" onclick="handleLogout(); return false;">Sign out</a>
+      `
+    }
+
+    function showLocked(reason) {
+      const message = reason === 'cancelled'
+        ? 'Your subscription has been cancelled. Resubscribe to regain access.'
+        : reason === 'expired'
+          ? 'Your subscription expired due to payment failures. Please resubscribe.'
+          : 'You need an active subscription to access this content.'
+      container.innerHTML = `
+        <div class="locked">
+          <div class="lock-icon">&#128274;</div>
+          <h1>Premium Content</h1>
+          <p>${message}</p>
+          <a href="/" class="cta">View Plans</a>
+        </div>
+      `
+    }
+
+    checkAccess()
+  </script>
+</body>
+</html>

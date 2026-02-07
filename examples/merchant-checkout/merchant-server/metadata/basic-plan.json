@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "plan": {
+    "name": "Basic Plan",
+    "description": "Essential features for getting started",
+    "tier": "basic",
+    "features": [
+      "3 projects",
+      "Email support",
+      "Basic analytics"
+    ]
+  },
+  "billing": {
+    "amount": "0.01",
+    "currency": "USDC",
+    "interval": 120
+  },
+  "merchant": {
+    "name": "DemoApp",
+    "logo": "dumbell.png",
+    "website": "https://demoapp.example.com",
+    "supportEmail": "support@demoapp.example.com"
+  },
+  "display": {
+    "color": "#10B981"
+  }
+}

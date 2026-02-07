@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscription Confirmed - DemoApp</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      padding: 3rem 2rem;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+    }
+    .icon {
+      width: 4rem;
+      height: 4rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      font-size: 1.75rem;
+    }
+    .icon.success { background: #ecfdf5; }
+    .icon.verifying { background: #eff6ff; }
+    .icon.failed { background: #fef2f2; }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+    .detail {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+      font-size: 0.85rem;
+    }
+    .detail-row .label { color: #64748b; }
+    .detail-row .value {
+      font-weight: 500;
+      font-family: monospace;
+      font-size: 0.8rem;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.3rem 0.75rem;
+      border-radius: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .badge.verified {
+      background: #ecfdf5;
+      color: #059669;
+    }
+    .badge.unverified {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+    .badge.checking {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+    .cta {
+      display: inline-block;
+      padding: 0.75rem 2rem;
+      background: #6366f1;
+      color: white;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: opacity 0.15s;
+    }
+    .cta:hover { opacity: 0.9; }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinner {
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 3px solid #dbeafe;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <!-- Filled by JS after verification -->
+    <div class="icon verifying">
+      <div class="spinner"></div>
+    </div>
+    <h1>Verifying subscription...</h1>
+    <p class="subtitle">Checking the transaction on-chain</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/auth.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search)
+    const policyId = params.get('policy_id')
+    const txHash = params.get('tx_hash')
+    const card = document.getElementById('card')
+
+    async function verify() {
+      // If no params at all, show generic unverified
+      if (!policyId) {
+        showResult(false, 'No policy ID provided')
+        return
+      }
+
+      // If no tx_hash, can't verify on-chain
+      if (!txHash) {
+        showResult(false, 'No transaction hash — cannot verify on-chain')
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/verify-policy?policy_id=${encodeURIComponent(policyId)}&tx_hash=${encodeURIComponent(txHash)}`)
+        const data = await res.json()
+
+        if (data.verified) {
+          // Claim the policy for the authenticated user
+          await claimPolicy()
+          showResult(true)
+        } else {
+          showResult(false, data.reason || 'Verification failed')
+        }
+      } catch (err) {
+        showResult(false, 'Could not reach verification server')
+      }
+    }
+
+    async function claimPolicy() {
+      try {
+        const token = await getAccessToken()
+        if (!token || !policyId) return
+
+        await fetch('/api/claim-policy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ policy_id: policyId, tx_hash: txHash }),
+        })
+      } catch {
+        // Non-fatal: webhook will still create the record
+        console.log('Could not claim policy — webhook will handle it')
+      }
+    }
+
+    function showResult(verified, reason) {
+      if (verified) {
+        card.innerHTML = `
+          <div class="icon success">&#10003;</div>
+          <h1>Subscription confirmed!</h1>
+          <p class="subtitle">Your payment has been verified on-chain and your subscription is now active.</p>
+          <span class="badge verified">&#10003; Verified on-chain</span>
+          <div class="detail">
+            <div class="detail-row">
+              <span class="label">Policy ID</span>
+              <span class="value">${policyId}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Transaction</span>
+              <span class="value">
+                <a href="https://testnet.arcscan.app/tx/${txHash}" target="_blank" rel="noopener" style="color: #6366f1; text-decoration: none;">${txHash.slice(0, 10)}...${txHash.slice(-6)}</a>
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Status</span>
+              <span class="value" style="color: #10b981;">Active</span>
+            </div>
+          </div>
+          <a href="/content" class="cta">Access Premium Content</a>
+        `
+        // Subscription linked to user account via claim-policy
+      } else {
+        card.innerHTML = `
+          <div class="icon failed">&#9888;</div>
+          <h1>Verification failed</h1>
+          <p class="subtitle">${reason}</p>
+          <span class="badge unverified">&#10007; Not verified</span>
+          ${policyId ? `
+            <div class="detail">
+              <div class="detail-row">
+                <span class="label">Policy ID</span>
+                <span class="value">${policyId}</span>
+              </div>
+              ${txHash ? `
+                <div class="detail-row">
+                  <span class="label">Transaction</span>
+                  <span class="value">${txHash.slice(0, 10)}...${txHash.slice(-6)}</span>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+          <a href="/" class="cta">Back to Plans</a>
+        `
+      }
+    }
+
+    verify()
+  </script>
+</body>
+</html>

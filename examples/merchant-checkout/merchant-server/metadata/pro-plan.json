@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "plan": {
+    "name": "Pro Plan",
+    "description": "Full access to all premium features",
+    "tier": "pro",
+    "features": [
+      "Unlimited projects",
+      "Priority support",
+      "API access",
+      "Advanced analytics"
+    ]
+  },
+  "billing": {
+    "amount": "0.10",
+    "currency": "USDC",
+    "interval": 120
+  },
+  "merchant": {
+    "name": "DemoApp",
+    "logo": "dumbell.png",
+    "website": "https://demoapp.example.com",
+    "supportEmail": "support@demoapp.example.com"
+  },
+  "display": {
+    "color": "#6366F1",
+    "badge": "Most Popular"
+  }
+}

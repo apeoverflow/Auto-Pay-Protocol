@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In - DemoApp</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      padding: 2.5rem 2rem;
+      max-width: 400px;
+      width: 100%;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .header p {
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.35rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #6366f1;
+      color: white;
+      transition: opacity 0.15s;
+      margin-top: 1.25rem;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toggle {
+      text-align: center;
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .toggle a {
+      color: #6366f1;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .toggle a:hover { text-decoration: underline; }
+    .error {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 0.6rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .verify-message {
+      text-align: center;
+      padding: 1rem 0;
+    }
+    .verify-message .icon {
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      background: #eff6ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+      font-size: 1.5rem;
+    }
+    .verify-message h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .verify-message p {
+      color: #64748b;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .verify-message .email-highlight {
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .verify-message .back-link {
+      display: inline-block;
+      margin-top: 1.25rem;
+      color: #6366f1;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .verify-message .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>DemoApp</h1>
+      <p id="subtitle">Sign in to access premium content</p>
+    </div>
+
+    <div class="error" id="error"></div>
+
+    <form id="auth-form" onsubmit="return false">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="At least 6 characters" required minlength="6">
+      </div>
+      <button class="btn" id="submit-btn" type="submit">Sign In</button>
+    </form>
+
+    <div class="toggle">
+      <span id="toggle-text">Don't have an account?</span>
+      <a id="toggle-link" onclick="toggleMode()">Sign Up</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/auth.js"></script>
+  <script>
+    let isSignUp = false
+    const form = document.getElementById('auth-form')
+    const emailInput = document.getElementById('email')
+    const passwordInput = document.getElementById('password')
+    const submitBtn = document.getElementById('submit-btn')
+    const errorEl = document.getElementById('error')
+    const subtitle = document.getElementById('subtitle')
+    const toggleText = document.getElementById('toggle-text')
+    const toggleLink = document.getElementById('toggle-link')
+
+    // If already logged in, redirect to home
+    getSession().then(session => {
+      if (session) window.location.href = '/'
+    })
+
+    function toggleMode() {
+      isSignUp = !isSignUp
+      if (isSignUp) {
+        subtitle.textContent = 'Create an account to get started'
+        submitBtn.textContent = 'Sign Up'
+        toggleText.textContent = 'Already have an account?'
+        toggleLink.textContent = 'Sign In'
+      } else {
+        subtitle.textContent = 'Sign in to access premium content'
+        submitBtn.textContent = 'Sign In'
+        toggleText.textContent = "Don't have an account?"
+        toggleLink.textContent = 'Sign Up'
+      }
+      errorEl.style.display = 'none'
+    }
+
+    form.addEventListener('submit', async () => {
+      const email = emailInput.value.trim()
+      const password = passwordInput.value
+      if (!email || !password) return
+
+      submitBtn.disabled = true
+      submitBtn.textContent = isSignUp ? 'Signing up...' : 'Signing in...'
+      errorEl.style.display = 'none'
+
+      try {
+        let result
+        if (isSignUp) {
+          result = await sb.auth.signUp({ email, password })
+        } else {
+          result = await sb.auth.signInWithPassword({ email, password })
+        }
+
+        if (result.error) throw result.error
+
+        // After signup: if no session, email confirmation is required
+        if (isSignUp && !result.data.session) {
+          showVerifyMessage(email)
+          return
+        }
+
+        window.location.href = '/'
+      } catch (err) {
+        errorEl.textContent = err.message || 'Authentication failed'
+        errorEl.style.display = 'block'
+        submitBtn.disabled = false
+        submitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In'
+      }
+    })
+
+    function showVerifyMessage(email) {
+      document.querySelector('.card').innerHTML = `
+        <div class="verify-message">
+          <div class="icon">&#9993;</div>
+          <h2>Verification email sent</h2>
+          <p>
+            We sent a confirmation link to<br>
+            <span class="email-highlight">${email}</span>
+          </p>
+          <p style="margin-top: 0.75rem;">Please click the link in your email to verify your account, then come back and sign in.</p>
+          <a class="back-link" onclick="window.location.reload()">Back to Sign In</a>
+        </div>
+      `
+    }
+  </script>
+</body>
+</html>
