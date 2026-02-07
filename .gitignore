@@ -13,4 +13,13 @@ docs/
 # Dotenv file
 .env
 
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# OS files
+.DS_Store
+
+# Screenshots (dev artifacts)
+*.png
+
 CLAUDE.md
