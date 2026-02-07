@@ -56,6 +56,10 @@ function MermaidDiagram({ chart }: { chart: string }) {
       if (containerRef.current) {
         containerRef.current.innerHTML = svg
       }
+    }).catch(() => {
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;text-align:center;">Diagram could not be rendered</p>'
+      }
     })
   }, [chart])
 
