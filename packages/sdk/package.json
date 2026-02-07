@@ -1,0 +1,48 @@
+{
+  "name": "@autopayprotocol/sdk",
+  "version": "0.1.1",
+  "description": "Merchant SDK for AutoPay Protocol — checkout URLs, webhook verification, USDC helpers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apeoverflow/Auto-Pay-Protocol.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/apeoverflow/Auto-Pay-Protocol/tree/main/packages/sdk#readme",
+  "bugs": "https://github.com/apeoverflow/Auto-Pay-Protocol/issues",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
