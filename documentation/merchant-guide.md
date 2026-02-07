@@ -260,6 +260,33 @@ See the [Deployment Guide](./relayer-deployment.md) for setup instructions. A ba
 
 ---
 
+## Relayer as a Service (Coming Soon)
+
+> **This feature is not yet available.** Join the waitlist to be notified when it launches.
+
+Don't want to self-host? **Relayer as a Service** is a managed relayer that you can deploy in one click from the AutoPay dashboard.
+
+### What You Get
+
+- **One-click deploy** — Spin up a dedicated relayer instance without touching infrastructure
+- **Dashboard config** — Manage webhook URLs, retry settings, merchant metadata, and plan configuration through a web UI
+- **Monitoring** — Built-in health checks, charge history, and failure alerts
+- **Auto-scaling** — Your relayer scales with your subscriber count
+- **Zero maintenance** — We handle updates, uptime, and database backups
+
+### How It Works
+
+1. Connect your merchant wallet in the AutoPay dashboard
+2. Click **Deploy Relayer**
+3. Configure your webhook URL and plans through the UI
+4. Share your checkout link — everything else is handled for you
+
+### Pricing
+
+Relayer as a Service will be billed monthly based on usage (active subscriptions and charges processed). Self-hosting remains free — you only pay the 2.5% protocol fee on charges.
+
+---
+
 ## FAQ
 
 <details>
@@ -307,7 +334,7 @@ You cannot change the price of existing subscriptions - the charge amount is loc
 <details>
 <summary>What chains are supported?</summary>
 
-Currently **Arc Testnet** only. Multi-chain support is coming via [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains), which will let subscribers pay from any of 12+ supported chains (Ethereum, Arbitrum, Base, Polygon, Solana, Avalanche, and more) with funds automatically bridged to your wallet.
+Subscribers can pay from any of 12+ supported chains (Ethereum, Arbitrum, Base, Polygon, Solana, Avalanche, and more) via [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains). Funds are automatically bridged to your wallet on Arc.
 
 </details>
 

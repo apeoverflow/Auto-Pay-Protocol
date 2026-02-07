@@ -110,7 +110,7 @@ The system has three main components:
 
 ### Current Network
 
-AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is coming via [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains), which enables subscribers to pay from any supported chain with funds automatically bridged to the merchant.
+AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is powered by [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains) — subscribers can pay from any supported chain and funds are automatically bridged to the merchant.
 
 #### Supported Chains (via Circle Gateway)
 

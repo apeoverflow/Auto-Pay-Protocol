@@ -192,7 +192,7 @@ Yes. You can have as many active subscriptions as you want, to different merchan
 <details>
 <summary>What blockchain does this use?</summary>
 
-AutoPay currently runs on **Arc Testnet** using USDC. Support for additional chains (Polygon, Arbitrum) is planned.
+AutoPay runs on **Arc Testnet** using USDC. You can fund your wallet from 12+ chains (Ethereum, Polygon, Arbitrum, Base, Solana, and more) via Circle Gateway — funds are automatically bridged to Arc.
 
 </details>
 
