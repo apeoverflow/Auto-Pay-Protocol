@@ -16,6 +16,8 @@ import {
   Globe,
   BookOpen,
   ArrowRight,
+  Shield,
+  Zap,
 } from 'lucide-react'
 
 type AuthTab = 'passkey' | 'recovery'
@@ -126,6 +128,50 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
               Documentation
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
+          </div>
+        </div>
+
+        {/* ─── mobile: hero section (hidden on desktop) ─── */}
+        <div className="auth-mobile-hero" aria-hidden="true">
+          <div className="auth-mobile-hero-aurora">
+            <div className="auth-mobile-orb auth-mobile-orb--1" />
+            <div className="auth-mobile-orb auth-mobile-orb--2" />
+            <div className="auth-mobile-orb auth-mobile-orb--3" />
+          </div>
+          <div className="auth-mobile-hero-content">
+            <img
+              src="/logo.png"
+              alt="AutoPayProtocol"
+              className="auth-mobile-hero-logo auth-m-stagger auth-m-stagger-1"
+            />
+            <h1 className="auth-mobile-hero-headline auth-m-stagger auth-m-stagger-2">
+              Cut fees in <strong>half</strong>
+            </h1>
+            <p className="auth-mobile-hero-sub auth-m-stagger auth-m-stagger-3">
+              Recurring USDC payments for newsletters, DAOs, and SaaS.
+            </p>
+            <div className="auth-mobile-hero-pills auth-m-stagger auth-m-stagger-4">
+              <div className="auth-mobile-pill">
+                <Zap className="auth-mobile-pill-icon" />
+                <span>Non-custodial</span>
+              </div>
+              <div className="auth-mobile-pill">
+                <Shield className="auth-mobile-pill-icon" />
+                <span>50% cheaper</span>
+              </div>
+              <div className="auth-mobile-pill">
+                <Globe className="auth-mobile-pill-icon" />
+                <span>Multi-chain</span>
+              </div>
+            </div>
+          </div>
+          {/* mobile floating tokens */}
+          <div className="auth-mobile-tokens">
+            <div className="auth-mp auth-mp--1" />
+            <div className="auth-mp auth-mp--2" />
+            <div className="auth-mp auth-mp--3" />
+            <div className="auth-mp auth-mp--4" />
+            <div className="auth-mp auth-mp--5" />
           </div>
         </div>
 
