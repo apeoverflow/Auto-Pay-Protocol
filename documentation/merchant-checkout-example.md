@@ -136,11 +136,11 @@ graph TD
     E --> PR[policy.revoked]
     E --> PCF[policy.cancelled_by_failure]
 
-    PC --> |"Create subscriber record<br/>access_granted = true"| DB[(Supabase DB)]
-    CS --> |"Increment charges<br/>Reset failures"| DB
-    CF --> |"Increment failures<br/>Revoke after 2+"| DB
-    PR --> |"status = cancelled<br/>access_granted = false"| DB
-    PCF --> |"status = expired<br/>access_granted = false"| DB
+    PC -->|Create subscriber record| DB[(Supabase DB)]
+    CS -->|Increment charges, reset failures| DB
+    CF -->|Increment failures, revoke after 2+| DB
+    PR -->|Set cancelled, revoke access| DB
+    PCF -->|Set expired, revoke access| DB
 ```
 
 Signature verification uses `@autopayprotocol/sdk`:
@@ -160,15 +160,15 @@ Gates premium content by checking the subscriber's status in the database.
 ```mermaid
 graph TD
     R[GET /api/check-access] --> T{Has JWT?}
-    T -- Yes --> U[Verify token → get user_id]
-    U --> Q1[Query: merchant_subscribers WHERE user_id AND access_granted = true]
-    Q1 -- Found --> A1[✓ access: true + subscription details]
-    Q1 -- Not found --> A2[✗ access: false]
+    T -- Yes --> U[Verify token, get user_id]
+    U --> Q1[Query subscribers by user_id]
+    Q1 -- Found --> A1[Access granted]
+    Q1 -- Not found --> A2[Access denied]
 
     T -- No --> P{Has policy_id?}
     P -- Yes --> Q2[Query by policy_id]
     Q2 --> A3[Return access status]
-    P -- No --> A4[✗ access: false]
+    P -- No --> A4[Access denied]
 ```
 
 ### 5. Policy Claiming (`server.js` — POST /api/claim-policy)
@@ -311,5 +311,4 @@ The server starts at `http://localhost:3002`. Visit it to see the pricing page.
 
 - [Backend Integration Guide](./sdk-backend.md) — `@autopayprotocol/sdk` reference
 - [Merchant Guide](./merchant-guide.md) — Business-level overview
-- [Frontend Guide](./sdk-frontend.md) — Building custom checkout UIs
 - [Relayer Operations](./relayer-operations.md) — Registering merchants and metadata
