@@ -137,8 +137,7 @@ AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is powered by 
 |-----------------|------------|
 | **Subscriber** (paying for services) | [Subscriber Guide](./subscriber-guide.md) |
 | **Merchant / business owner** (accepting payments) | [Merchant Guide](./merchant-guide.md) |
-| **Frontend developer** (building subscription UIs) | [Frontend Integration Guide](./sdk-frontend.md) |
-| **Backend developer** (handling webhook events) | [Backend Integration Guide](./sdk-backend.md) |
+| **Backend developer** (handling webhook events) | [SDK Integration Guide](./sdk-backend.md) |
 | **Relayer operator** (running the charge service) | [Running Locally](./relayer-local-setup.md) or [Deployment](./relayer-deployment.md) |
 
 ---
@@ -147,8 +146,7 @@ AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is powered by 
 
 ### For Developers
 
-- [Frontend Integration Guide](./sdk-frontend.md) - React hooks for subscription UIs
-- [Backend Integration Guide](./sdk-backend.md) - Webhook events and signature verification
+- [SDK Integration Guide](./sdk-backend.md) - Webhook events and signature verification
 - [Relayer Operations](./relayer-operations.md) - CLI commands, metadata, merchant management
 - [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
 - [Deployment Guide](./relayer-deployment.md) - Railway, Docker, and direct deployment

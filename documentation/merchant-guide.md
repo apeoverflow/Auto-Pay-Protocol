@@ -141,7 +141,7 @@ When subscription events occur, AutoPay sends HTTP POST requests to your webhook
 
 Each webhook includes the subscriber's wallet address, policy ID, amounts, and a cryptographic signature you can verify for security.
 
-> **Developer needed?** Setting up a webhook endpoint requires a backend developer. See the [Backend Integration Guide](./sdk-backend.md) for implementation details with code examples.
+> **Developer needed?** Setting up a webhook endpoint requires a backend developer. Install `@autopayprotocol/sdk` for typed webhook verification, checkout URL building, and USDC amount helpers. See the [Backend Integration Guide](./sdk-backend.md) for implementation details.
 
 ### Step 5: Build or Embed a Checkout Page
 
@@ -231,7 +231,14 @@ For a merchant processing $10,000/month:
 
 ### Webhook Verification
 
-Every webhook from AutoPay includes an HMAC-SHA256 signature in the `X-AutoPay-Signature` header. Always verify this signature to ensure notifications are genuine. See the [Backend Integration Guide](./sdk-backend.md#signature-verification) for verification code.
+Every webhook from AutoPay includes an HMAC-SHA256 signature in the `X-AutoPay-Signature` header. Always verify this signature to ensure notifications are genuine. The `@autopayprotocol/sdk` package handles this in one line:
+
+```typescript
+import { verifyWebhook } from '@autopayprotocol/sdk'
+const event = verifyWebhook(rawBody, req.headers['x-autopay-signature'], secret)
+```
+
+See the [Backend Integration Guide](./sdk-backend.md#signature-verification) for full details.
 
 ### Wallet Security
 
