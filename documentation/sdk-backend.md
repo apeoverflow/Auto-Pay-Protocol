@@ -2,7 +2,7 @@
 
 ## Overview
 
-When subscribers sign up or get charged, AutoPay sends your server a webhook — a signed HTTP POST with event details. Your backend uses these to grant access, extend subscriptions, or handle cancellations.
+When subscribers sign up or get charged, AutoPay sends your server a signed webhook (HTTP POST) with event details. Your backend uses these to grant access, extend subscriptions, or handle cancellations.
 
 The `@autopayprotocol/sdk` package provides typed webhook verification, checkout URL building, and USDC amount helpers. It's framework-agnostic and has zero runtime dependencies.
 
@@ -33,7 +33,7 @@ sequenceDiagram
 3. On success, the user is redirected back to your site
 4. For each subsequent billing cycle, AutoPay's relayer charges the subscriber on-chain and sends your server a **webhook** with the result
 
-You handle webhooks to manage access — everything else is automatic.
+You handle webhooks to manage access. Everything else is automatic.
 
 ---
 
@@ -77,7 +77,7 @@ import { verifyWebhook } from '@autopayprotocol/sdk'
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET
 
-// Works with any framework — this example uses plain http
+// This example uses plain http, but works with any framework
 import { createServer } from 'http'
 
 createServer((req, res) => {
@@ -107,12 +107,12 @@ createServer((req, res) => {
 
 Before you can receive webhooks, your merchant must be registered with the AutoPay relayer. Registration links your wallet address to a webhook URL and shared secret.
 
-**If using a hosted relayer** — contact the relayer operator with:
+**If using a hosted relayer**, contact the relayer operator with:
 - Your wallet address (where you receive USDC)
 - Your webhook endpoint URL
 - A webhook secret (any random string you choose)
 
-**If self-hosting** — use the relayer CLI:
+**If self-hosting**, use the relayer CLI:
 
 ```bash
 npm run cli -- merchant:add \
@@ -139,7 +139,7 @@ const url = createCheckoutUrl({
   metadataUrl: 'https://yoursite.com/plans/pro.json',
   successUrl: 'https://yoursite.com/success',
   cancelUrl: 'https://yoursite.com/cancel',
-  spendingCap: 119.88,             // optional — max total USDC
+  spendingCap: 119.88,             // optional - max total USDC
 })
 // → "https://autopayprotocol.com/checkout?merchant=0x...&amount=9.99&interval=2592000&..."
 ```
@@ -214,7 +214,7 @@ Every webhook includes an HMAC-SHA256 signature in the `X-AutoPay-Signature` hea
 | `X-AutoPay-Timestamp` | ISO 8601 timestamp of when the webhook was sent |
 | `Content-Type` | `application/json` |
 
-**Using the SDK** — `verifyWebhook()` verifies the signature and parses the payload in one call. It throws if the signature is invalid.
+**Using the SDK:** `verifyWebhook()` verifies the signature and parses the payload in one call. It throws if the signature is invalid.
 
 ```typescript
 import { verifyWebhook } from '@autopayprotocol/sdk'
@@ -223,7 +223,7 @@ try {
   const event = verifyWebhook(rawBody, req.headers['x-autopay-signature'], WEBHOOK_SECRET)
   // event.type is the event name, event.data is the typed payload
 } catch (err) {
-  // Invalid signature — reject
+  // Invalid signature - reject
   res.writeHead(401)
   res.end()
   return
@@ -252,7 +252,7 @@ function verify(rawBody, signature, secret) {
 
 ### Handling Events
 
-The SDK returns a discriminated union — TypeScript narrows the `data` shape based on `event.type`:
+The SDK returns a discriminated union, so TypeScript narrows the `data` shape based on `event.type`:
 
 ```typescript
 import { verifyWebhook, formatUSDC } from '@autopayprotocol/sdk'
@@ -261,28 +261,28 @@ const event = verifyWebhook(rawBody, signature, secret)
 
 switch (event.type) {
   case 'policy.created':
-    // New subscriber — first charge already collected
+    // New subscriber - first charge already collected
     grantAccess(event.data.payer, event.data.policyId)
     break
 
   case 'charge.succeeded':
-    // Recurring payment collected — extend access
+    // Recurring payment collected - extend access
     console.log(`Collected ${formatUSDC(event.data.amount)} USDC`)
     extendAccess(event.data.payer, event.data.policyId)
     break
 
   case 'charge.failed':
-    // Payment failed — consider notifying the user
+    // Payment failed - consider notifying the user
     notifyPaymentFailed(event.data.payer, event.data.reason)
     break
 
   case 'policy.revoked':
-    // User cancelled — revoke at end of billing period
+    // User cancelled - revoke at end of billing period
     scheduleAccessRevocation(event.data.payer, event.data.policyId)
     break
 
   case 'policy.cancelled_by_failure':
-    // Auto-cancelled after 3 consecutive failures — revoke immediately
+    // Auto-cancelled after 3 consecutive failures - revoke immediately
     revokeAccess(event.data.payer, event.data.policyId)
     break
 }
@@ -401,5 +401,5 @@ Some fields are event-specific. For example, `amount` and `protocolFee` only app
 
 ## Related Documentation
 
-- [Checkout Example](./merchant-checkout-example.md) — Full merchant server with auth, webhooks, and access gating
-- [Merchant Guide](./merchant-guide.md) — Business-level overview for non-technical stakeholders
+- [Checkout Example](./merchant-checkout-example.md) - Full merchant server with auth, webhooks, and access gating
+- [Merchant Guide](./merchant-guide.md) - Business-level overview for non-technical stakeholders
