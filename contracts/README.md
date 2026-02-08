@@ -8,7 +8,7 @@ Non-custodial subscription payment contracts for recurring USDC payments.
 contracts/
 ├── src/
 │   ├── ArcPolicyManager.sol    # Arc Testnet (settlement chain) - direct USDC transfers
-│   └── PolicyManager.sol       # Source chains (Polygon, Arbitrum) - CCTP bridging to Arc
+│   └── PolicyManager.sol       # Source chains (Polygon, Arbitrum) - CCTP bridging to Arc (Stub for possible future use)
 ├── script/
 │   └── DeployArc.s.sol         # Forge deployment script for Arc
 ├── scripts/
