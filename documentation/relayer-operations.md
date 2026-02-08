@@ -182,6 +182,29 @@ npm run cli -- merchant:add \
 
 The webhook secret is used to sign payloads with HMAC-SHA256. Merchants verify the signature from the `X-AutoPay-Signature` header. See the [Backend Integration Guide](./sdk-backend.md) for verification code.
 
+#### Running against a hosted relayer (Railway)
+
+If the relayer is deployed on Railway, use the Railway CLI to run commands with the production environment variables:
+
+```bash
+# Install the Railway CLI (macOS)
+brew install railway
+
+# Log in to your Railway account
+railway login
+
+# Link to the relayer service (interactive — select the project and service)
+railway link
+
+# Run the CLI command with production env vars injected
+railway run npm run cli -- merchant:add \
+  --address 0xMERCHANT_ADDRESS \
+  --webhook-url https://your-merchant-server.up.railway.app/webhook \
+  --webhook-secret your_secret_here
+```
+
+`railway run` injects the service's environment variables (including `DATABASE_URL`) so you don't need to copy credentials locally. You must run this from the `relayer/` directory.
+
 ### `merchant:list`
 
 List all registered merchants.
