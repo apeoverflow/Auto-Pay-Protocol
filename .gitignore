@@ -19,7 +19,5 @@ docs/
 # OS files
 .DS_Store
 
-# Screenshots (dev artifacts)
-*.png
 
 CLAUDE.md
