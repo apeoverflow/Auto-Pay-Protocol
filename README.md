@@ -167,7 +167,7 @@ function cancelFailedPolicy(bytes32 policyId) external;
 
 | Chain | USDC | ArcPolicyManager |
 |-------|------|------------------|
-| Arc Testnet | `0x3600000000000000000000000000000000000000` | TBD |
+| Arc Testnet | `0x3600000000000000000000000000000000000000` | `0x0a681aC070ef81afb1c888D3370246633aE46A27` |
 
 Users fund their Arc wallet from 12+ chains via [Circle Gateway](https://developers.circle.com/gateway). All subscriptions and charges happen natively on Arc.
 
@@ -178,7 +178,7 @@ Users fund their Arc wallet from 12+ chains via [Circle Gateway](https://develop
 ```env
 VITE_CLIENT_KEY=<circle-client-key>
 VITE_CLIENT_URL=https://modular-sdk.circle.com/v1/rpc/w3s/buidl
-VITE_POLICY_MANAGER_ARC=0x...
+VITE_POLICY_MANAGER_ARC=0x0a681aC070ef81afb1c888D3370246633aE46A27
 ```
 
 ### Relayer
@@ -203,11 +203,12 @@ ARC_TESTNET_RPC=https://rpc-testnet.arc.network
 - [x] Product requirements & architecture
 - [x] Smart contract design
 - [x] Smart contract implementation (ArcPolicyManager)
+- [x] Contract deployed to Arc Testnet
 - [x] Frontend with Circle Modular Wallets
+- [x] Circle Gateway cross-chain funding (12+ chains)
 - [x] Relayer implementation (indexer, executor, webhooks)
 - [x] Merchant SDK (`@autopayprotocol/sdk`)
-- [ ] Contract deployment to testnets
-- [ ] End-to-end testing
+- [x] End-to-end testing
 - [ ] Mainnet launch
 
 ## Interested in Integrating?
