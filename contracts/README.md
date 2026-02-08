@@ -7,8 +7,7 @@ Non-custodial subscription payment contracts for recurring USDC payments.
 ```
 contracts/
 ├── src/
-│   ├── ArcPolicyManager.sol    # Arc Testnet (settlement chain) - direct USDC transfers
-│   └── PolicyManager.sol       # Source chains (Polygon, Arbitrum) - CCTP bridging to Arc (Stub for possible future use)
+│   └── ArcPolicyManager.sol    # Arc Testnet - direct USDC transfers
 ├── script/
 │   └── DeployArc.s.sol         # Forge deployment script for Arc
 ├── scripts/
@@ -29,9 +28,9 @@ contracts/
 
 ## Contracts
 
-### ArcPolicyManager.sol (Settlement Chain)
+### ArcPolicyManager.sol
 
-Deployed on Arc Testnet. Handles subscriptions where both payer and merchant are on Arc.
+Deployed on Arc Testnet. Handles non-custodial recurring USDC subscriptions.
 
 **Key behavior:**
 - `createPolicy()` executes the **first charge immediately** within the same transaction
@@ -44,12 +43,6 @@ Deployed on Arc Testnet. Handles subscriptions where both payer and merchant are
 - `charge(policyId)` - Execute recurring charge (anyone can call when due)
 - `canCharge(policyId)` - Check if charge is possible
 - `batchCharge(policyIds)` - Charge multiple policies
-
-### PolicyManager.sol (Source Chains)
-
-For Polygon Amoy, Arbitrum Sepolia. Uses CCTP to bridge USDC to merchant on Arc.
-
-**Not yet deployed** - enables cross-chain subscriptions.
 
 ## Quick Start
 
@@ -124,10 +117,6 @@ Create `.env` from `.env.example`:
 PRIVATE_KEY=0x...              # Deployer wallet (needs USDC for gas on Arc)
 FEE_RECIPIENT=0x...            # Address to collect protocol fees
 ARC_TESTNET_RPC=https://rpc.testnet.arc.network
-
-# Future: Source chain deployments
-# POLYGON_AMOY_RPC=https://rpc-amoy.polygon.technology
-# ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
 ```
 
 **Get testnet USDC:** https://faucet.circle.com (Arc uses USDC as native gas token)
