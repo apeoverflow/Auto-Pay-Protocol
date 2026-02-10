@@ -13,7 +13,7 @@
   "billing": {
     "amount": "0.01",
     "currency": "USDC",
-    "interval": 120
+    "interval": 60
   },
   "merchant": {
     "name": "DemoApp",

@@ -105,7 +105,7 @@ https://autopayprotocol.com/checkout?
   merchant=0x2B8b...
   metadata_url=http://localhost:3420/metadata/pro-plan
   amount=0.10
-  interval=120
+  interval=60
   spending_cap=1.20
   success_url=http://localhost:3002/success
   cancel_url=http://localhost:3002/cancel
@@ -240,7 +240,7 @@ Plans are JSON files served by the relayer. The example includes two demo plans 
   "billing": {
     "amount": "0.10",
     "currency": "USDC",
-    "interval": 120
+    "interval": 60
   },
   "merchant": {
     "name": "DemoApp",

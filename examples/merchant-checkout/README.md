@@ -80,7 +80,7 @@ The checkout page fetches plan details from `metadata_url`:
   "billing": {
     "amount": "9.99",
     "currency": "USDC",
-    "interval": 120,
+    "interval": 60,
     "spending_cap": "119.88"
   },
   "merchant": {
