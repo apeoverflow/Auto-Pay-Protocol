@@ -87,6 +87,7 @@ export async function updatePolicyAfterCharge(
       charge_count = charge_count + 1,
       total_spent = (CAST(total_spent AS NUMERIC) + ${amount})::TEXT
     WHERE id = ${policyId} AND chain_id = ${chainId}
+      AND active = true
   `
 
   logger.debug({ policyId, chainId }, 'Updated policy after charge')

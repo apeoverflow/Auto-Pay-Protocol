@@ -229,11 +229,17 @@ app.post('/webhook', async (req, res) => {
           // Fetch current record to increment counters
           const { data: sub } = await supabase
             .from('merchant_subscribers')
-            .select('total_charges, total_paid, interval_seconds')
+            .select('total_charges, total_paid, interval_seconds, status')
             .eq('policy_id', data.policyId)
             .single()
 
           if (sub) {
+            // Skip if policy was already cancelled/expired — prevents race condition
+            // where a final charge webhook arrives after the revocation webhook
+            if (sub.status === 'cancelled' || sub.status === 'expired') {
+              console.log(`⏭️  Skipping charge update for ${data.policyId} — already ${sub.status}`)
+              break
+            }
             const newTotal = BigInt(sub.total_paid) + BigInt(data.amount)
             await supabase.from('merchant_subscribers')
               .update({
@@ -248,6 +254,7 @@ app.post('/webhook', async (req, res) => {
                 updated_at: new Date().toISOString(),
               })
               .eq('policy_id', data.policyId)
+              .not('status', 'in', '("cancelled","expired")')
           }
         }
         break
@@ -262,11 +269,16 @@ app.post('/webhook', async (req, res) => {
         if (supabase) {
           const { data: sub } = await supabase
             .from('merchant_subscribers')
-            .select('consecutive_failures')
+            .select('consecutive_failures, status')
             .eq('policy_id', data.policyId)
             .single()
 
           if (sub) {
+            // Skip if policy was already cancelled/expired — prevents race condition
+            if (sub.status === 'cancelled' || sub.status === 'expired') {
+              console.log(`⏭️  Skipping failure update for ${data.policyId} — already ${sub.status}`)
+              break
+            }
             const failures = sub.consecutive_failures + 1
             // Grace period: revoke access after 2+ consecutive failures
             const revokeAccess = failures >= 2
@@ -280,6 +292,7 @@ app.post('/webhook', async (req, res) => {
                 updated_at: new Date().toISOString(),
               })
               .eq('policy_id', data.policyId)
+              .not('status', 'in', '("cancelled","expired")')
 
             if (revokeAccess) {
               console.log(`🔒 Access revoked for ${data.policyId} after ${failures} failures`)
