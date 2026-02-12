@@ -70,8 +70,8 @@ The relayer currently supports **Arc Testnet** only. Polygon Amoy and Arbitrum S
 |----------|-------|
 | Chain ID | `5042002` |
 | RPC URL | `https://rpc.testnet.arc.network` |
-| PolicyManager | `0x0a681aC070ef81afb1c888D3370246633aE46A27` |
-| Start Block | `25531762` |
+| PolicyManager | `0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1` |
+| Start Block | `26573469` |
 | Poll Interval | 15 seconds |
 | Batch Size | 9,000 blocks (Arc limits to 10k) |
 | Confirmations | 2 blocks |

@@ -1,11 +1,11 @@
 {
   "chainId": 5042002,
   "chainName": "arcTestnet",
-  "deployedAt": "2026-02-06T01:34:36Z",
+  "deployedAt": "2026-02-12T02:51:00Z",
   "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
-  "deployBlock": 25531762,
+  "deployBlock": 26573469,
   "contracts": {
-    "arcPolicyManager": "0x0a681aC070ef81afb1c888D3370246633aE46A27"
+    "arcPolicyManager": "0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1"
   },
   "addresses": {
     "usdc": "0x3600000000000000000000000000000000000000",

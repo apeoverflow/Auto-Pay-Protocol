@@ -1,7 +1,7 @@
 import type { RelayerConfig, ChainConfig, WebhookPayload } from '../types.js'
 import { chargePolicy, cancelFailedPolicyOnChain } from './charge.js'
 import { shouldRetry, isRetryableError, logRetryDecision } from './retry.js'
-import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures, markPolicyCancelledByFailure } from '../db/policies.js'
+import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures, markPolicyCancelledByFailure, pushNextChargeAt } from '../db/policies.js'
 import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { createLogger } from '../utils/logger.js'
@@ -98,8 +98,9 @@ async function processChainCharges(
 
       succeeded++
     } else if (result.softFailed) {
-      // Soft-fail: tx succeeded but charge returned false (balance/allowance)
-      // The contract already incremented consecutiveFailures on-chain
+      // Soft-fail: either an on-chain charge returned false (ChargeFailed event),
+      // or canCharge pre-check detected insufficient balance/allowance (no tx sent).
+      // In both cases, track failures in DB and advance next_charge_at.
 
       // Track in database and update next_charge_at to prevent immediate retry
       const failures = await incrementConsecutiveFailures(
@@ -138,45 +139,53 @@ async function processChainCharges(
         chargeId
       )
 
-      // If max consecutive failures reached, call cancelFailedPolicy on-chain
+      // If max consecutive failures reached, cancel the policy
       if (failures >= config.retry.maxConsecutiveFailures) {
         logger.info(
           { policyId: policy.id, failures },
-          'Max consecutive failures reached, cancelling policy on-chain'
+          'Max consecutive failures reached, cancelling policy'
         )
+
+        // Try on-chain cancel (may fail if on-chain failures haven't reached MAX_RETRIES)
         const cancelResult = await cancelFailedPolicyOnChain(
           policy.id,
           config,
           chainConfig.chainId
         )
-        if (cancelResult.success) {
-          // Update database to mark policy as cancelled
-          await markPolicyCancelledByFailure(
-            config.databaseUrl,
-            chainConfig.chainId,
-            policy.id,
-            new Date()
-          )
 
-          // Queue cancellation webhook
-          await queueWebhook(
-            config.databaseUrl,
-            policy.id,
-            'policy.cancelled_by_failure',
-            {
-              event: 'policy.cancelled_by_failure',
-              timestamp: new Date().toISOString(),
-              data: {
-                policyId: policy.id,
-                chainId: chainConfig.chainId,
-                payer: policy.payer,
-                merchant: policy.merchant,
-                txHash: cancelResult.txHash,
-              },
-            } as WebhookPayload,
-            chargeId
+        if (!cancelResult.success) {
+          logger.warn(
+            { policyId: policy.id, error: cancelResult.error },
+            'On-chain cancel failed, marking inactive in DB only'
           )
         }
+
+        // Always mark cancelled in DB — policy is clearly dead
+        await markPolicyCancelledByFailure(
+          config.databaseUrl,
+          chainConfig.chainId,
+          policy.id,
+          new Date()
+        )
+
+        // Queue cancellation webhook
+        await queueWebhook(
+          config.databaseUrl,
+          policy.id,
+          'policy.cancelled_by_failure',
+          {
+            event: 'policy.cancelled_by_failure',
+            timestamp: new Date().toISOString(),
+            data: {
+              policyId: policy.id,
+              chainId: chainConfig.chainId,
+              payer: policy.payer,
+              merchant: policy.merchant,
+              txHash: cancelResult.txHash,
+            },
+          } as WebhookPayload,
+          chargeId
+        )
       }
 
       failed++
@@ -187,6 +196,14 @@ async function processChainCharges(
       const willRetry = retryable && shouldRetry(attemptCount, config.retry)
 
       logRetryDecision(policy.id, attemptCount, willRetry, result.error, config.retry)
+
+      // Always push next_charge_at forward to prevent re-picking up every run
+      await pushNextChargeAt(
+        config.databaseUrl,
+        chainConfig.chainId,
+        policy.id,
+        policy.interval_seconds
+      )
 
       if (!willRetry) {
         // Mark charge as failed

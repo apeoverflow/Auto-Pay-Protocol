@@ -14,7 +14,7 @@ const CHECKOUT_URL = process.env.CHECKOUT_URL || 'http://localhost:5173/checkout
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
 const RELAYER_URL = process.env.RELAYER_URL || 'http://localhost:3420'
 const ARC_RPC = process.env.ARC_RPC || 'https://rpc.testnet.arc.network'
-const POLICY_MANAGER = '0x0a681aC070ef81afb1c888D3370246633aE46A27'
+const POLICY_MANAGER = '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1'
 
 // Supabase connection (same DB as relayer, merchant tables)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jlafnlrurqqalgvxshgz.supabase.co'

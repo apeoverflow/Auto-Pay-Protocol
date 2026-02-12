@@ -518,6 +518,24 @@ contract ArcPolicyManagerTest is Test {
         manager.cancelFailedPolicy(policyId);
     }
 
+    function test_Charge_RevertMaxRetriesReached() public {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), CHARGE_AMOUNT); // Only enough for first charge
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        // Accumulate 3 consecutive failures
+        for (uint8 i = 0; i < 3; i++) {
+            vm.warp(block.timestamp + INTERVAL);
+            manager.charge(policyId);
+        }
+
+        // 4th charge should revert with MaxRetriesReached
+        vm.warp(block.timestamp + INTERVAL);
+        vm.expectRevert(abi.encodeWithSignature("MaxRetriesReached()"));
+        manager.charge(policyId);
+    }
+
     function test_CanCharge_FalseAtMaxFailures() public {
         vm.startPrank(payer);
         usdc.approve(address(manager), CHARGE_AMOUNT);

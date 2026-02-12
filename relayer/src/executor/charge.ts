@@ -100,6 +100,18 @@ export async function chargePolicy(
   )
 
   if (!canChargeResult.canCharge) {
+    // Balance/allowance issues are soft-fails — track them for auto-cancellation
+    const isBalanceOrAllowanceIssue = canChargeResult.reason.includes('Insufficient')
+    if (isBalanceOrAllowanceIssue) {
+      logger.info({ policyId, reason: canChargeResult.reason }, 'Pre-check soft-fail (balance/allowance)')
+      return {
+        success: false,
+        softFailed: true,
+        policyId,
+        error: canChargeResult.reason,
+      }
+    }
+
     logger.warn({ policyId, reason: canChargeResult.reason }, 'Cannot charge policy')
     return {
       success: false,

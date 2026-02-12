@@ -69,6 +69,7 @@ error InsufficientBalance();
 error NotPolicyOwner();
 error NothingToWithdraw();
 error PolicyNotFailedEnough();
+error MaxRetriesReached();
 
 contract ArcPolicyManager is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -244,6 +245,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
         Policy storage policy = policies[policyId];
 
         if (!policy.active) revert PolicyNotActive();
+        if (policy.consecutiveFailures >= MAX_RETRIES) revert MaxRetriesReached();
         if (block.timestamp < policy.lastCharged + policy.interval) {
             revert TooSoonToCharge();
         }

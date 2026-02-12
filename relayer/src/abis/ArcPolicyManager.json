@@ -753,6 +753,11 @@
   },
   {
     "type": "error",
+    "name": "MaxRetriesReached",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotPolicyOwner",
     "inputs": []
   },

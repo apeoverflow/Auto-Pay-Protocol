@@ -91,7 +91,7 @@ npm run cli -- index --chain arcTestnet
 Re-index events from a specific block. Useful for recovering missed events after downtime.
 
 ```bash
-npm run cli -- backfill --chain arcTestnet --from-block 25531762
+npm run cli -- backfill --chain arcTestnet --from-block 26573469
 ```
 
 | Option | Required | Description |

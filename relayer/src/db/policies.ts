@@ -158,6 +158,24 @@ export async function getPolicyByIdOnly(
   return rows[0] ?? null
 }
 
+export async function pushNextChargeAt(
+  databaseUrl: string,
+  chainId: number,
+  policyId: string,
+  intervalSeconds: number
+) {
+  const db = getDb(databaseUrl)
+  const nextChargeAt = new Date(Date.now() + intervalSeconds * 1000)
+
+  await db`
+    UPDATE policies
+    SET next_charge_at = ${nextChargeAt}
+    WHERE id = ${policyId} AND chain_id = ${chainId}
+  `
+
+  logger.debug({ policyId, chainId, nextChargeAt }, 'Pushed next_charge_at forward')
+}
+
 export async function markPolicyNeedsAttention(
   databaseUrl: string,
   chainId: number,

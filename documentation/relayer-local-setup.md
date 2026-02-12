@@ -209,7 +209,7 @@ npm run cli -- charge 0xPOLICY_ID_HERE
 If you need to re-index from a specific block:
 
 ```bash
-npm run cli -- backfill --chain arcTestnet --from-block 25531762
+npm run cli -- backfill --chain arcTestnet --from-block 26573469
 ```
 
 ### Reset Database
