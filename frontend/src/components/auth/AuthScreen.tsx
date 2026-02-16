@@ -19,13 +19,16 @@ import {
   Shield,
   Zap,
   ExternalLink,
+  Trophy,
 } from 'lucide-react'
+import { EmailCaptureDialog, useEmailCaptureDialog } from '../EmailCaptureDialog'
 
 type AuthTab = 'passkey' | 'recovery'
 
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {
   const { showRecovery, setShowRecovery } = useRecovery()
   const [activeTab, setActiveTab] = React.useState<AuthTab>('passkey')
+  const emailCapture = useEmailCaptureDialog()
 
   React.useEffect(() => {
     if (showRecovery) setActiveTab('recovery')
@@ -76,11 +79,18 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
             <div className="auth-grain" />
           </div>
           <div className="auth-brand-content">
-            <img
-              src="/logo.png"
-              alt="AutoPayProtocol"
-              className="auth-brand-logo auth-stagger auth-stagger-1"
-            />
+            <div className="auth-brand-topbar auth-stagger auth-stagger-1">
+              <img
+                src="/logo.png"
+                alt="AutoPayProtocol"
+                className="auth-brand-logo"
+              />
+              <div className="auth-finalist-badge">
+                <div className="auth-finalist-badge-glow" />
+                <Trophy className="h-3 w-3" />
+                <span>ETH Global Hack Money Finalist</span>
+              </div>
+            </div>
             <h1 className="auth-brand-headline auth-stagger auth-stagger-2">
               Cut your payment fees in <strong>half</strong>
             </h1>
@@ -140,6 +150,13 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 Live Demo
                 <ArrowRight className="h-3.5 w-3.5" />
               </a>
+              <button
+                onClick={() => emailCapture.setOpen(true)}
+                className="auth-waitlist-cta"
+              >
+                <span>Early Access</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
         </div>
@@ -260,6 +277,8 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           <span>Powered by Circle</span>
         </div>
       </div>
+
+      <EmailCaptureDialog open={emailCapture.open} onOpenChange={emailCapture.setOpen} />
     </div>
   )
 }

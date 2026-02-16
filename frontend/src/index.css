@@ -267,7 +267,6 @@
   height: 36px;
   width: auto;
   opacity: 0.9;
-  margin-bottom: 2rem;
 }
 
 .auth-brand-headline {
@@ -413,6 +412,283 @@
   outline: 2px solid hsl(221 83% 53% / 0.5);
   outline-offset: 4px;
   border-radius: 4px;
+}
+
+/* ── brand topbar (logo + badge inline) ── */
+.auth-brand-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+/* ── finalist badge ── */
+.auth-finalist-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, hsl(45 90% 50% / 0.12), hsl(35 90% 55% / 0.08));
+  border: 1px solid hsl(45 80% 55% / 0.25);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(45 90% 65%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.auth-finalist-badge-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, hsl(45 90% 50% / 0.15), transparent 70%);
+  pointer-events: none;
+}
+
+/* ── waitlist CTA (inline with links) ── */
+.auth-waitlist-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(45 90% 65%);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.auth-waitlist-cta:hover {
+  color: hsl(45 90% 75%);
+}
+
+.auth-waitlist-cta:focus-visible {
+  outline: 2px solid hsl(221 83% 53% / 0.5);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* ── email capture dialog ── */
+.email-capture-dialog {
+  background: hsl(0 0% 100%);
+  border-radius: 1rem !important;
+}
+
+.email-capture-header {
+  position: relative;
+  padding: 1.75rem 1.75rem 1.5rem;
+  background: hsl(228 28% 10%);
+  overflow: hidden;
+}
+
+.email-capture-header-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 0%, hsl(221 83% 53% / 0.2), transparent 60%),
+    radial-gradient(ellipse at 80% 100%, hsl(45 90% 50% / 0.1), transparent 60%);
+  pointer-events: none;
+}
+
+.email-capture-header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.email-capture-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.875rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  background: hsl(45 90% 50% / 0.12);
+  border: 1px solid hsl(45 80% 55% / 0.2);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(45 85% 65%);
+}
+
+.email-capture-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: hsl(0 0% 98%);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.email-capture-subtitle {
+  font-size: 0.8125rem;
+  color: hsl(220 15% 60%);
+  line-height: 1.5;
+  margin-top: 0.5rem;
+}
+
+.email-capture-body {
+  padding: 1.5rem 1.75rem 1.75rem;
+}
+
+.email-capture-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.email-capture-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.email-capture-input {
+  flex: 1;
+  height: 2.75rem;
+  padding: 0 0.875rem;
+  border-radius: 0.625rem;
+  border: 1.5px solid hsl(220 13% 87%);
+  background: hsl(220 20% 97.5%);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  color: hsl(224 71% 4%);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.email-capture-input::placeholder {
+  color: hsl(220 9% 60%);
+}
+
+.email-capture-input:focus {
+  border-color: hsl(221 83% 53%);
+  box-shadow: 0 0 0 3px hsl(221 83% 53% / 0.1);
+  background: hsl(0 0% 100%);
+}
+
+.email-capture-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 2.75rem;
+  padding: 0 1.25rem;
+  border-radius: 0.625rem;
+  border: none;
+  background: hsl(221 83% 53%);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(0 0% 100%);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.email-capture-submit:hover:not(:disabled) {
+  background: hsl(221 83% 48%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(221 83% 53% / 0.3);
+}
+
+.email-capture-submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.email-capture-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.email-capture-error {
+  font-size: 0.75rem;
+  color: hsl(0 84% 60%);
+}
+
+.email-capture-perks {
+  display: flex;
+  gap: 1rem;
+}
+
+.email-capture-perk {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: hsl(220 9% 46%);
+}
+
+.email-capture-perk svg {
+  color: hsl(221 83% 53%);
+  flex-shrink: 0;
+}
+
+.email-capture-fine-print {
+  font-size: 0.6875rem;
+  color: hsl(220 9% 65%);
+}
+
+.email-capture-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1rem 0 0.5rem;
+  text-align: center;
+}
+
+.email-capture-success-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: hsl(142 76% 36% / 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(142 76% 36%);
+}
+
+.email-capture-success-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: hsl(224 71% 4%);
+  margin: 0;
+}
+
+.email-capture-success-sub {
+  font-size: 0.8125rem;
+  color: hsl(220 9% 46%);
+  max-width: 260px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.email-capture-close-btn {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid hsl(220 13% 87%);
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(220 9% 46%);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.email-capture-close-btn:hover {
+  background: hsl(220 14% 96%);
+  border-color: hsl(220 13% 80%);
 }
 
 /* ── ambient aurora ── */
