@@ -121,7 +121,7 @@ The system has three main components:
 
 ### Current Network
 
-AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is powered by [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains) — subscribers can pay from any supported chain and funds are automatically bridged to the merchant.
+AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is powered by [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains) -subscribers can pay from any supported chain and funds are automatically bridged to the merchant.
 
 #### Supported Chains (via Circle Gateway)
 
@@ -181,3 +181,37 @@ AutoPay is designed with subscriber protection as a priority:
 | Settlement time | 2-7 business days | Instant (on-chain) |
 | Chargebacks | Yes | No |
 | Currency | Fiat | USDC |
+
+---
+
+## How We Compare
+
+### vs. Crypto Subscription Protocols
+
+| Feature | AutoPay | BoomFi | Loop Crypto* |
+|---------|:-------:|:------:|:------------:|
+| Payment model | Discrete charges | Discrete charges | Discrete charges |
+| On-chain rules (caps, intervals) | ✅ | ❌ | ❌ |
+| Open source | ✅ | ❌ | ❌ |
+| Self-hostable relayer | ✅ | ❌ | ❌ |
+| Cross-chain funding | ✅ | ❌ (per-chain) | ❌ (per-chain) |
+| Non-custodial | ✅ | ✅ | ✅ |
+| Instant settlement | ✅ | ✅ | ✅ |
+
+
+> *Loop Crypto was acquired by Lead Bank in December 2025 and shut down in February 2026. BoomFi is the most comparable active protocol.
+
+### vs. Streaming Protocols (Superfluid, Sablier, LlamaPay)
+
+Streaming protocols solve a different problem. They're built for continuous value flow (payroll, DeFi yield distribution, real-time revenue sharing) where money moves per-second between wallets.
+
+AutoPay solves the **merchant subscription billing** problem: a newsletter charges $10/month, a SaaS tool charges $49/month, a DAO membership costs $5/week. These are discrete, predictable charges that merchants need to reconcile against invoices, trigger access control, and report on.
+
+Key differences in the problem being solved:
+
+- **Merchant integration.** AutoPay provides webhooks, an SDK, and a checkout flow so merchants can react to payment events (grant access, send receipts, handle failures). Streaming protocols leave this entirely to the integrator.
+- **Subscriber protection.** AutoPay enforces per-subscription spending caps, fixed charge amounts, and intervals on-chain. Subscribers know exactly what they'll be charged and when. With streaming, the sender sets a flow rate and must actively manage it.
+- **Works with native tokens.** AutoPay charges native USDC directly from the subscriber's wallet. Streaming protocols require wrapping tokens (e.g., USDC to USDCx) or depositing into a contract first.
+- **Failure handling.** AutoPay tracks consecutive failures and auto-cancels after 3, protecting subscribers from zombie subscriptions. Streaming protocols handle balance depletion through liquidation mechanics instead.
+
+Both models are valid. They just serve different use cases.
