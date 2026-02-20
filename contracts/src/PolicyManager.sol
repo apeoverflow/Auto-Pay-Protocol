@@ -41,11 +41,10 @@ pragma solidity ^0.8.20;
 */
 
 /**
- * @title ArcPolicyManager
+ * @title PolicyManager
  * @author AutoPay Protocol
- * @notice Manages subscription policies on Arc (settlement chain)
- * @dev Arc-native version with direct USDC transfers (no CCTP bridging).
- *      Users create policies that authorize recurring charges. Relayers
+ * @notice Manages non-custodial recurring USDC subscription policies
+ * @dev Users create policies that authorize recurring charges. Relayers
  *      execute charges when due, transferring USDC directly to merchants.
  */
 
@@ -71,7 +70,7 @@ error NothingToWithdraw();
 error PolicyNotFailedEnough();
 error MaxRetriesReached();
 
-contract ArcPolicyManager is ReentrancyGuard, Ownable {
+contract PolicyManager is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
@@ -96,7 +95,7 @@ contract ArcPolicyManager is ReentrancyGuard, Ownable {
 
     struct Policy {
         address payer;           // Who gets charged
-        address merchant;        // Recipient on Arc (native address)
+        address merchant;        // Recipient address
         uint128 chargeAmount;    // Amount per charge (6 decimals)
         uint128 spendingCap;     // Max total policy lifetime spend (0 = unlimited)
         uint128 totalSpent;      // Running total charged

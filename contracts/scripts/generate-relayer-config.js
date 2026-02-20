@@ -8,19 +8,14 @@ const OUTPUT_FILE = '../relayer/src/contracts.ts';
 
 // Chain configurations for relayer
 const CHAINS = {
-  arcTestnet: {
-    chainId: 5042002,
-    name: 'Arc Testnet',
-    rpcUrl: 'https://rpc.testnet.arc.network',
-    usdc: '0x3600000000000000000000000000000000000000',
-    // Arc-specific settings
+  flowEvm: {
+    chainId: 747,
+    name: 'Flow EVM',
+    rpcUrl: 'https://mainnet.evm.nodes.onflow.org',
+    usdc: '0xF1815bd50389c46847f0Bda824eC8da914045D14',
     pollIntervalMs: 15000,
-    batchSize: 9000,  // Arc limits to 10k blocks
+    batchSize: 9000,
     confirmations: 2,
-    minGasFees: {
-      maxPriorityFeePerGas: '1000000000',  // 1 gwei
-      maxFeePerGas: '50000000000',          // 50 gwei
-    },
   },
   // Future chains (disabled)
   // polygonAmoy: { chainId: 80002, ... },
@@ -55,9 +50,9 @@ function generate() {
 
     chainConfigs[key] = {
       ...chain,
-      policyManagerAddress: deployment?.contracts?.arcPolicyManager || null,
+      policyManagerAddress: deployment?.contracts?.policyManager || null,
       startBlock: deployment?.deployBlock || 0,
-      enabled: !!deployment?.contracts?.arcPolicyManager,
+      enabled: !!deployment?.contracts?.policyManager,
     };
   }
 
@@ -77,11 +72,7 @@ ${Object.entries(chainConfigs).map(([key, config]) => `  ${key}: {
     pollIntervalMs: ${config.pollIntervalMs},
     batchSize: ${config.batchSize},
     confirmations: ${config.confirmations},
-    enabled: ${config.enabled},${config.minGasFees ? `
-    minGasFees: {
-      maxPriorityFeePerGas: ${config.minGasFees.maxPriorityFeePerGas}n,
-      maxFeePerGas: ${config.minGasFees.maxFeePerGas}n,
-    },` : ''}
+    enabled: ${config.enabled},
   }`).join(',\n')}
 } as const
 

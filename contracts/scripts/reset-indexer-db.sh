@@ -28,13 +28,13 @@ DEPLOY_FILE="deployments/${CHAIN_ID}.json"
 
 if [ -f "$DEPLOY_FILE" ]; then
     DEPLOY_BLOCK=$(jq -r '.deployBlock // 0' "$DEPLOY_FILE")
-    CONTRACT=$(jq -r '.contracts.arcPolicyManager // "unknown"' "$DEPLOY_FILE")
+    CONTRACT=$(jq -r '.contracts.policyManager // "unknown"' "$DEPLOY_FILE")
     echo -e "${YELLOW}Resetting indexer for chain ${CHAIN_ID}${NC}"
     echo -e "  Contract: ${CONTRACT}"
     echo -e "  Deploy Block: ${DEPLOY_BLOCK}"
 else
     echo -e "${RED}Error: Deployment file not found: ${DEPLOY_FILE}${NC}"
-    echo -e "Run 'make deploy-arc' first"
+    echo -e "Run 'make deploy' first"
     exit 1
 fi
 

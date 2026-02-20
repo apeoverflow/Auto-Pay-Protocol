@@ -18,8 +18,8 @@ if [ -z "$PRIVATE_KEY" ]; then
     exit 1
 fi
 
-if [ -z "$ARC_TESTNET_RPC" ]; then
-    echo -e "${RED}Error: ARC_TESTNET_RPC not set${NC}"
+if [ -z "$RPC_URL" ]; then
+    echo -e "${RED}Error: RPC_URL not set${NC}"
     exit 1
 fi
 
@@ -28,12 +28,17 @@ if [ -z "$FEE_RECIPIENT" ]; then
     exit 1
 fi
 
-echo -e "${YELLOW}Deploying ArcPolicyManager to Arc testnet...${NC}"
+if [ -z "$USDC_ADDRESS" ]; then
+    echo -e "${RED}Error: USDC_ADDRESS not set${NC}"
+    exit 1
+fi
+
+echo -e "${YELLOW}Deploying PolicyManager...${NC}"
 mkdir -p deployments
 
 # deploy and capture output
-OUTPUT=$(forge script script/DeployArc.s.sol \
-    --rpc-url "$ARC_TESTNET_RPC" \
+OUTPUT=$(forge script script/Deploy.s.sol \
+    --rpc-url "$RPC_URL" \
     --broadcast \
     -vvv 2>&1)
 
@@ -41,7 +46,7 @@ echo "$OUTPUT"
 
 # parse deployment output
 CHAIN_ID=$(echo "$OUTPUT" | grep "CHAIN_ID:" | awk '{print $2}')
-MANAGER=$(echo "$OUTPUT" | grep "ARC_POLICY_MANAGER:" | awk '{print $2}')
+MANAGER=$(echo "$OUTPUT" | grep "POLICY_MANAGER:" | awk '{print $2}')
 USDC=$(echo "$OUTPUT" | grep "USDC:" | awk '{print $2}')
 FEE_RECV=$(echo "$OUTPUT" | grep "FEE_RECIPIENT:" | awk '{print $2}')
 DEPLOYER=$(echo "$OUTPUT" | grep "DEPLOYER:" | awk '{print $2}')
@@ -52,8 +57,8 @@ if [ -z "$MANAGER" ]; then
 fi
 
 # Get deploy block from transaction receipt
-TX_HASH=$(jq -r '.transactions[0].hash' "broadcast/DeployArc.s.sol/${CHAIN_ID}/run-latest.json")
-DEPLOY_BLOCK=$(cast receipt "$TX_HASH" --rpc-url "$ARC_TESTNET_RPC" 2>/dev/null | grep "blockNumber" | head -1 | awk '{print $2}')
+TX_HASH=$(jq -r '.transactions[0].hash' "broadcast/Deploy.s.sol/${CHAIN_ID}/run-latest.json")
+DEPLOY_BLOCK=$(cast receipt "$TX_HASH" --rpc-url "$RPC_URL" 2>/dev/null | grep "blockNumber" | head -1 | awk '{print $2}')
 
 if [ -z "$DEPLOY_BLOCK" ]; then
     echo -e "${YELLOW}Warning: Could not fetch deploy block, using 0${NC}"
@@ -64,12 +69,12 @@ fi
 cat > "deployments/${CHAIN_ID}.json" << EOF
 {
   "chainId": ${CHAIN_ID},
-  "chainName": "arcTestnet",
+  "chainName": "${CHAIN_NAME:-default}",
   "deployedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "deployer": "${DEPLOYER}",
   "deployBlock": ${DEPLOY_BLOCK},
   "contracts": {
-    "arcPolicyManager": "${MANAGER}"
+    "policyManager": "${MANAGER}"
   },
   "addresses": {
     "usdc": "${USDC}",

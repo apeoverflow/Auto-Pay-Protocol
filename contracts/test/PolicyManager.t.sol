@@ -2,11 +2,11 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {ArcPolicyManager} from "../src/ArcPolicyManager.sol";
+import {PolicyManager} from "../src/PolicyManager.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 
-contract ArcPolicyManagerTest is Test {
-    ArcPolicyManager public manager;
+contract PolicyManagerTest is Test {
+    PolicyManager public manager;
     MockUSDC public usdc;
 
     address public owner = address(this);
@@ -20,7 +20,7 @@ contract ArcPolicyManagerTest is Test {
 
     function setUp() public {
         usdc = new MockUSDC();
-        manager = new ArcPolicyManager(address(usdc), feeRecipient);
+        manager = new PolicyManager(address(usdc), feeRecipient);
 
         // give payer some usdc
         usdc.mint(payer, 1000e6);

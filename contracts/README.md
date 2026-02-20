@@ -7,30 +7,30 @@ Non-custodial subscription payment contracts for recurring USDC payments.
 ```
 contracts/
 ├── src/
-│   └── ArcPolicyManager.sol    # Arc Testnet - direct USDC transfers
+│   └── PolicyManager.sol        # Subscription policy management
 ├── script/
-│   └── DeployArc.s.sol         # Forge deployment script for Arc
+│   └── Deploy.s.sol             # Forge deployment script
 ├── scripts/
-│   ├── deploy-arc.sh           # Deploy + save deployment info
-│   ├── verify-arc.sh           # Verify on Blockscout
-│   ├── verify-arc-check.sh     # Check verification status
-│   ├── sync.sh                 # Sync ABIs/addresses to frontend
+│   ├── deploy.sh                # Deploy + save deployment info
+│   ├── verify.sh                # Verify on Blockscout
+│   ├── verify-check.sh          # Check verification status
+│   ├── sync.sh                  # Sync ABIs/addresses to frontend
 │   └── generate-contracts-ts.js # Generate TypeScript config
 ├── test/
-│   ├── ArcPolicyManager.t.sol  # Contract tests
+│   ├── PolicyManager.t.sol      # Contract tests
 │   └── mocks/
-│       └── MockUSDC.sol        # Mock USDC for testing
-├── deployments/                # Deployment records (JSON per chain)
-├── abis/                       # Generated ABI files
-├── Makefile                    # All commands
-└── .env.example                # Environment template
+│       └── MockUSDC.sol         # Mock USDC for testing
+├── deployments/                 # Deployment records (JSON per chain)
+├── abis/                        # Generated ABI files
+├── Makefile                     # All commands
+└── .env.example                 # Environment template
 ```
 
 ## Contracts
 
-### ArcPolicyManager.sol
+### PolicyManager.sol
 
-Deployed on Arc Testnet. Handles non-custodial recurring USDC subscriptions.
+Handles non-custodial recurring USDC subscriptions.
 
 **Key behavior:**
 - `createPolicy()` executes the **first charge immediately** within the same transaction
@@ -61,11 +61,11 @@ cp .env.example .env
 # Run tests
 make test
 
-# Deploy to Arc Testnet
-make deploy-arc
+# Deploy
+make deploy
 
 # Verify contract
-make verify-arc
+make verify
 
 # Sync to frontend
 make sync
@@ -81,9 +81,9 @@ make test              # Run all tests with verbosity
 make clean             # Clean build artifacts
 
 # Deployment
-make deploy-arc        # Deploy ArcPolicyManager to Arc Testnet
-make verify-arc        # Submit verification to Blockscout
-make verify-arc-check  # Check if verification succeeded
+make deploy            # Deploy PolicyManager
+make verify            # Submit verification to Blockscout
+make verify-check      # Check if verification succeeded
 
 # Sync
 make generate-abis     # Generate ABI JSON files
@@ -114,20 +114,11 @@ Create `.env` from `.env.example`:
 
 ```bash
 # Required for deployment
-PRIVATE_KEY=0x...              # Deployer wallet (needs USDC for gas on Arc)
+PRIVATE_KEY=0x...              # Deployer wallet
 FEE_RECIPIENT=0x...            # Address to collect protocol fees
-ARC_TESTNET_RPC=https://rpc.testnet.arc.network
+RPC_URL=https://mainnet.evm.nodes.onflow.org
+USDC_ADDRESS=0xF1815bd50389c46847f0Bda824eC8da914045D14
 ```
-
-**Get testnet USDC:** https://faucet.circle.com (Arc uses USDC as native gas token)
-
-## Current Deployment
-
-| Chain | Contract | Address | Block |
-|-------|----------|---------|-------|
-| Arc Testnet (5042002) | ArcPolicyManager | `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a` | 25285303 |
-
-Explorer: https://testnet.arcscan.app/address/0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a
 
 ## Testing
 

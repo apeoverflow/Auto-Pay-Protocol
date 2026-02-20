@@ -1,6 +1,6 @@
 -include .env
 
-.PHONY: help test deploy-arc verify-arc verify-arc-check generate-abis sync clean reset-indexer-db
+.PHONY: help test deploy verify verify-check generate-abis sync clean reset-indexer-db
 
 help:
 	@echo ""
@@ -11,9 +11,9 @@ help:
 	@echo "  make clean             Clean build artifacts"
 	@echo ""
 	@echo "\033[0;33mDeployment:\033[0m"
-	@echo "  make deploy-arc        Deploy ArcPolicyManager to Arc testnet"
-	@echo "  make verify-arc        Verify contract on Blockscout"
-	@echo "  make verify-arc-check  Check if contract is verified"
+	@echo "  make deploy            Deploy PolicyManager"
+	@echo "  make verify            Verify contract on Blockscout"
+	@echo "  make verify-check      Check if contract is verified"
 	@echo ""
 	@echo "\033[0;33mSync:\033[0m"
 	@echo "  make generate-abis     Generate ABI JSON files"
@@ -32,14 +32,14 @@ clean:
 
 # ==================== Deployment ====================
 
-deploy-arc:
-	@./scripts/deploy-arc.sh
+deploy:
+	@./scripts/deploy.sh
 
-verify-arc:
-	@./scripts/verify-arc.sh
+verify:
+	@./scripts/verify.sh
 
-verify-arc-check:
-	@./scripts/verify-arc-check.sh
+verify-check:
+	@./scripts/verify-check.sh
 
 # ==================== Sync ====================
 
@@ -47,7 +47,6 @@ generate-abis:
 	@echo "Generating ABIs..."
 	@forge build
 	@mkdir -p abis
-	@jq '.abi' out/ArcPolicyManager.sol/ArcPolicyManager.json > abis/ArcPolicyManager.json
 	@jq '.abi' out/PolicyManager.sol/PolicyManager.json > abis/PolicyManager.json
 	@echo "  ✓ ABIs saved to abis/"
 

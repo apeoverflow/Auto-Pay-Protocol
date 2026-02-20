@@ -31,7 +31,7 @@ if [ -d "deployments" ]; then
     cp deployments/*.json "$FRONTEND_DIR/deployments/" 2>/dev/null || true
     echo "  ✓ Deployment addresses copied"
 else
-    echo "  ⚠ No deployments found - run 'make deploy-arc' first"
+    echo "  ⚠ No deployments found - run 'make deploy' first"
 fi
 
 # generate TypeScript
