@@ -13,7 +13,7 @@ interface SendUSDCProps {
 }
 
 export function SendUSDC({ compact = false, inline = false }: SendUSDCProps) {
-  const { hash, userOpHash, status, isLoading, sendUSDC } = useTransfer()
+  const { hash, status, isLoading, sendUSDC } = useTransfer()
   const { chainConfig } = useChain()
   const [to, setTo] = React.useState('')
   const [amount, setAmount] = React.useState('')
@@ -160,7 +160,7 @@ export function SendUSDC({ compact = false, inline = false }: SendUSDCProps) {
           <CardTitle className="text-lg">Send USDC</CardTitle>
         </div>
         <CardDescription>
-          Transfer USDC gaslessly using your smart wallet
+          Transfer USDC to another address
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -201,16 +201,6 @@ export function SendUSDC({ compact = false, inline = false }: SendUSDCProps) {
         </form>
 
         <StatusMessage message={status} />
-
-        {userOpHash && (
-          <div className="mt-4 p-3 bg-muted rounded-xl space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="font-medium">UserOp Hash</span>
-            </div>
-            <code className="text-xs font-mono break-all">{userOpHash}</code>
-          </div>
-        )}
 
         {hash && (
           <div className="mt-4 p-3 bg-success/10 border border-success/20 rounded-xl space-y-2">

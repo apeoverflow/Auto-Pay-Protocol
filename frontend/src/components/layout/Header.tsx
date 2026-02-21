@@ -1,4 +1,4 @@
-import { useWallet } from '../../hooks'
+import { useWallet, useChain } from '../../hooks'
 import { Button } from '../ui/button'
 import { ChainSelector } from '../chain/ChainSelector'
 import { Copy, Check, RefreshCw, Menu } from 'lucide-react'
@@ -21,13 +21,15 @@ const pageTitles: Record<NavItem, string> = {
 }
 
 export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps) {
-  const { account, balance, fetchBalance } = useWallet()
+  const { address, balance, fetchBalance } = useWallet()
+  const { chainConfig } = useChain()
   const [copied, setCopied] = React.useState(false)
+  const [copiedUsdc, setCopiedUsdc] = React.useState(false)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
 
   const handleCopy = () => {
-    if (account?.address) {
-      navigator.clipboard.writeText(account.address)
+    if (address) {
+      navigator.clipboard.writeText(address)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -39,8 +41,8 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
     setTimeout(() => setIsRefreshing(false), 500)
   }
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
   }
 
   const formatBalance = (bal: string | null) => {
@@ -68,14 +70,26 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
         {/* Chain selector */}
         <ChainSelector />
 
-        {/* Balance pill — compact on mobile, full on desktop */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/60 px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm shadow-blue-500/5">
+        {/* Balance pill — click to copy USDC contract address */}
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(chainConfig.usdc)
+            setCopiedUsdc(true)
+            setTimeout(() => setCopiedUsdc(false), 2000)
+          }}
+          title={`USDC: ${chainConfig.usdc}`}
+          className="flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/60 px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm shadow-blue-500/5 transition-all hover:shadow-md hover:border-blue-200/80 active:scale-[0.97] cursor-pointer"
+        >
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">
-            <span className="text-[10px] font-bold text-white">$</span>
+            {copiedUsdc ? (
+              <Check className="h-2.5 w-2.5 text-white" />
+            ) : (
+              <span className="text-[10px] font-bold text-white">$</span>
+            )}
           </div>
           <span className="text-xs sm:text-sm font-semibold text-foreground tabular-nums">{formatBalance(balance)}</span>
           <span className="hidden sm:inline text-xs text-muted-foreground font-medium">USDC</span>
-        </div>
+        </button>
 
         {/* Refresh */}
         <Button
@@ -96,7 +110,7 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
           className="hidden sm:flex items-center gap-1.5 rounded-full bg-muted/30 border border-border/50 px-3 py-1.5 transition-colors hover:bg-muted/50 active:bg-muted/60"
         >
           <span className="font-mono text-xs text-muted-foreground">
-            {account?.address && formatAddress(account.address)}
+            {address && formatAddress(address)}
           </span>
           {copied ? (
             <Check className="h-3 w-3 text-success flex-shrink-0" />

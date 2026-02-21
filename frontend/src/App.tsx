@@ -1,9 +1,8 @@
-import { Component, type ReactNode, useCallback, useRef, useState } from 'react'
+import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth, useWallet, useRoute } from './hooks'
 import type { Route } from './hooks/useRoute'
 import { getRouteLayout, navItemToRoute, routeToNavItem, isDashboardRoute } from './hooks/useRoute'
 import type { NavItem } from './components/layout/Sidebar'
-import { isConfigured } from './config'
 import { AuthScreen } from './components/auth'
 import { DashboardLayout } from './components/layout'
 import {
@@ -16,7 +15,7 @@ import {
   DocsPage,
   CheckoutPage,
 } from './pages'
-import { NotConfiguredView, LoadingView } from './views'
+import { LoadingView } from './views'
 import { ArrowLeft } from 'lucide-react'
 
 interface ErrorBoundaryState {
@@ -55,12 +54,24 @@ type Phase = 'idle' | 'exiting' | 'entering'
 
 function App() {
   const { isLoggedIn } = useAuth()
-  const { account, isLoading } = useWallet()
+  const { address, isLoading } = useWallet()
   const { route, navigate } = useRoute()
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [displayedRoute, setDisplayedRoute] = useState<Route>(route)
   const pendingRoute = useRef<Route | null>(null)
+
+  // Navigate to / when user disconnects
+  const wasLoggedIn = useRef(isLoggedIn)
+  useEffect(() => {
+    if (wasLoggedIn.current && !isLoggedIn) {
+      navigate('/')
+      setDisplayedRoute('/')
+      setPhase('idle')
+      pendingRoute.current = null
+    }
+    wasLoggedIn.current = isLoggedIn
+  }, [isLoggedIn, navigate])
 
   // Redirect logged-in users from / to /dashboard
   const effectiveRoute = route === '/' && isLoggedIn ? '/dashboard' : route
@@ -86,17 +97,15 @@ function App() {
     }
   }, [phase, navigate])
 
-  // Handle sidebar navigation: maps NavItem to Route
+  // Handle sidebar navigation
   const handleSidebarNavigate = useCallback(
     (item: NavItem) => {
       const targetRoute = navItemToRoute(item)
       const layout = getRouteLayout(targetRoute)
 
       if (layout === 'fullscreen') {
-        // Docs gets animated transition
         animatedNavigate(targetRoute)
       } else {
-        // Dashboard-to-dashboard: direct navigate (no animation)
         navigate(targetRoute)
         setDisplayedRoute(targetRoute)
       }
@@ -104,16 +113,15 @@ function App() {
     [animatedNavigate, navigate],
   )
 
-  // Sync displayedRoute when route changes via popstate (back/forward)
+  // Sync displayedRoute when route changes via popstate
   if (route !== displayedRoute && phase === 'idle') {
-    // Only sync if not mid-animation
     const r = route === '/' && isLoggedIn ? '/dashboard' : route
     if (r !== displayedRoute) {
       setDisplayedRoute(r)
     }
   }
 
-  // Derive animation classes for docs transitions
+  // Derive animation classes
   const exitClass =
     phase === 'exiting'
       ? getRouteLayout(displayedRoute) !== 'fullscreen' && getRouteLayout(pendingRoute.current ?? displayedRoute) === 'fullscreen'
@@ -132,10 +140,9 @@ function App() {
 
   const animClass = exitClass || enterClass
 
-  // Use effectiveRoute for initial render, displayedRoute during animations
   const activeRoute = phase === 'idle' ? (effectiveRoute as Route) : displayedRoute
 
-  // ── Fullscreen: Docs ──
+  // Fullscreen: Docs
   if (activeRoute === '/docs') {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
@@ -150,7 +157,7 @@ function App() {
                 className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to {isLoggedIn ? 'Dashboard' : 'Sign In'}
+                Back to {isLoggedIn ? 'Dashboard' : 'Connect'}
               </button>
             </header>
             <div className="flex-1 min-h-0 overflow-hidden">
@@ -162,7 +169,7 @@ function App() {
     )
   }
 
-  // ── Fullscreen: Checkout ──
+  // Fullscreen: Checkout
   if (activeRoute === '/checkout') {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
@@ -173,27 +180,22 @@ function App() {
     )
   }
 
-  // ── Auth screen (/ route, not logged in) ──
+  // Auth screen (not connected)
   if (activeRoute === '/' || !isLoggedIn) {
-    const content = (() => {
-      if (!isConfigured) return <NotConfiguredView />
-      return <AuthScreen onNavigateDocs={() => animatedNavigate('/docs')} />
-    })()
-
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div
           className={`route-layer ${animClass}`}
           onAnimationEnd={onAnimationEnd}
         >
-          {content}
+          <AuthScreen onNavigateDocs={() => animatedNavigate('/docs')} />
         </div>
       </div>
     )
   }
 
-  // ── Dashboard routes (requires auth + wallet) ──
-  if (isLoading || !account) {
+  // Dashboard routes (requires connected wallet)
+  if (isLoading || !address) {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div className="route-layer">

@@ -1,2 +1,2 @@
 export { AuthScreen } from './AuthScreen'
-export { PasskeyLogin } from './PasskeyLogin'
+export { ConnectWallet } from './ConnectWallet'

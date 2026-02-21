@@ -6,12 +6,12 @@ import { Copy, RefreshCw, LogOut, Wallet } from 'lucide-react'
 
 export function AccountInfo() {
   const { username, logout } = useAuth()
-  const { account, balance, fetchBalance } = useWallet()
+  const { address, balance, fetchBalance } = useWallet()
 
-  if (!account) return null
+  if (!address) return null
 
   const copyAddress = () => {
-    navigator.clipboard.writeText(account.address)
+    navigator.clipboard.writeText(address)
   }
 
   return (
@@ -22,16 +22,16 @@ export function AccountInfo() {
             <Wallet className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">Account</CardTitle>
           </div>
-          <Badge variant="secondary">Passkey</Badge>
+          <Badge variant="secondary">Browser Wallet</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Address */}
         <div className="space-y-1">
-          <label className="text-sm text-muted-foreground">Smart Wallet Address</label>
+          <label className="text-sm text-muted-foreground">Wallet Address</label>
           <div className="flex items-center gap-2">
             <code className="flex-1 bg-muted px-3 py-2 rounded-md text-sm font-mono truncate">
-              {account.address}
+              {address}
             </code>
             <Button variant="ghost" size="icon" onClick={copyAddress}>
               <Copy className="h-4 w-4" />
@@ -64,7 +64,7 @@ export function AccountInfo() {
         {/* Logout */}
         <Button variant="outline" onClick={logout} className="w-full">
           <LogOut className="h-4 w-4 mr-2" />
-          Logout
+          Disconnect
         </Button>
       </CardContent>
     </Card>

@@ -3,10 +3,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
 import { AlertTriangle, ExternalLink, ChevronDown } from 'lucide-react'
 
 export function EmergencyInfo() {
-  const { account } = useWallet()
+  const { address } = useWallet()
   const { chainConfig } = useChain()
 
-  if (!account) return null
+  if (!address) return null
 
   return (
     <Card>
@@ -18,8 +18,8 @@ export function EmergencyInfo() {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          Your funds are stored on-chain in a smart contract wallet. If this app goes offline,
-          you can still access your funds using the information below.
+          Your funds are stored on-chain. You can always access them directly using your wallet
+          and the contract addresses below.
         </p>
 
         <details className="group">
@@ -31,10 +31,10 @@ export function EmergencyInfo() {
           <div className="mt-4 p-4 bg-muted rounded-lg space-y-4 text-sm">
             <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wide">
-                Smart Wallet Address
+                Wallet Address
               </label>
               <code className="block mt-1 font-mono text-xs break-all">
-                {account.address}
+                {address}
               </code>
             </div>
 
@@ -59,12 +59,11 @@ export function EmergencyInfo() {
                 To access funds without this app
               </label>
               <ol className="mt-2 list-decimal list-inside space-y-1 text-muted-foreground">
-                <li>Import your 12-word recovery phrase into MetaMask</li>
-                <li>Connect to {chainConfig.name} network</li>
-                <li>Use the recovery EOA to sign transactions to your smart wallet</li>
+                <li>Connect your wallet to {chainConfig.name} network</li>
+                <li>Interact with the USDC contract directly to transfer funds</li>
                 <li>
                   <a
-                    href={`${chainConfig.explorer}/address/${account.address}`}
+                    href={`${chainConfig.explorer}/address/${address}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -74,14 +73,6 @@ export function EmergencyInfo() {
                   </a>
                 </li>
               </ol>
-            </div>
-
-            <div className="p-3 bg-warning/10 border border-warning/20 rounded-md">
-              <p className="text-warning-foreground text-xs">
-                <strong>Note:</strong> The recovery EOA is registered as a signer on your smart wallet.
-                You'll need to call the smart contract's execute function to transfer funds.
-                For technical help, see Circle's modular wallet documentation.
-              </p>
             </div>
           </div>
         </details>

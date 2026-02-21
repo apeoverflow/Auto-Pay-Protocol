@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { encodeFunctionData, type Hex } from 'viem'
-import { useWallet } from '../contexts/WalletContext'
+import { type Hex } from 'viem'
+import { useAccount } from 'wagmi'
 import { useChain } from '../contexts/ChainContext'
 import { erc20Abi } from '../config/contracts'
 import { parseContractError } from '../types/policy'
@@ -16,8 +16,8 @@ interface UseApprovalReturn {
 }
 
 export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
-  const { account } = useWallet()
-  const { publicClient, bundlerClient, chainConfig } = useChain()
+  const { address } = useAccount()
+  const { publicClient, walletClient, chainConfig } = useChain()
 
   const [allowance, setAllowance] = React.useState<bigint>(0n)
   const [isLoading, setIsLoading] = React.useState(false)
@@ -26,36 +26,33 @@ export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
 
   // Fetch current allowance
   const fetchAllowance = React.useCallback(async () => {
-    if (!publicClient || !account?.address || !spender) return
+    if (!publicClient || !address || !spender) return
 
     try {
       const result = await publicClient.readContract({
         address: chainConfig.usdc,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [account.address, spender],
+        args: [address, spender],
       })
       setAllowance(result)
     } catch (err) {
       console.error('Failed to fetch allowance:', err)
     }
-  }, [publicClient, account?.address, spender, chainConfig.usdc])
+  }, [publicClient, address, spender, chainConfig.usdc])
 
-  // Fetch allowance on mount and when dependencies change
   React.useEffect(() => {
     fetchAllowance()
   }, [fetchAllowance])
 
-  // Check if approved for amount
   const isApproved = React.useCallback(
     (amount: bigint) => allowance >= amount,
     [allowance]
   )
 
-  // Approve spending
   const approve = React.useCallback(
     async (amount: bigint): Promise<Hex> => {
-      if (!account || !bundlerClient || !spender) {
+      if (!address || !walletClient || !publicClient || !spender) {
         throw new Error('Wallet not connected')
       }
 
@@ -64,36 +61,21 @@ export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
       setError(null)
 
       try {
-        const callData = encodeFunctionData({
+        const txHash = await walletClient.writeContract({
+          address: chainConfig.usdc,
           abi: erc20Abi,
           functionName: 'approve',
           args: [spender, amount],
         })
 
-        // Use paymaster for gas sponsorship
-        // Arc's bundler requires minimum gas fees that the paymaster doesn't set correctly
-        const opHash = await bundlerClient.sendUserOperation({
-          account,
-          calls: [{ to: chainConfig.usdc, data: callData }],
-          paymaster: true,
-          ...(chainConfig.minGasFees && {
-            maxPriorityFeePerGas: chainConfig.minGasFees.maxPriorityFeePerGas,
-            maxFeePerGas: chainConfig.minGasFees.maxFeePerGas,
-          }),
-        })
-
         setStatus('Waiting for confirmation...')
 
-        const { receipt } = await bundlerClient.waitForUserOperationReceipt({
-          hash: opHash,
-        })
+        await publicClient.waitForTransactionReceipt({ hash: txHash })
 
         setStatus('Approved')
-
-        // Refresh allowance
         await fetchAllowance()
 
-        return receipt.transactionHash
+        return txHash
       } catch (err) {
         const message = parseContractError(err)
         setError(message)
@@ -103,7 +85,7 @@ export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
         setIsLoading(false)
       }
     },
-    [account, bundlerClient, spender, chainConfig.usdc, fetchAllowance]
+    [address, walletClient, publicClient, spender, chainConfig.usdc, fetchAllowance]
   )
 
   const reset = React.useCallback(() => {

@@ -28,7 +28,7 @@ function buildPresets(chargeAmount: number): { label: string; value: string | un
 }
 
 export function ConfirmStep({ metadata, merchant, amount, interval, spendingCap, onSpendingCapChange, onSubscribe, isLoading, error, cancelUrl }: ConfirmStepProps) {
-  const { account, balance } = useWallet()
+  const { address, balance } = useWallet()
   const merchantName = metadata.merchant.name
   const chargeAmount = parseFloat(amount)
   const presets = React.useMemo(() => buildPresets(chargeAmount), [chargeAmount])
@@ -87,10 +87,10 @@ export function ConfirmStep({ metadata, merchant, amount, interval, spendingCap,
           <span className="text-muted-foreground">Merchant</span>
           <span className="font-medium font-mono text-xs">{shortenAddress(merchant)}</span>
         </div>
-        {account && (
+        {address && (
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Your wallet</span>
-            <span className="font-medium font-mono text-xs">{shortenAddress(account.address)}</span>
+            <span className="font-medium font-mono text-xs">{shortenAddress(address)}</span>
           </div>
         )}
         {balance && (

@@ -19,11 +19,14 @@ import {
   ArrowDownUp,
   HelpCircle,
   CheckCircle2,
+  Code2,
+  ChevronDown,
 } from 'lucide-react'
 import { USDC_DECIMALS } from '../config'
 import { parseContractError } from '../types/policy'
 import { ToastContainer, useToast } from '../components/ui/toast'
 import { JsonHighlight } from '../components/ui/json-highlight'
+import { CodeHighlight } from '../components/ui/code-highlight'
 import type { NavItem } from '../components/layout'
 
 // Interval unit configuration
@@ -78,7 +81,7 @@ interface DemoPageProps {
 }
 
 export function DemoPage({ onNavigate }: DemoPageProps) {
-  const { isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet, account, balance } = useWallet()
+  const { isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet, address, balance } = useWallet()
   const { chainConfig } = useChain()
   const { policies, refetch: refetchPolicies, refreshPolicyFromContract } = usePolicies()
 
@@ -183,6 +186,53 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
 
   const [copied, setCopied] = React.useState<string | null>(null)
   const [showMetadataTemplate, setShowMetadataTemplate] = React.useState(false)
+  const [showCheckoutCode, setShowCheckoutCode] = React.useState(false)
+
+  // Build checkout URL preview from current form values
+  const checkoutUrl = React.useMemo(() => {
+    if (!merchant) return ''
+    try {
+      const url = new URL('/checkout', 'https://autopayprotocol.com')
+      url.searchParams.set('merchant', merchant)
+      url.searchParams.set('amount', chargeAmount || '0')
+      url.searchParams.set('interval', String(intervalSeconds))
+      if (metadataUrl) url.searchParams.set('metadata_url', metadataUrl)
+      url.searchParams.set('success_url', 'https://yoursite.com/success')
+      url.searchParams.set('cancel_url', 'https://yoursite.com/cancel')
+      if (spendingCap && spendingCap !== '0') url.searchParams.set('spending_cap', spendingCap)
+      return url.toString()
+    } catch {
+      return ''
+    }
+  }, [merchant, chargeAmount, intervalSeconds, metadataUrl, spendingCap])
+
+  // Resolve interval preset label for SDK code
+  const intervalPreset = React.useMemo(() => {
+    const secs = intervalSeconds
+    if (secs === 604800) return "'weekly'"
+    if (secs === 1209600) return "'biweekly'"
+    if (secs === 2592000) return "'monthly'"
+    if (secs === 7776000) return "'quarterly'"
+    if (secs === 31536000) return "'yearly'"
+    return String(secs)
+  }, [intervalSeconds])
+
+  const sdkCodeSnippet = React.useMemo(() => {
+    const lines = [
+      `import { createCheckoutUrl } from '@autopayprotocol/sdk'`,
+      ``,
+      `const url = createCheckoutUrl({`,
+      `  merchant: '${merchant || '0x...'}',`,
+      `  amount: ${chargeAmount || '0'},`,
+      `  interval: ${intervalPreset},`,
+    ]
+    if (metadataUrl) lines.push(`  metadataUrl: '${metadataUrl}',`)
+    lines.push(`  successUrl: 'https://yoursite.com/success',`)
+    lines.push(`  cancelUrl: 'https://yoursite.com/cancel',`)
+    if (spendingCap && spendingCap !== '0') lines.push(`  spendingCap: ${spendingCap},`)
+    lines.push(`})`)
+    return lines.join('\n')
+  }, [merchant, chargeAmount, intervalPreset, metadataUrl, spendingCap])
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
@@ -255,9 +305,9 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
     <div className="h-full overflow-auto">
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
       <div className="space-y-4">
-        {/* Main Layout: 2-column on desktop, stacked on mobile */}
-        <div className="grid gap-4 lg:grid-cols-[1fr,340px] lg:items-start">
-         <div className="space-y-3">
+        {/* Main Layout: 2-column when sidebar visible, single centered column otherwise */}
+        <div className={`grid gap-4 ${isWalletSetup ? 'lg:grid-cols-[1fr,340px]' : ''} lg:items-start`}>
+         <div className="demo-wizard-col">
           {/* Stepper Bar — centered over wizard column */}
           <div className="demo-stepper">
             {visibleSteps.map((step, i) => {
@@ -286,21 +336,21 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
           </div>
           {/* Step 0: Approve USDC */}
           {currentStep === 0 && !isWalletSetup && (
-            <div className="demo-content" key="step-0">
+            <div className="demo-content space-y-3" key="step-0">
               {/* Fund Wallet Link */}
-              {account?.address && (
+              {address && (
                 <button
                   onClick={() => onNavigate('bridge')}
-                  className="w-full flex items-center justify-between p-4 mb-4 bg-muted/30 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-colors"
+                  className="demo-fund-link"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                       <ArrowDownUp className="h-4 w-4 text-primary" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-medium">Need USDC on Arc?</p>
+                      <p className="text-sm font-medium">Need USDC on Flow?</p>
                       <p className="text-xs text-muted-foreground">
-                        Transfer from MetaMask on another chain
+                        Bridge from any chain via LiFi
                       </p>
                     </div>
                   </div>
@@ -308,77 +358,77 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
                 </button>
               )}
 
-              <Card className="border-primary/30 bg-gradient-to-br from-primary/[0.03] to-transparent">
-                <CardHeader className="py-4 px-5 border-b border-border/50">
-                  <CardTitle className="text-base font-semibold flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                      <Wallet className="h-5 w-5 text-primary" />
-                    </div>
-                    Approve USDC
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-5">
-                  <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground leading-relaxed">
-                      Before creating subscriptions, you need to approve USDC spending. This one-time setup:
-                    </div>
-
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                        <span>Approves AutoPay to charge your subscriptions</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                        <span>Security enforced via policy limits (amount, interval, cap)</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                        <span>Revoke any subscription instantly to stop charges</span>
-                      </li>
-                    </ul>
-
-                    {balance && (
-                      <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Your Balance</span>
-                          <span className="font-medium">{balance} USDC</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <Button
-                      onClick={handleSetup}
-                      disabled={isSettingUp}
-                      className="w-full"
-                      size="lg"
-                    >
-                      {isSettingUp ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          {setupStatus}
-                        </>
-                      ) : (
-                        <>
-                          <Check className="h-4 w-4 mr-2" />
-                          Approve USDC
-                        </>
-                      )}
-                    </Button>
-
-                    {setupError && (
-                      <div className="flex items-center gap-2 text-destructive text-xs p-3 bg-destructive/10 rounded-lg">
-                        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                        {setupError}
-                      </div>
-                    )}
-
-                    <p className="text-[11px] text-muted-foreground/70 text-center">
-                      One-time approval &bull; Requires passkey signature
-                    </p>
+              <div className="demo-approve-card">
+                <div className="demo-approve-card-header">
+                  <div className="demo-approve-card-header-icon">
+                    <Wallet className="h-4 w-4" />
                   </div>
-                </CardContent>
-              </Card>
+                  <span className="demo-approve-card-header-title">Approve USDC</span>
+                </div>
+                <div className="demo-approve-card-body">
+                  <p className="demo-approve-desc">
+                    Before creating subscriptions, you need to approve USDC spending. This one-time setup:
+                  </p>
+
+                  <div className="demo-approve-features">
+                    <div className="demo-approve-feature">
+                      <div className="demo-approve-feature-icon">
+                        <Check className="h-3 w-3" />
+                      </div>
+                      <span>Approves AutoPay to charge your subscriptions</span>
+                    </div>
+                    <div className="demo-approve-feature">
+                      <div className="demo-approve-feature-icon">
+                        <Check className="h-3 w-3" />
+                      </div>
+                      <span>Security enforced via policy limits (amount, interval, cap)</span>
+                    </div>
+                    <div className="demo-approve-feature">
+                      <div className="demo-approve-feature-icon">
+                        <Check className="h-3 w-3" />
+                      </div>
+                      <span>Revoke any subscription instantly to stop charges</span>
+                    </div>
+                  </div>
+
+                  {balance && (
+                    <div className="demo-approve-balance">
+                      <span className="demo-approve-balance-label">Your Balance</span>
+                      <span className="demo-approve-balance-value">{balance} USDC</span>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleSetup}
+                    disabled={isSettingUp}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isSettingUp ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {setupStatus}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Approve USDC
+                      </>
+                    )}
+                  </Button>
+
+                  {setupError && (
+                    <div className="flex items-center gap-2 text-destructive text-xs p-3 mt-3 bg-destructive/10 rounded-lg">
+                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                      {setupError}
+                    </div>
+                  )}
+
+                  <p className="demo-approve-hint">
+                    One-time approval &bull; Requires wallet signature
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -497,6 +547,71 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
                       className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
 
+                  </div>
+
+                  {/* Checkout URL Code Preview */}
+                  <div className="demo-code-toggle">
+                    <button
+                      type="button"
+                      onClick={() => setShowCheckoutCode(!showCheckoutCode)}
+                      className="demo-code-toggle-btn"
+                      data-open={showCheckoutCode}
+                    >
+                      <Code2 className="h-3.5 w-3.5" />
+                      <span>Checkout URL Code</span>
+                      <ChevronDown className={`h-3.5 w-3.5 ml-auto transition-transform duration-200 ${showCheckoutCode ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showCheckoutCode && (
+                      <div className={`demo-code-panel ${checkoutUrl ? 'demo-code-panel--compact' : ''}`}>
+                        {/* SDK Code */}
+                        <div className="demo-code-section">
+                          <div className="demo-code-section-header">
+                            <span className="demo-code-section-label">SDK</span>
+                            <code className="demo-code-section-pkg">npm i @autopayprotocol/sdk</code>
+                          </div>
+                          <div className="demo-code-body">
+                            <CodeHighlight code={sdkCodeSnippet} className="demo-code-highlight" />
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(sdkCodeSnippet, 'sdk-code')}
+                              className="demo-code-copy-floating"
+                              title="Copy code"
+                            >
+                              {copied === 'sdk-code' ? (
+                                <><Check className="h-3 w-3" /> Copied</>
+                              ) : (
+                                <><Copy className="h-3 w-3" /> Copy</>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Raw URL */}
+                        {checkoutUrl && (
+                          <div className="demo-code-section">
+                            <div className="demo-code-section-header">
+                              <span className="demo-code-section-label">Generated URL</span>
+                            </div>
+                            <div className="demo-code-body">
+                              <pre className="demo-code-block demo-code-url"><code>{checkoutUrl}</code></pre>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(checkoutUrl, 'checkout-url')}
+                                className="demo-code-copy-floating"
+                                title="Copy URL"
+                              >
+                                {copied === 'checkout-url' ? (
+                                  <><Check className="h-3 w-3" /> Copied</>
+                                ) : (
+                                  <><Copy className="h-3 w-3" /> Copy</>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Continue Button */}

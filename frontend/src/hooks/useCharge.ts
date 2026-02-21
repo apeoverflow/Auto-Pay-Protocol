@@ -1,15 +1,15 @@
 import * as React from 'react'
-import { encodeFunctionData, type Hex } from 'viem'
+import { type Hex } from 'viem'
+import { useAccount } from 'wagmi'
 import { useWallet } from '../contexts/WalletContext'
 import { useChain } from '../contexts/ChainContext'
-import { ArcPolicyManagerAbi } from '../config/deployments'
+import { PolicyManagerAbi } from '../config/deployments'
 import { parseContractError } from '../types/policy'
 
 interface UseChargeReturn {
   charge: (policyId: `0x${string}`) => Promise<Hex>
   canCharge: (policyId: `0x${string}`) => Promise<{ canCharge: boolean; reason: string }>
   hash: Hex | undefined
-  userOpHash: Hex | undefined
   status: string
   error: string | null
   isLoading: boolean
@@ -17,16 +17,15 @@ interface UseChargeReturn {
 }
 
 export function useCharge(): UseChargeReturn {
-  const { account, fetchBalance } = useWallet()
-  const { publicClient, bundlerClient, chainConfig } = useChain()
+  const { address } = useAccount()
+  const { fetchBalance } = useWallet()
+  const { publicClient, walletClient, chainConfig } = useChain()
 
   const [hash, setHash] = React.useState<Hex>()
-  const [userOpHash, setUserOpHash] = React.useState<Hex>()
   const [status, setStatus] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
 
-  // Check if a policy can be charged
   const checkCanCharge = React.useCallback(
     async (policyId: `0x${string}`): Promise<{ canCharge: boolean; reason: string }> => {
       if (!publicClient || !chainConfig.policyManager) {
@@ -36,7 +35,7 @@ export function useCharge(): UseChargeReturn {
       try {
         const result = await publicClient.readContract({
           address: chainConfig.policyManager,
-          abi: ArcPolicyManagerAbi,
+          abi: PolicyManagerAbi,
           functionName: 'canCharge',
           args: [policyId],
         })
@@ -51,10 +50,9 @@ export function useCharge(): UseChargeReturn {
     [publicClient, chainConfig.policyManager]
   )
 
-  // Execute a charge on a policy
   const executeCharge = React.useCallback(
     async (policyId: `0x${string}`): Promise<Hex> => {
-      if (!account || !bundlerClient) {
+      if (!address || !walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
 
@@ -66,41 +64,24 @@ export function useCharge(): UseChargeReturn {
       setStatus('Charging...')
       setError(null)
       setHash(undefined)
-      setUserOpHash(undefined)
 
       try {
-        const callData = encodeFunctionData({
-          abi: ArcPolicyManagerAbi,
+        const txHash = await walletClient.writeContract({
+          address: chainConfig.policyManager,
+          abi: PolicyManagerAbi,
           functionName: 'charge',
           args: [policyId],
         })
 
-        // Use paymaster for gas sponsorship
-        // Arc's bundler requires minimum gas fees that the paymaster doesn't set correctly
-        const opHash = await bundlerClient.sendUserOperation({
-          account,
-          calls: [{ to: chainConfig.policyManager, data: callData }],
-          paymaster: true,
-          ...(chainConfig.minGasFees && {
-            maxPriorityFeePerGas: chainConfig.minGasFees.maxPriorityFeePerGas,
-            maxFeePerGas: chainConfig.minGasFees.maxFeePerGas,
-          }),
-        })
-
-        setUserOpHash(opHash)
+        setHash(txHash)
         setStatus('Waiting for confirmation...')
 
-        const { receipt } = await bundlerClient.waitForUserOperationReceipt({
-          hash: opHash,
-        })
+        await publicClient.waitForTransactionReceipt({ hash: txHash })
 
-        setHash(receipt.transactionHash)
         setStatus('Charge successful')
-
-        // Refresh balance after charge
         await fetchBalance()
 
-        return receipt.transactionHash
+        return txHash
       } catch (err) {
         const message = parseContractError(err)
         setError(message)
@@ -110,12 +91,11 @@ export function useCharge(): UseChargeReturn {
         setIsLoading(false)
       }
     },
-    [account, bundlerClient, chainConfig.policyManager, chainConfig.minGasFees, fetchBalance]
+    [address, walletClient, publicClient, chainConfig.policyManager, fetchBalance]
   )
 
   const reset = React.useCallback(() => {
     setHash(undefined)
-    setUserOpHash(undefined)
     setStatus('')
     setError(null)
   }, [])
@@ -124,7 +104,6 @@ export function useCharge(): UseChargeReturn {
     charge: executeCharge,
     canCharge: checkCanCharge,
     hash,
-    userOpHash,
     status,
     error,
     isLoading,

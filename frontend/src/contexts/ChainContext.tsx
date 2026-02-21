@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { createPublicClient, http, type PublicClient } from 'viem'
-import { createBundlerClient, type BundlerClient } from 'viem/account-abstraction'
-import { toModularTransport } from '@circle-fin/modular-wallets-core'
-import { clientKey, clientUrl, isConfigured } from '../config'
+import { useWalletClient, type UseWalletClientReturnType } from 'wagmi'
 import {
   CHAIN_CONFIGS,
   DEFAULT_CHAIN,
@@ -16,52 +14,12 @@ interface ChainContextValue {
   chainKey: ChainKey
   chainConfig: ChainConfig
   setChainKey: (key: ChainKey) => void
-  // Direct RPC client for reading chain data (getLogs, readContract, etc.)
   publicClient: PublicClient | null
-  // Circle client for SDK operations (toCircleSmartAccount)
-  circleClient: PublicClient | null
-  // Circle bundler client for sending UserOps (uses Circle's paymaster)
-  bundlerClient: BundlerClient | null
+  walletClient: UseWalletClientReturnType['data'] | undefined
   isReady: boolean
 }
 
 const ChainContext = React.createContext<ChainContextValue | null>(null)
-
-function createClientsForChain(chainKey: ChainKey) {
-  const config = CHAIN_CONFIGS[chainKey]
-  if (!config) {
-    return { publicClient: null, circleClient: null, bundlerClient: null }
-  }
-
-  // Create a direct public client using the chain's native RPC
-  // This is used for reading data (getLogs, readContract, getBlock, etc.)
-  const publicClient = createPublicClient({
-    chain: config.chain,
-    transport: http(config.chain.rpcUrls.default.http[0]),
-  })
-
-  // Create Circle clients only if Circle SDK is configured
-  let circleClient: PublicClient | null = null
-  let bundlerClient: BundlerClient | null = null
-
-  if (isConfigured) {
-    const modularTransport = toModularTransport(`${clientUrl}/${config.transportPath}`, clientKey!)
-
-    // Circle client for SDK operations (toCircleSmartAccount)
-    circleClient = createPublicClient({
-      chain: config.chain,
-      transport: modularTransport,
-    })
-
-    // Bundler client for sending UserOps with paymaster
-    bundlerClient = createBundlerClient({
-      chain: config.chain,
-      transport: modularTransport,
-    })
-  }
-
-  return { publicClient, circleClient, bundlerClient }
-}
 
 export function ChainProvider({ children }: { children: React.ReactNode }) {
   const [chainKey, setChainKeyState] = React.useState<ChainKey>(() => {
@@ -73,13 +31,17 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
   })
 
   const chainConfig = CHAIN_CONFIGS[chainKey]
+  const { data: walletClient } = useWalletClient()
 
-  // Memoize clients - recreate only when chain changes
-  const clients = React.useMemo(() => {
-    return createClientsForChain(chainKey)
+  // Create a public client for reading chain data
+  const publicClient = React.useMemo(() => {
+    if (!chainConfig) return null
+    return createPublicClient({
+      chain: chainConfig.chain,
+      transport: http(chainConfig.chain.rpcUrls.default.http[0]),
+    })
   }, [chainKey])
 
-  // Persist chain selection
   const setChainKey = React.useCallback((key: ChainKey) => {
     if (CHAIN_CONFIGS[key]) {
       localStorage.setItem(STORAGE_KEY, key)
@@ -92,12 +54,11 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
       chainKey,
       chainConfig,
       setChainKey,
-      publicClient: clients.publicClient,
-      circleClient: clients.circleClient,
-      bundlerClient: clients.bundlerClient,
-      isReady: !!clients.publicClient,
+      publicClient,
+      walletClient,
+      isReady: !!publicClient,
     }),
-    [chainKey, chainConfig, setChainKey, clients]
+    [chainKey, chainConfig, setChainKey, publicClient, walletClient]
   )
 
   return <ChainContext.Provider value={value}>{children}</ChainContext.Provider>

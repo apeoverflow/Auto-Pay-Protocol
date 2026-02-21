@@ -8,30 +8,12 @@
         "internalType": "address"
       },
       {
-        "name": "_tokenMessenger",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "_feeRecipient",
         "type": "address",
         "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "ARC_DOMAIN",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint32",
-        "internalType": "uint32"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -100,19 +82,6 @@
   },
   {
     "type": "function",
-    "name": "TOKEN_MESSENGER",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract ITokenMessengerV2"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "USDC",
     "inputs": [],
     "outputs": [
@@ -139,25 +108,6 @@
   },
   {
     "type": "function",
-    "name": "addressToBytes32",
-    "inputs": [
-      {
-        "name": "addr",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "pure"
-  },
-  {
-    "type": "function",
     "name": "batchCharge",
     "inputs": [
       {
@@ -168,31 +118,12 @@
     ],
     "outputs": [
       {
-        "name": "successCount",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "results",
+        "type": "bool[]",
+        "internalType": "bool[]"
       }
     ],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "bytes32ToAddress",
-    "inputs": [
-      {
-        "name": "b",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "pure"
   },
   {
     "type": "function",
@@ -243,9 +174,9 @@
     ],
     "outputs": [
       {
-        "name": "cctpNonce",
-        "type": "uint64",
-        "internalType": "uint64"
+        "name": "success",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "nonpayable"
@@ -255,9 +186,9 @@
     "name": "createPolicy",
     "inputs": [
       {
-        "name": "merchantOnArc",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "merchant",
+        "type": "address",
+        "internalType": "address"
       },
       {
         "name": "chargeAmount",
@@ -304,6 +235,35 @@
   },
   {
     "type": "function",
+    "name": "getChargeBreakdown",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "total",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "merchantReceives",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "protocolFee",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getNextChargeTime",
     "inputs": [
       {
@@ -342,6 +302,29 @@
   },
   {
     "type": "function",
+    "name": "getStats",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "owner",
     "inputs": [],
     "outputs": [
@@ -370,9 +353,9 @@
         "internalType": "address"
       },
       {
-        "name": "merchantOnArc",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "merchant",
+        "type": "address",
+        "internalType": "address"
       },
       {
         "name": "chargeAmount",
@@ -400,9 +383,19 @@
         "internalType": "uint32"
       },
       {
+        "name": "chargeCount",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
         "name": "consecutiveFailures",
         "type": "uint8",
         "internalType": "uint8"
+      },
+      {
+        "name": "endTime",
+        "type": "uint32",
+        "internalType": "uint32"
       },
       {
         "name": "active",
@@ -465,6 +458,45 @@
   },
   {
     "type": "function",
+    "name": "totalChargesProcessed",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalPoliciesCreated",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalVolumeProcessed",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
@@ -519,10 +551,10 @@
         "internalType": "address"
       },
       {
-        "name": "merchantOnArc",
-        "type": "bytes32",
+        "name": "merchant",
+        "type": "address",
         "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "address"
       },
       {
         "name": "amount",
@@ -535,12 +567,6 @@
         "type": "uint128",
         "indexed": false,
         "internalType": "uint128"
-      },
-      {
-        "name": "cctpNonce",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
       }
     ],
     "anonymous": false
@@ -600,10 +626,10 @@
         "internalType": "address"
       },
       {
-        "name": "merchantOnArc",
-        "type": "bytes32",
+        "name": "merchant",
+        "type": "address",
         "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "address"
       },
       {
         "name": "consecutiveFailures",
@@ -637,10 +663,10 @@
         "internalType": "address"
       },
       {
-        "name": "merchantOnArc",
-        "type": "bytes32",
+        "name": "merchant",
+        "type": "address",
         "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "address"
       },
       {
         "name": "chargeAmount",
@@ -686,13 +712,59 @@
         "internalType": "address"
       },
       {
-        "name": "merchantOnArc",
-        "type": "bytes32",
+        "name": "merchant",
+        "type": "address",
         "indexed": true,
-        "internalType": "bytes32"
+        "internalType": "address"
+      },
+      {
+        "name": "endTime",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "InsufficientAllowance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InsufficientBalance",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidAmount",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidInterval",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidMerchant",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MaxRetriesReached",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotPolicyOwner",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NothingToWithdraw",
+    "inputs": []
   },
   {
     "type": "error",
@@ -718,7 +790,38 @@
   },
   {
     "type": "error",
+    "name": "PolicyNotActive",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PolicyNotFailedEnough",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SpendingCapExceeded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TooSoonToCharge",
     "inputs": []
   }
 ]

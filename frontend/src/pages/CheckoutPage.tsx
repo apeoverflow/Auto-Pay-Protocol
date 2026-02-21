@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { parseUnits } from 'viem'
 import { useCheckoutParams, useAuth, useWallet, useCreatePolicy, useChain } from '../hooks'
-import { isConfigured, USDC_DECIMALS } from '../config'
+import { USDC_DECIMALS } from '../config'
 import type { CheckoutMetadata } from '../types/checkout'
 import {
   LoadingStep,
@@ -31,9 +31,9 @@ export function CheckoutPage() {
   // User-editable spending cap — defaults to unlimited, adjustable in ConfirmStep
   const [userSpendingCap, setUserSpendingCap] = React.useState<string | undefined>(undefined)
 
-  // Ensure Arc Testnet is selected for checkout
+  // Ensure Flow EVM is selected for checkout
   React.useEffect(() => {
-    setChainKey('arcTestnet')
+    setChainKey('flowEvm')
   }, [setChainKey])
 
   // Estimated gas fee in USDC (Arc native currency is USDC; paymaster covers it but we show for transparency)
@@ -72,7 +72,7 @@ export function CheckoutPage() {
 
   // Determine current step based on state
   React.useEffect(() => {
-    if (paramError || !isConfigured) {
+    if (paramError) {
       setStep('error')
       return
     }
@@ -142,9 +142,7 @@ export function CheckoutPage() {
     setStep('confirm')
   }
 
-  const errorMessage = !isConfigured
-    ? 'Circle SDK not configured. Please set VITE_CLIENT_KEY and VITE_CLIENT_URL in .env'
-    : paramError || fetchError || ''
+  const errorMessage = paramError || fetchError || ''
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -157,7 +155,7 @@ export function CheckoutPage() {
               <img src="/logo.png" alt="AutoPay" className="h-7 w-auto brightness-0 opacity-50" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+              <span className="hidden text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                 Testnet
               </span>
               {isLoggedIn && (
@@ -224,7 +222,7 @@ export function CheckoutPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-muted-foreground mt-4">
-          Powered by AutoPay Protocol &middot; Non-custodial &middot; Arc Testnet
+          Powered by AutoPay Protocol &middot; Non-custodial &middot; Flow Mainnet
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useChain } from '../contexts/ChainContext'
-import { ArcPolicyManagerAbi } from '../config/deployments'
+import { PolicyManagerAbi } from '../config/deployments'
 import type { OnChainPolicy, PolicyChargeBreakdown } from '../types/policy'
 
 interface UsePolicyReturn {
@@ -42,31 +42,31 @@ export function usePolicy(policyId: `0x${string}` | undefined): UsePolicyReturn 
         await Promise.all([
           publicClient.readContract({
             address: chainConfig.policyManager,
-            abi: ArcPolicyManagerAbi,
+            abi: PolicyManagerAbi,
             functionName: 'policies',
             args: [policyId],
           }),
           publicClient.readContract({
             address: chainConfig.policyManager,
-            abi: ArcPolicyManagerAbi,
+            abi: PolicyManagerAbi,
             functionName: 'canCharge',
             args: [policyId],
           }),
           publicClient.readContract({
             address: chainConfig.policyManager,
-            abi: ArcPolicyManagerAbi,
+            abi: PolicyManagerAbi,
             functionName: 'getNextChargeTime',
             args: [policyId],
           }),
           publicClient.readContract({
             address: chainConfig.policyManager,
-            abi: ArcPolicyManagerAbi,
+            abi: PolicyManagerAbi,
             functionName: 'getRemainingAllowance',
             args: [policyId],
           }),
           publicClient.readContract({
             address: chainConfig.policyManager,
-            abi: ArcPolicyManagerAbi,
+            abi: PolicyManagerAbi,
             functionName: 'getChargeBreakdown',
             args: [policyId],
           }),

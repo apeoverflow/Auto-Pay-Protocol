@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { parseAbiItem, decodeEventLog, type Log, type TransactionReceipt } from 'viem'
-import { useWallet } from '../contexts/WalletContext'
+import { useAccount } from 'wagmi'
 import { useChain } from '../contexts/ChainContext'
-import { ArcPolicyManagerAbi } from '../config/deployments'
+import { PolicyManagerAbi } from '../config/deployments'
 import { fetchActivityFromDb, type DbPolicy, type DbCharge } from '../lib/supabase'
 import { sleep } from '../lib/rateLimit'
 import type { ActivityItem } from '../types/subscriptions'
@@ -120,7 +120,7 @@ export function invalidateActivity() {
 }
 
 export function useActivity(): UseActivityReturn {
-  const { account } = useWallet()
+  const { address } = useAccount()
   const { publicClient, chainConfig } = useChain()
 
   const [activity, setActivity] = React.useState<ActivityItem[]>([])
@@ -129,7 +129,7 @@ export function useActivity(): UseActivityReturn {
   const [dataSource, setDataSource] = React.useState<'supabase' | 'contract' | null>(null)
 
   const fetchActivity = React.useCallback(async () => {
-    if (!account?.address || !chainConfig.policyManager) {
+    if (!address || !chainConfig.policyManager) {
       setActivity([])
       setDataSource(null)
       return
@@ -141,7 +141,7 @@ export function useActivity(): UseActivityReturn {
     try {
       // Try Supabase first (full indexed history)
       const dbData = await fetchActivityFromDb(
-        account.address,
+        address,
         chainConfig.chain.id
       )
 
@@ -169,7 +169,7 @@ export function useActivity(): UseActivityReturn {
       const chargeLogs = await publicClient.getLogs({
         address: chainConfig.policyManager,
         event: ChargeSucceededEvent,
-        args: { payer: account.address },
+        args: { payer: address },
         fromBlock,
         toBlock: currentBlock,
       }) as unknown as ChargeLog[]
@@ -179,7 +179,7 @@ export function useActivity(): UseActivityReturn {
       const createLogs = await publicClient.getLogs({
         address: chainConfig.policyManager,
         event: PolicyCreatedEvent,
-        args: { payer: account.address },
+        args: { payer: address },
         fromBlock,
         toBlock: currentBlock,
       }) as unknown as CreateLog[]
@@ -189,7 +189,7 @@ export function useActivity(): UseActivityReturn {
       const revokeLogs = await publicClient.getLogs({
         address: chainConfig.policyManager,
         event: PolicyRevokedEvent,
-        args: { payer: account.address },
+        args: { payer: address },
         fromBlock,
         toBlock: currentBlock,
       }) as unknown as RevokeLog[]
@@ -275,7 +275,7 @@ export function useActivity(): UseActivityReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [publicClient, account?.address, chainConfig.policyManager, chainConfig.chain.id])
+  }, [publicClient, address, chainConfig.policyManager, chainConfig.chain.id])
 
   // Parse events from a transaction receipt and add to activity
   const addActivityFromReceipt = React.useCallback(
@@ -285,7 +285,7 @@ export function useActivity(): UseActivityReturn {
       for (const log of receipt.logs) {
         try {
           const decoded = decodeEventLog({
-            abi: ArcPolicyManagerAbi,
+            abi: PolicyManagerAbi,
             data: log.data,
             topics: log.topics,
           })

@@ -1,16 +1,6 @@
 import * as React from 'react'
-import { useRecovery } from '../../hooks'
-import { Button } from '../ui/button'
-import { TextArea } from '../ui/input'
-import { Alert, AlertTitle, AlertDescription } from '../ui/alert'
-import { StatusMessage } from '../common/StatusMessage'
-import { PasskeyLogin } from './PasskeyLogin'
-import { RecoveryScreen } from '../recovery/RecoveryScreen'
+import { ConnectWallet } from './ConnectWallet'
 import {
-  Fingerprint,
-  KeyRound,
-  CheckCircle,
-  Loader2,
   Wallet,
   BadgePercent,
   Globe,
@@ -23,37 +13,15 @@ import {
 } from 'lucide-react'
 import { EmailCaptureDialog, useEmailCaptureDialog } from '../EmailCaptureDialog'
 
-type AuthTab = 'passkey' | 'recovery'
-
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {
-  const { showRecovery, setShowRecovery } = useRecovery()
-  const [activeTab, setActiveTab] = React.useState<AuthTab>('passkey')
   const emailCapture = useEmailCaptureDialog()
-
-  React.useEffect(() => {
-    if (showRecovery) setActiveTab('recovery')
-  }, [showRecovery])
-
-  const selectTab = (tab: AuthTab) => {
-    setActiveTab(tab)
-    setShowRecovery(tab === 'recovery')
-  }
-
-  if (showRecovery && activeTab !== 'recovery') {
-    return <RecoveryScreen onCancel={() => setShowRecovery(false)} />
-  }
-
-  const tabs = [
-    { id: 'passkey' as const, label: 'Passkey', icon: Fingerprint },
-    { id: 'recovery' as const, label: 'Restore', icon: KeyRound },
-  ]
 
   return (
     <div className="auth-scene">
       <div className="auth-grid" />
 
       <div className="auth-split">
-        {/* ─── payment stream bridge ─── */}
+        {/* payment stream bridge */}
         <div className="auth-stream" aria-hidden="true">
           <div className="auth-stream-rail" />
           {[1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -69,9 +37,8 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           ))}
         </div>
 
-        {/* ─── left: brand panel ─── */}
+        {/* left: brand panel */}
         <div className="auth-brand">
-          {/* ambient aurora */}
           <div className="auth-aurora" aria-hidden="true">
             <div className="auth-orb auth-orb--1" />
             <div className="auth-orb auth-orb--2" />
@@ -85,7 +52,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 alt="AutoPayProtocol"
                 className="auth-brand-logo"
               />
-              <div className="auth-finalist-badge">
+              <div className="auth-finalist-badge hidden">
                 <div className="auth-finalist-badge-glow" />
                 <Trophy className="h-3 w-3" />
                 <span>ETH Global Hack Money Finalist</span>
@@ -98,15 +65,14 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
               Recurring USDC payments for newsletters, DAOs, and SaaS.
             </p>
 
-            {/* micro-stats */}
             <div className="auth-bento auth-stagger auth-stagger-4">
               <div className="auth-bento-card">
                 <span className="auth-bento-value">50%</span>
                 <span className="auth-bento-label">cheaper fees</span>
               </div>
               <div className="auth-bento-card">
-                <span className="auth-bento-value">12+</span>
-                <span className="auth-bento-label">chains supported</span>
+                <span className="auth-bento-value">Flow</span>
+                <span className="auth-bento-label">EVM powered</span>
               </div>
             </div>
 
@@ -127,7 +93,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 <div className="auth-feature-icon auth-feature-icon--chain">
                   <Globe className="h-4 w-4" />
                 </div>
-                <span>Multi-chain USDC via Circle Gateway</span>
+                <span>Flow EVM with any browser wallet</span>
               </div>
             </div>
 
@@ -161,7 +127,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           </div>
         </div>
 
-        {/* ─── mobile: hero section (hidden on desktop) ─── */}
+        {/* mobile: hero section */}
         <div className="auth-mobile-hero" aria-hidden="true">
           <div className="auth-mobile-hero-aurora">
             <div className="auth-mobile-orb auth-mobile-orb--1" />
@@ -191,11 +157,10 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
               </div>
               <div className="auth-mobile-pill">
                 <Globe className="auth-mobile-pill-icon" />
-                <span>Multi-chain</span>
+                <span>Flow EVM</span>
               </div>
             </div>
           </div>
-          {/* mobile floating tokens */}
           <div className="auth-mobile-tokens">
             <div className="auth-mp auth-mp--1" />
             <div className="auth-mp auth-mp--2" />
@@ -205,7 +170,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           </div>
         </div>
 
-        {/* ─── right: form panel ─── */}
+        {/* right: form panel */}
         <div className="auth-form-panel">
           <div className="auth-form-inner auth-card-enter">
             <div className="auth-mobile-logo">
@@ -215,46 +180,45 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
               </p>
             </div>
 
+            <div className="auth-form-icon-ring">
+              <div className="auth-form-icon-ring-outer" />
+              <div className="auth-form-icon-ring-inner">
+                <Wallet className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+
             <div className="auth-form-header">
-              <h2 className="auth-form-title">Sign in</h2>
+              <h2 className="auth-form-title">Connect Wallet</h2>
               <p className="auth-form-desc">
-                Access your wallet to continue
+                Link your wallet to start managing subscriptions
               </p>
             </div>
 
-            {/* tab bar */}
-            <div className="auth-tabs">
-              {tabs.map((tab) => {
-                const Icon = tab.icon
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => selectTab(tab.id)}
-                    data-active={activeTab === tab.id}
-                    className="auth-tab"
-                  >
-                    <Icon className="h-4 w-4" />
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* tab content */}
             <div className="auth-tab-content">
-              {activeTab === 'passkey' && (
-                <div className="auth-fade-in" key="passkey">
-                  <PasskeyLogin />
-                </div>
-              )}
-              {activeTab === 'recovery' && (
-                <div className="auth-fade-in" key="recovery">
-                  <RecoveryInline onCancel={() => selectTab('passkey')} />
-                </div>
-              )}
+              <div className="auth-fade-in" key="connect">
+                <ConnectWallet />
+              </div>
             </div>
 
-            {/* footer — desktop only */}
+            <div className="auth-form-trust">
+              <div className="auth-form-trust-row">
+                <div className="auth-form-trust-item">
+                  <Shield className="h-3.5 w-3.5" />
+                  <span>Non-custodial</span>
+                </div>
+                <div className="auth-form-trust-sep" />
+                <div className="auth-form-trust-item">
+                  <Zap className="h-3.5 w-3.5" />
+                  <span>Gasless</span>
+                </div>
+                <div className="auth-form-trust-sep" />
+                <div className="auth-form-trust-item">
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>Multi-chain</span>
+                </div>
+              </div>
+            </div>
+
             <div className="auth-form-footer auth-form-footer--desktop">
               <span className="auth-dot" />
               Secured by AutoPayProtocol
@@ -263,112 +227,19 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
         </div>
       </div>
 
-      {/* scene footer */}
       <div className="auth-scene-footer">
         <div className="auth-scene-footer-secured">
           <span className="auth-dot" />
           Secured by AutoPayProtocol
         </div>
         <div className="auth-scene-footer-meta">
-          <span><span className="auth-chain-dot" />Arc Testnet</span>
+          <span><span className="auth-chain-dot" />Flow EVM</span>
           <div className="auth-footer-dot" />
           <span>USDC Payments</span>
-          <div className="auth-footer-dot" />
-          <span>Powered by Circle</span>
         </div>
       </div>
 
       <EmailCaptureDialog open={emailCapture.open} onOpenChange={emailCapture.setOpen} />
-    </div>
-  )
-}
-
-/* ── inline recovery ─── */
-
-function RecoveryInline({ onCancel }: { onCancel: () => void }) {
-  const {
-    recoveryStatus,
-    recoveredAddress,
-    isLoading,
-    validateRecoveryPhrase,
-    confirmRecovery,
-    clearRecovery,
-  } = useRecovery()
-
-  const [mnemonic, setMnemonic] = React.useState('')
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (mnemonic.trim()) validateRecoveryPhrase(mnemonic)
-  }
-
-  const handleCancel = () => {
-    clearRecovery()
-    onCancel()
-  }
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-[15px] font-semibold text-gray-900 mb-1">
-          Recover your wallet
-        </h3>
-        <p className="text-[13px] text-gray-500">
-          Enter your 12-word recovery phrase to regain access
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <TextArea
-          value={mnemonic}
-          onChange={(e) => setMnemonic(e.target.value)}
-          placeholder="word1 word2 word3 ..."
-          className="min-h-[88px] text-sm"
-        />
-        <div className="flex gap-2">
-          <Button type="submit" disabled={!mnemonic.trim() || isLoading} className="flex-1">
-            {isLoading ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Validating...</>
-            ) : (
-              'Validate Phrase'
-            )}
-          </Button>
-          <Button type="button" variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-        </div>
-      </form>
-
-      {recoveredAddress && (
-        <Alert variant="success">
-          <CheckCircle className="h-4 w-4" />
-          <AlertTitle>Account found!</AlertTitle>
-          <AlertDescription className="space-y-3">
-            <div>
-              <span className="font-medium">Address:</span>
-              <code className="block mt-1 text-xs font-mono break-all bg-success/10 p-2 rounded">
-                {recoveredAddress}
-              </code>
-            </div>
-            <p className="text-sm">Click below to create a new passkey for this wallet.</p>
-            <Button variant="success" onClick={confirmRecovery} disabled={isLoading} className="w-full">
-              {isLoading ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Recovering...</>
-              ) : (
-                'Confirm Recovery'
-              )}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <StatusMessage
-        message={recoveryStatus}
-        type={
-          recoveryStatus.startsWith('Invalid') || recoveryStatus.startsWith('Recovery failed')
-            ? 'error' : 'info'
-        }
-      />
     </div>
   )
 }

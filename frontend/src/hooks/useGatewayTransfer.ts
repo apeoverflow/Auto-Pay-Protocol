@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { parseUnits, maxUint256, zeroAddress, encodeFunctionData, erc20Abi } from 'viem'
+import { parseUnits, maxUint256, zeroAddress, erc20Abi } from 'viem'
 import { useSignTypedData, useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import {
   GATEWAY_API_URL,
@@ -14,7 +14,6 @@ import {
   type GatewaySourceChain,
 } from '../config/gateway'
 import { useChain } from '../contexts/ChainContext'
-import { useWallet } from '../hooks'
 import { USDC_DECIMALS } from '../config'
 
 // Chain-specific wait times (in ms) for Gateway indexer to pick up deposit
@@ -34,7 +33,7 @@ const DEFAULT_WAIT = { waitMs: 15_000, name: 'Unknown Chain' }
 export interface GatewayTransferParams {
   sourceChain: GatewaySourceChain
   amount: string // e.g., "10.00"
-  recipientAddress: `0x${string}` // Modular Wallet address on Arc
+  recipientAddress: `0x${string}` // Wallet address on destination chain
 }
 
 export interface GatewayTransferResult {
@@ -50,17 +49,16 @@ export interface GatewayTransferResult {
  * Flow:
  * 1. Approve GatewayWallet to spend USDC (if needed)
  * 2. Deposit USDC into GatewayWallet (creates unified balance)
- * 3. Sign EIP-712 burn intent with MetaMask
+ * 3. Sign EIP-712 burn intent with wallet
  * 4. Gateway API validates and returns attestation
- * 5. Modular Wallet calls gatewayMint on Arc (paymaster covers gas)
+ * 5. Call gatewayMint on destination chain
  */
 export function useGatewayTransfer() {
   const { address } = useAccount()
   const { signTypedDataAsync } = useSignTypedData()
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
-  const { bundlerClient, chainConfig } = useChain()
-  const { account } = useWallet()
+  const { chainConfig } = useChain()
 
   const [isLoading, setIsLoading] = useState(false)
   const [status, setStatus] = useState('')
@@ -68,7 +66,7 @@ export function useGatewayTransfer() {
   const [result, setResult] = useState<GatewayTransferResult | null>(null)
 
   const transfer = useCallback(async (params: GatewayTransferParams): Promise<GatewayTransferResult> => {
-    if (!address || !bundlerClient || !account || !publicClient || !walletClient) {
+    if (!address || !publicClient || !walletClient) {
       throw new Error('Wallets not connected')
     }
 
@@ -171,7 +169,7 @@ export function useGatewayTransfer() {
         },
       }
 
-      // Step 4: Sign the burn intent with MetaMask
+      // Step 4: Sign the burn intent with wallet
       const signature = await signTypedDataAsync({
         types: EIP712_TYPES,
         domain: EIP712_DOMAIN,
@@ -197,38 +195,24 @@ export function useGatewayTransfer() {
 
       const { attestation, signature: apiSignature } = await response.json()
 
-      // Step 6: Call gatewayMint on Arc using Modular Wallet
-      setStatus('Minting on Arc...')
+      // Step 6: Call gatewayMint on destination chain
+      setStatus('Minting on destination chain...')
 
-      const mintCallData = encodeFunctionData({
+      const mintHash = await walletClient.writeContract({
+        address: destChain.GatewayMinter,
         abi: GATEWAY_MINTER_ABI,
         functionName: 'gatewayMint',
         args: [attestation, apiSignature],
       })
 
-      const userOpHash = await bundlerClient.sendUserOperation({
-        account,
-        calls: [
-          {
-            to: destChain.GatewayMinter,
-            data: mintCallData,
-          },
-        ],
-        paymaster: true,
-        ...(chainConfig.minGasFees && {
-          maxPriorityFeePerGas: chainConfig.minGasFees.maxPriorityFeePerGas,
-          maxFeePerGas: chainConfig.minGasFees.maxFeePerGas,
-        }),
-      })
-
       setStatus('Confirming...')
-      const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: userOpHash })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: mintHash })
 
       const transferResult: GatewayTransferResult = {
         amount: params.amount,
         sourceAddress: address,
         destinationAddress: params.recipientAddress,
-        mintTxHash: receipt.receipt.transactionHash,
+        mintTxHash: receipt.transactionHash,
       }
 
       setResult(transferResult)
@@ -242,7 +226,7 @@ export function useGatewayTransfer() {
     } finally {
       setIsLoading(false)
     }
-  }, [address, signTypedDataAsync, publicClient, walletClient, bundlerClient, account, chainConfig])
+  }, [address, signTypedDataAsync, publicClient, walletClient, chainConfig])
 
   const reset = useCallback(() => {
     setIsLoading(false)

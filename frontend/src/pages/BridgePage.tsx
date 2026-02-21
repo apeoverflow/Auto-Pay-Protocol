@@ -1,241 +1,154 @@
-import * as React from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useWallet } from '../hooks'
-import { FundWalletCard } from '../components/FundWallet'
-import { Copy, Check, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { LiFiWidget, type WidgetConfig, ChainType } from '@lifi/widget'
+import { Globe, CircleDollarSign, Zap, Shield, ExternalLink } from 'lucide-react'
+
+const FLOW_USDC = '0xF1815bd50389c46847f0Bda824eC8da914045D14'
+const FLOW_CHAIN_ID = 747
+
+const STEPS = [
+  { icon: Globe, title: 'Pick source', iconColor: 'text-blue-600' },
+  { icon: CircleDollarSign, title: 'Swap to USDC', iconColor: 'text-emerald-600' },
+  { icon: Zap, title: 'Bridge to Flow', iconColor: 'text-amber-600' },
+  { icon: Shield, title: 'Subscribe', iconColor: 'text-violet-600' },
+]
+
+const CHAINS = [
+  'Flow', 'Ethereum', 'Arbitrum', 'Optimism', 'Base',
+  'Polygon', 'Avalanche', 'BSC', 'Solana', 'Fantom',
+  'zkSync', 'Linea', 'Scroll', 'Gnosis',
+]
+
+function useWidgetScale(wrapRef: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+
+    const update = () => {
+      const top = el.getBoundingClientRect().top
+      const available = window.innerHeight - top - 80
+      const intrinsic = 700
+      const scale = Math.min(0.96, Math.max(0.68, available / intrinsic))
+      el.style.transform = `scale(${scale})`
+      el.style.marginBottom = `${(scale - 1) * intrinsic}px`
+    }
+
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [wrapRef])
+}
 
 export function BridgePage() {
-  const { account, balance, fetchBalance } = useWallet()
-  const [copied, setCopied] = React.useState(false)
-  const [showInfo, setShowInfo] = React.useState(false)
+  const { address } = useWallet()
+  const { openConnectModal } = useConnectModal()
+  const widgetRef = useRef<HTMLDivElement>(null)
+  useWidgetScale(widgetRef)
 
-  const handleCopy = () => {
-    if (account?.address) {
-      navigator.clipboard.writeText(account.address)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
-  const formatBalance = (bal: string | null) => {
-    if (bal === null) return '0.00'
-    const value = parseFloat(bal)
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  }
+  const widgetConfig: WidgetConfig = useMemo(
+    () => ({
+      integrator: 'AutoPay',
+      fromChain: 1, // Default source to Ethereum mainnet
+      toChain: FLOW_CHAIN_ID,
+      toToken: FLOW_USDC,
+      toAddress: address
+        ? { address, chainType: ChainType.EVM, name: 'Connected Wallet' }
+        : undefined,
+      appearance: 'light',
+      apiKey: import.meta.env.VITE_LIFI_API_KEY,
+      fee: 0.005,
+      hiddenUI: ['poweredBy', 'contactSupport'],
+      disabledUI: ['toToken', 'toAddress'],
+      walletConfig: {
+        onConnect() {
+          openConnectModal?.()
+        },
+      },
+      theme: {
+        container: {
+          border: 'none',
+          borderRadius: '0px',
+          boxShadow: 'none',
+          background: 'transparent',
+        },
+        palette: {
+          primary: { main: '#0052FF' },
+          secondary: { main: '#f5f5f7' },
+          background: {
+            default: '#ffffff',
+            paper: '#f5f5f7',
+          },
+          text: {
+            primary: '#1D1D1F',
+            secondary: '#86868B',
+          },
+        },
+        shape: { borderRadius: 10, borderRadiusSecondary: 8 },
+        typography: {
+          fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
+          fontSize: 14,
+        },
+        components: {
+          MuiCard: {
+            styleOverrides: {
+              root: { padding: '12px 16px' },
+            },
+          },
+          MuiButton: {
+            styleOverrides: {
+              root: { fontSize: '0.875rem', padding: '10px 20px' },
+            },
+          },
+        },
+      },
+    }),
+    [address, openConnectModal],
+  )
 
   return (
     <div className="bridge-page">
-      {/* ── Mobile: Compact balance pill ── */}
-      <div className="bridge-mobile-header md:hidden">
-        <div className="bridge-mobile-balance">
-          <div className="bridge-mobile-balance-left">
-            <span className="bridge-mobile-balance-label">Arc Balance</span>
-            <span className="bridge-mobile-balance-value">{formatBalance(balance)} USDC</span>
+      {/* ── Step indicators ── */}
+      <div className="bridge-steps">
+        {STEPS.map((step, i) => (
+          <div key={i} className="bridge-step">
+            <step.icon className={`h-3.5 w-3.5 ${step.iconColor}`} />
+            <span>{step.title}</span>
+            {i < STEPS.length - 1 && <div className="bridge-step-connector" />}
           </div>
-          <button onClick={handleCopy} className="bridge-mobile-copy">
-            <span className="bridge-mobile-address">{account?.address?.slice(0, 6)}...{account?.address?.slice(-4)}</span>
-            {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-          </button>
-        </div>
+        ))}
       </div>
 
-      <div className="bridge-layout">
-        {/* Main card */}
-        <div className="bridge-main">
-          {account?.address && (
-            <FundWalletCard
-              destinationAddress={account.address}
-              onSuccess={fetchBalance}
-            />
-          )}
-
-          {/* ── Mobile: Expandable info section ── */}
-          <div className="bridge-mobile-info md:hidden">
-            <button
-              onClick={() => setShowInfo(!showInfo)}
-              className="bridge-mobile-info-toggle"
-            >
-              <span>How it works & supported networks</span>
-              {showInfo ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-
-            {showInfo && (
-              <div className="bridge-mobile-info-content">
-                {/* Steps */}
-                <div className="bridge-mobile-steps">
-                  <div className="bridge-mobile-step">
-                    <div className="bridge-mobile-step-num">1</div>
-                    <div>
-                      <span className="bridge-mobile-step-title">Connect</span>
-                      <span className="bridge-mobile-step-desc">Link browser wallet</span>
-                    </div>
-                  </div>
-                  <div className="bridge-mobile-step">
-                    <div className="bridge-mobile-step-num">2</div>
-                    <div>
-                      <span className="bridge-mobile-step-title">Select</span>
-                      <span className="bridge-mobile-step-desc">Choose source chain</span>
-                    </div>
-                  </div>
-                  <div className="bridge-mobile-step">
-                    <div className="bridge-mobile-step-num">3</div>
-                    <div>
-                      <span className="bridge-mobile-step-title">Transfer</span>
-                      <span className="bridge-mobile-step-desc">Instant via Gateway</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Networks */}
-                <div className="bridge-mobile-networks">
-                  <div className="bridge-mobile-network">
-                    <span className="bridge-mobile-network-dot" style={{ background: '#627EEA' }} />
-                    Ethereum
-                  </div>
-                  <div className="bridge-mobile-network">
-                    <span className="bridge-mobile-network-dot" style={{ background: '#E84142' }} />
-                    Avalanche
-                  </div>
-                  <div className="bridge-mobile-network">
-                    <span className="bridge-mobile-network-dot" style={{ background: '#0052FF' }} />
-                    Base
-                  </div>
-                  <div className="bridge-mobile-network">
-                    <span className="bridge-mobile-network-dot" style={{ background: '#19FB9B' }} />
-                    Sonic
-                  </div>
-                  <div className="bridge-mobile-network">
-                    <span className="bridge-mobile-network-dot" style={{ background: '#000' }} />
-                    World Chain
-                  </div>
-                  <div className="bridge-mobile-network">
-                    <span className="bridge-mobile-network-dot" style={{ background: '#9B1C1C' }} />
-                    Sei
-                  </div>
-                </div>
-
-                <a
-                  href="https://faucet.circle.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bridge-mobile-faucet"
-                >
-                  Need testnet USDC? <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            )}
-          </div>
-
-          {/* ── Mobile: Gateway badge (always visible) ── */}
-          <div className="bridge-mobile-gateway md:hidden">
-            <svg viewBox="0 0 24 24" fill="none" className="bridge-mobile-gateway-icon">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M8 12h8M12 8l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="bridge-mobile-gateway-text">Powered by <strong>Circle Gateway</strong></span>
+      <div className="bridge-center">
+        {/* ── Widget ── */}
+        <div className="bridge-widget-card">
+          <div ref={widgetRef} className="bridge-widget-wrap">
+            <LiFiWidget {...widgetConfig} />
           </div>
         </div>
 
-        {/* ── Desktop: Sidebar ── */}
-        <div className="bridge-sidebar hidden md:flex">
-          {/* Arc Balance */}
-          <div className="bridge-balance">
-            <div className="bridge-balance-row">
-              <span className="bridge-balance-label">Arc Balance</span>
-              <div className="bridge-balance-amount">
-                <span className="bridge-balance-value">{formatBalance(balance)}</span>
-                <span className="bridge-balance-unit">USDC</span>
-              </div>
-            </div>
-            <button onClick={handleCopy} className="bridge-address-btn">
-              <span>{account?.address?.slice(0, 6)}...{account?.address?.slice(-4)}</span>
-              {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-            </button>
+        {/* ── Footer ── */}
+        <div className="bridge-footer">
+          <div className="bridge-chains">
+            <span className="text-[11px] font-medium text-muted-foreground/70 mr-1 whitespace-nowrap">30+ chains</span>
+            <span className="bridge-chain-divider" />
+            {CHAINS.map((name) => (
+              <span key={name} className="text-[11px] text-muted-foreground/50 font-medium whitespace-nowrap">
+                {name}
+              </span>
+            ))}
           </div>
-
-          {/* How it works */}
-          <div className="bridge-section">
-            <div className="bridge-section-title">How it works</div>
-            <div className="bridge-steps">
-              <div className="bridge-step">
-                <div className="bridge-step-num">1</div>
-                <div className="bridge-step-text">
-                  <div className="bridge-step-title">Connect</div>
-                  <div className="bridge-step-desc">Link browser wallet</div>
-                </div>
-              </div>
-              <div className="bridge-step">
-                <div className="bridge-step-num">2</div>
-                <div className="bridge-step-text">
-                  <div className="bridge-step-title">Select</div>
-                  <div className="bridge-step-desc">Choose source chain</div>
-                </div>
-              </div>
-              <div className="bridge-step">
-                <div className="bridge-step-num">3</div>
-                <div className="bridge-step-text">
-                  <div className="bridge-step-title">Transfer</div>
-                  <div className="bridge-step-desc">Instant via Gateway</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Supported chains */}
-          <div className="bridge-section">
-            <div className="bridge-section-title">Supported Networks</div>
-            <div className="bridge-networks bridge-networks--grid">
-              <div className="bridge-network">
-                <span className="bridge-network-dot" style={{ background: '#627EEA' }} />
-                Ethereum
-              </div>
-              <div className="bridge-network">
-                <span className="bridge-network-dot" style={{ background: '#E84142' }} />
-                Avalanche
-              </div>
-              <div className="bridge-network">
-                <span className="bridge-network-dot" style={{ background: '#0052FF' }} />
-                Base
-              </div>
-              <div className="bridge-network">
-                <span className="bridge-network-dot" style={{ background: '#19FB9B' }} />
-                Sonic
-              </div>
-              <div className="bridge-network">
-                <span className="bridge-network-dot" style={{ background: '#000' }} />
-                World Chain
-              </div>
-              <div className="bridge-network">
-                <span className="bridge-network-dot" style={{ background: '#9B1C1C' }} />
-                Sei
-              </div>
-              <div className="bridge-network">
-                <span className="bridge-network-dot" style={{ background: '#50E2C1' }} />
-                HyperEVM
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/40">
+            <span>Powered by</span>
             <a
-              href="https://faucet.circle.com"
+              href="https://li.fi"
               target="_blank"
-              rel="noreferrer"
-              className="bridge-faucet-link"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 font-semibold text-muted-foreground/50 hover:text-muted-foreground transition-colors"
             >
-              Need testnet USDC? <ExternalLink className="h-3 w-3" />
+              LI.FI
+              <ExternalLink className="h-2.5 w-2.5" />
             </a>
-          </div>
-
-          {/* Gateway badge */}
-          <div className="bridge-cctp">
-            <svg viewBox="0 0 24 24" fill="none" className="bridge-cctp-icon">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M8 12h8M12 8l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <div className="bridge-cctp-text">
-              <span className="bridge-cctp-label">Powered by</span>
-              <span className="bridge-cctp-name">Circle Gateway</span>
-            </div>
           </div>
         </div>
       </div>

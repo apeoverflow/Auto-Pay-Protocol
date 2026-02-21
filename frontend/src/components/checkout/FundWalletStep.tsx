@@ -11,11 +11,11 @@ interface FundWalletStepProps {
 }
 
 export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunded }: FundWalletStepProps) {
-  const { account, balance, fetchBalance } = useWallet()
+  const { address, balance, fetchBalance } = useWallet()
   const [copied, setCopied] = React.useState(false)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
 
-  const walletAddress = account?.address ?? ''
+  const walletAddress = address ?? ''
   const currentBalance = parseFloat(balance ?? '0')
   const subscriptionAmount = parseFloat(requiredAmount)
   const totalNeeded = subscriptionAmount + gasEstimate
@@ -174,8 +174,8 @@ export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunde
         </button>
       </div>
 
-      {/* Tip */}
-      <div className="rounded-lg bg-muted/50 px-3.5 py-2.5 mb-5 text-[11px] text-muted-foreground">
+      {/* Tip — hidden for now (was Arc Testnet faucet instructions) */}
+      <div className="hidden rounded-lg bg-muted/50 px-3.5 py-2.5 mb-5 text-[11px] text-muted-foreground">
         <span className="font-medium text-foreground">Tip:</span> Get testnet USDC from the Circle faucet, then send to your address above on <span className="font-medium text-foreground">Arc Testnet</span>. Balance updates automatically.
       </div>
 

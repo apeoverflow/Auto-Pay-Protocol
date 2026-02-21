@@ -143,13 +143,13 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
 }
 
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
-  const { account } = useWallet()
+  const { address } = useWallet()
   const [copied, setCopied] = React.useState(false)
   const [sendOpen, setSendOpen] = React.useState(false)
 
   const handleCopy = () => {
-    if (account?.address) {
-      navigator.clipboard.writeText(account.address)
+    if (address) {
+      navigator.clipboard.writeText(address)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -159,7 +159,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     <div className="flex flex-col gap-3 md:h-full md:gap-6">
       {/* Stats Overview — hero card includes address + send on mobile */}
       <StatsOverview
-        address={account?.address}
+        address={address}
         copied={copied}
         onCopy={handleCopy}
         onSend={() => setSendOpen(true)}

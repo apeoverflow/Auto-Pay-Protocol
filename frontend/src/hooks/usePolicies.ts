@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { parseAbiItem, type Log } from 'viem'
-import { useWallet } from '../contexts/WalletContext'
+import { useAccount } from 'wagmi'
 import { useChain } from '../contexts/ChainContext'
-import { ArcPolicyManagerAbi } from '../config/deployments'
+import { PolicyManagerAbi } from '../config/deployments'
 import { fetchPoliciesFromDb, type DbPolicy } from '../lib/supabase'
 import type { OnChainPolicy } from '../types/policy'
 
@@ -67,7 +67,7 @@ async function fetchPolicyFromContract(
 ): Promise<OnChainPolicy> {
   const policyData = await publicClient.readContract({
     address: policyManagerAddress,
-    abi: ArcPolicyManagerAbi,
+    abi: PolicyManagerAbi,
     functionName: 'policies',
     args: [policyId],
   })
@@ -126,7 +126,7 @@ function notifyPolicyUpdate(policy: OnChainPolicy) {
 }
 
 export function usePolicies(): UsePoliciesReturn {
-  const { account } = useWallet()
+  const { address } = useAccount()
   const { publicClient, chainConfig } = useChain()
 
   const [policies, setPolicies] = React.useState<OnChainPolicy[]>([])
@@ -150,7 +150,7 @@ export function usePolicies(): UsePoliciesReturn {
   }, [])
 
   const fetchPolicies = React.useCallback(async () => {
-    if (!account?.address || !chainConfig.policyManager) {
+    if (!address || !chainConfig.policyManager) {
       setPolicies([])
       setDataSource(null)
       return
@@ -162,7 +162,7 @@ export function usePolicies(): UsePoliciesReturn {
     try {
       // Try Supabase first (full indexed history)
       const dbPolicies = await fetchPoliciesFromDb(
-        account.address,
+        address,
         chainConfig.chain.id
       )
 
@@ -193,7 +193,7 @@ export function usePolicies(): UsePoliciesReturn {
       const logs = await publicClient.getLogs({
         address: chainConfig.policyManager,
         event: PolicyCreatedEvent,
-        args: { payer: account.address },
+        args: { payer: address },
         fromBlock,
         toBlock: currentBlock,
       }) as unknown as PolicyCreatedLog[]
@@ -215,7 +215,7 @@ export function usePolicies(): UsePoliciesReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [publicClient, account?.address, chainConfig.policyManager, chainConfig.chain.id])
+  }, [publicClient, address, chainConfig.policyManager, chainConfig.chain.id])
 
   // Refresh a policy by fetching latest state from contract
   // If policy doesn't exist in state, it will be added
