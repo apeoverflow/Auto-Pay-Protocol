@@ -5,25 +5,35 @@ import type { ChainConfig } from './types.js'
 
 // Chain configurations with deployment addresses
 export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
-  arcTestnet: {
-    chainId: 5042002,
-    name: 'Arc Testnet',
-    rpcUrl: process.env.ARC_TESTNET_RPC || 'https://rpc.testnet.arc.network',
-    policyManagerAddress: '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1' as `0x${string}`,
-    startBlock: 26573469,
+  flowEvm: {
+    chainId: 747,
+    name: 'Flow EVM',
+    rpcUrl: process.env.FLOW_EVM_RPC || 'https://mainnet.evm.nodes.onflow.org',
+    policyManagerAddress: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345' as `0x${string}`,
+    startBlock: 56881090,
     pollIntervalMs: 15000,
     batchSize: 9000,
     confirmations: 2,
     enabled: true,
-    minGasFees: {
-      maxPriorityFeePerGas: 1000000000n,
-      maxFeePerGas: 50000000000n,
-    },
   }
 } as const
 
 // Deployment metadata
 export const DEPLOYMENTS = {
+  "747": {
+    "chainId": 747,
+    "chainName": "flowEvm",
+    "deployedAt": "2026-02-20T23:04:32Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 56881090,
+    "contracts": {
+      "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+    },
+    "addresses": {
+      "usdc": "0xF1815bd50389c46847f0Bda824eC8da914045D14",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
   "5042002": {
     "chainId": 5042002,
     "chainName": "arcTestnet",
