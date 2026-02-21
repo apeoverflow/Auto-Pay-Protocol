@@ -13,8 +13,8 @@ const MERCHANT_ADDRESS = process.env.MERCHANT_ADDRESS || '0x2B8b9182c1c3A9bEf4a6
 const CHECKOUT_URL = process.env.CHECKOUT_URL || 'http://localhost:5173/checkout'
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
 const RELAYER_URL = process.env.RELAYER_URL || 'http://localhost:3420'
-const ARC_RPC = process.env.ARC_RPC || 'https://rpc.testnet.arc.network'
-const POLICY_MANAGER = '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1'
+const RPC_URL = process.env.RPC_URL || 'https://mainnet.evm.nodes.onflow.org'
+const POLICY_MANAGER = process.env.POLICY_MANAGER || '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345'
 
 // Supabase connection (same DB as relayer, merchant tables)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jlafnlrurqqalgvxshgz.supabase.co'
@@ -79,7 +79,7 @@ app.post('/api/claim-policy', verifyAuth, async (req, res) => {
   // Verify the transaction on-chain first
   if (tx_hash) {
     try {
-      const rpcRes = await fetch(ARC_RPC, {
+      const rpcRes = await fetch(RPC_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -475,7 +475,7 @@ app.get('/api/verify-policy', async (req, res) => {
   }
 
   try {
-    const rpcRes = await fetch(ARC_RPC, {
+    const rpcRes = await fetch(RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
