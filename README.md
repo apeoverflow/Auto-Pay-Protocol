@@ -4,15 +4,14 @@
 
 **Non-custodial crypto subscription payments. 50% cheaper than Stripe.**
 
-AutoPay is a decentralized subscription payment protocol built on USDC. Users maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Users fund their wallet from 12+ chains via Circle Gateway, and all payments settle on Arc, where merchants receive funds.
+AutoPay is a decentralized subscription payment protocol built on USDC. Users maintain full custody of their funds while enabling merchants to collect recurring payments automatically. All payments settle on Flow EVM, where merchants receive funds.
 
 ## Features
 
 - **Non-Custodial**: Funds stay in user wallets until charged. No intermediary custody.
 - **Policy-Based**: Users set spending limits, intervals, and caps. Full control.
-- **Multi-Chain**: Fund from 12+ chains via Circle Gateway. All settlements on Arc.
+- **Multi-Chain Funding**: Bridge USDC from any chain via LiFi. All settlements on Flow EVM.
 - **Simple UX**: Users only need USDC. No complex token management.
-- **Passkey Auth**: Circle Modular Wallets enable passwordless, seedless onboarding.
 - **Low Fees**: 2.5% protocol fee vs 5%+ for traditional processors.
 
 ## How It Works
@@ -22,21 +21,21 @@ AutoPay is a decentralized subscription payment protocol built on USDC. Users ma
 │                         USER FLOW                               │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  1. User connects wallet (Circle Modular Wallet)                │
-│  2. User funds wallet from any chain via Circle Gateway         │
-│  3. User approves USDC to PolicyManager on Arc                  │
+│  1. User connects wallet (MetaMask, Rabby, etc.)                │
+│  2. User bridges USDC to Flow EVM (if needed)                   │
+│  3. User approves USDC to PolicyManager on Flow EVM             │
 │  4. User creates policy (merchant, amount, interval, cap)       │
 │  5. Relayer calls charge() when payment is due                  │
 │                                                                 │
-│  ┌──────────┐     ┌─────────┐     ┌───────────────┐            │
-│  │  Payer   │────►│ Gateway │────►│ PolicyManager │            │
-│  │(any chain)│     │         │     │    (Arc)      │            │
-│  └──────────┘     └─────────┘     └───────┬───────┘            │
-│                                           │                     │
-│                                           ▼                     │
+│  ┌────────────┐     ┌─────────┐     ┌───────────────┐           │
+│  │  Payer     │────►│  Bridge │────►│ PolicyManager │           │
+│  │(any chain) │     │  (LiFi) │     │  (Flow EVM)   │           │
+│  └────────────┘     └─────────┘     └───────┬───────┘           │
+│                                             │                   │
+│                                             ▼                   │
 │                                    ┌──────────────┐             │
 │                                    │   Merchant   │             │
-│                                    │    (Arc)     │             │
+│                                    │  (Flow EVM)  │             │
 │                                    └──────────────┘             │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -47,10 +46,10 @@ AutoPay is a decentralized subscription payment protocol built on USDC. Users ma
 | Layer | Technology |
 |-------|------------|
 | Smart Contracts | Solidity 0.8.20+, Foundry, OpenZeppelin |
-| Frontend | React, Next.js, viem, wagmi, Tailwind CSS |
-| Wallets | Circle Modular Wallets (passkey auth) |
-| Cross-Chain | Circle Gateway (12+ chains) |
+| Frontend | React, viem, wagmi, RainbowKit, Tailwind CSS |
+| Cross-Chain | LiFi bridge widget |
 | Relayer | Node.js, TypeScript, PostgreSQL |
+| Settlement | Flow EVM Mainnet (Chain ID: 747) |
 
 ## Project Structure
 
@@ -59,24 +58,24 @@ Auto-Pay-Protocol/
 ├── contracts/           # Solidity smart contracts (Foundry)
 │   ├── src/            # Contract source files
 │   ├── test/           # Contract tests
-│   └── script/         # Deployment scripts
-├── frontend/           # React/Next.js application
+│   ├── script/         # Deployment scripts
+│   └── deployments/    # Deployment addresses per chain
+├── frontend/           # React application
 │   └── src/
 │       ├── components/ # UI components
-│       ├── contexts/   # Auth & wallet state
+│       ├── contexts/   # Auth, wallet & chain state
 │       └── hooks/      # Contract interaction hooks
 ├── relayer/            # Off-chain charge automation
 │   └── src/
 │       ├── indexer/    # Event indexing from chains
 │       ├── executor/   # Charge execution logic
 │       ├── webhooks/   # Merchant notifications
-│       ├── api/        # Health check endpoint
+│       ├── api/        # Health & metadata endpoints
 │       └── db/         # Postgres client & queries
 ├── packages/
 │   └── sdk/            # Merchant SDK (@autopayprotocol/sdk)
 ├── examples/
-│   ├── merchant-checkout/  # Example merchant checkout integration
-│   └── webhook-receiver/   # Example webhook handler
+│   └── merchant-checkout/  # Example merchant integration
 └── docs/               # Architecture & integration docs
 ```
 
@@ -85,60 +84,55 @@ Auto-Pay-Protocol/
 ### Smart Contracts
 
 ```bash
-# Install Foundry
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-
-# Navigate to contracts
 cd contracts
-
-# Install dependencies
 forge install
-
-# Run tests
-forge test
-
-# Deploy to testnet
-forge script script/Deploy.s.sol \
-  --rpc-url $RPC_URL \
-  --private-key $DEPLOYER_KEY \
-  --broadcast
+forge test          # Run all tests
+make deploy         # Deploy to chain configured in .env
+make sync           # Sync addresses + ABIs to frontend & relayer
 ```
 
 ### Frontend
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Set environment variables
-cp .env.example .env.local
-# Edit .env.local with your keys
-
-# Run development server
-npm run dev
+npm run dev         # http://localhost:5173
 ```
 
 ### Relayer
 
 ```bash
 cd relayer
-
-# Install dependencies
 npm install
-
-# Run with managed postgres (supabase, neon, etc.)
-DATABASE_URL=postgres://... RELAYER_PRIVATE_KEY=0x... npm run start
-
-# Or use docker compose (includes postgres)
-docker compose up -d
+npm run dev         # Starts indexer + executor + API on :3420
 ```
+
+### Merchant Server (Example)
+
+```bash
+cd examples/merchant-checkout/merchant-server
+npm install
+node server.js      # http://localhost:3002
+```
+
+### Local End-to-End Test
+
+Run all three in separate terminals, then visit `http://localhost:3002` to test the full checkout flow.
+
+## Environment Variables
+
+Each project has an `ENV.md` with the full list of variables, descriptions, and per-environment examples:
+
+| Project | ENV Reference |
+|---------|---------------|
+| Contracts | [`contracts/ENV.md`](./contracts/ENV.md) |
+| Frontend | [`frontend/ENV.md`](./frontend/ENV.md) |
+| Relayer | [`relayer/ENV.md`](./relayer/ENV.md) |
+| Merchant Server | [`examples/merchant-checkout/merchant-server/ENV.md`](./examples/merchant-checkout/merchant-server/ENV.md) |
 
 ## Smart Contract Interface
 
-### ArcPolicyManager.sol (Arc Testnet)
+### PolicyManager.sol (Flow EVM)
 
 ```solidity
 // Create a subscription policy (first charge happens immediately)
@@ -163,53 +157,29 @@ function canCharge(bytes32 policyId) external view returns (bool, string memory)
 function cancelFailedPolicy(bytes32 policyId) external;
 ```
 
-## Testnet Addresses
+## Contract Addresses
 
-| Chain | USDC | ArcPolicyManager |
-|-------|------|------------------|
-| Arc Testnet | `0x3600000000000000000000000000000000000000` | `0x0a681aC070ef81afb1c888D3370246633aE46A27` |
+| Chain | Chain ID | USDC | PolicyManager |
+|-------|----------|------|---------------|
+| Flow EVM Mainnet | 747 | `0xF1815bd50389c46847f0Bda824eC8da914045D14` | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
 
-Users fund their Arc wallet from 12+ chains via [Circle Gateway](https://developers.circle.com/gateway). All subscriptions and charges happen natively on Arc.
 
-## Environment Variables
-
-### Frontend
-
-```env
-VITE_CLIENT_KEY=<circle-client-key>
-VITE_CLIENT_URL=https://modular-sdk.circle.com/v1/rpc/w3s/buidl
-VITE_POLICY_MANAGER_ARC=0x0a681aC070ef81afb1c888D3370246633aE46A27
-```
-
-### Relayer
-
-```env
-DATABASE_URL=postgres://user:pass@host:5432/autopay
-RELAYER_PRIVATE_KEY=0x...
-ARC_TESTNET_RPC=https://rpc-testnet.arc.network
-```
-
-## Documentation
-
-- [Product Requirements (PRD)](./docs/PRD.md)
-- [Smart Contract Specification](./docs/SMART_CONTRACTS.md)
-- [Relayer Architecture](./docs/RELAYER.md)
-- [Merchant Integration Guide](./docs/MERCHANT_INTEGRATION.md)
-- [SDK Documentation](./docs/SDK.md)
-- [Business Plan](./docs/BUSINESS_PLAN.md)
 
 ## Roadmap
 
 - [x] Product requirements & architecture
-- [x] Smart contract design
-- [x] Smart contract implementation (ArcPolicyManager)
-- [x] Contract deployed to Arc Testnet
-- [x] Frontend with Circle Modular Wallets
-- [x] Circle Gateway cross-chain funding (12+ chains)
+- [x] Smart contract design & implementation
+- [x] Contract deployed to Flow EVM Mainnet
+- [x] Frontend with RainbowKit wallet connection
+- [x] LiFi cross-chain bridge integration
 - [x] Relayer implementation (indexer, executor, webhooks)
 - [x] Merchant SDK (`@autopayprotocol/sdk`)
-- [x] End-to-end testing
-- [ ] Mainnet launch
+- [x] End-to-end local testing
+- [x] Production relayer deployment
+- [ ] Merchant Dashboard
+- [ ] Merchant IPFS Metadata / Assets
+- [ ] Merchant Filecoin encrypted reciept and accounting record data 
+- [ ] Merchant onboarding
 
 ## Interested in Integrating?
 
