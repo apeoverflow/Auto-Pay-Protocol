@@ -188,7 +188,7 @@ AutoPay is designed with subscriber protection as a priority:
 
 ### vs. Crypto Subscription Protocols
 
-| Feature | AutoPay | BoomFi | Loop Crypto* |
+| Feature | AutoPay | BoomFi | Loop Crypto 💀 |
 |---------|:-------:|:------:|:------------:|
 | Payment model | Discrete charges | Discrete charges | Discrete charges |
 | On-chain rules (caps, intervals) | ✅ | ❌ | ❌ |
