@@ -100,13 +100,38 @@ export async function chargePolicy(
   )
 
   if (!canChargeResult.canCharge) {
+    // Timing race — DB says due but on-chain interval hasn't elapsed yet. Skip silently.
+    if (canChargeResult.reason.includes('Too soon')) {
+      logger.debug({ policyId, reason: canChargeResult.reason }, 'Not yet due on-chain, skipping')
+      return {
+        success: false,
+        skipped: true,
+        policyId,
+        error: canChargeResult.reason,
+      }
+    }
+
     // Balance/allowance issues are soft-fails — track them for auto-cancellation
-    const isBalanceOrAllowanceIssue = canChargeResult.reason.includes('Insufficient')
-    if (isBalanceOrAllowanceIssue) {
+    if (canChargeResult.reason.includes('Insufficient')) {
       logger.info({ policyId, reason: canChargeResult.reason }, 'Pre-check soft-fail (balance/allowance)')
       return {
         success: false,
         softFailed: true,
+        policyId,
+        error: canChargeResult.reason,
+      }
+    }
+
+    // Terminal conditions — policy can never be charged again
+    const isTerminal =
+      canChargeResult.reason.includes('Spending cap exceeded') ||
+      canChargeResult.reason.includes('not active') ||
+      canChargeResult.reason.includes('Max consecutive failures')
+    if (isTerminal) {
+      logger.info({ policyId, reason: canChargeResult.reason }, 'Policy is permanently unchargeable')
+      return {
+        success: false,
+        terminal: true,
         policyId,
         error: canChargeResult.reason,
       }

@@ -154,6 +154,8 @@ CREATE TABLE policies (
   charge_count INTEGER DEFAULT 0,
   active BOOLEAN DEFAULT true,
   metadata_url TEXT,
+  plan_id TEXT,                      -- Soft FK to plan_metadata (extracted from metadata_url)
+  plan_merchant TEXT,                -- Merchant address from metadata_url
   created_at TIMESTAMPTZ NOT NULL,
   ended_at TIMESTAMPTZ,
   created_block BIGINT NOT NULL,
@@ -284,14 +286,18 @@ LIMIT 10;
 1. Find due policies (batch of 10)
 2. For each policy:
    a. Create charge record (status: pending)
-   b. Call canCharge() on-chain
-   c. If cannot charge → mark failed, queue webhook
-   d. Simulate transaction
-   e. Execute with Arc gas settings
-   f. Wait for receipt
-   g. Parse ChargeSucceeded event
-   h. Update policy: last_charged_at, next_charge_at, total_spent
-   i. Mark charge success, queue webhook
+   b. Call canCharge() on-chain — classifies result:
+      - Skipped ("Too soon")       → delete charge record, move on
+      - Soft-fail (balance/allowance) → increment failures, webhook: charge.failed
+      - Terminal (spending cap)     → mark completed, webhook: policy.completed
+      - Terminal (max failures)     → mark cancelled, webhook: policy.cancelled_by_failure
+      - Terminal (not active)       → sync DB only (indexer handles webhook)
+      - Chargeable                  → proceed to step c
+   c. Simulate then execute charge() transaction
+   d. Wait for receipt, parse ChargeSucceeded vs ChargeFailed events
+   e. Success: update policy state, reset failures, webhook: charge.succeeded
+   f. Soft-fail: same as pre-check soft-fail (with txHash)
+   g. Hard failure: retry if retryable (network/timeout/nonce)
 3. Repeat every 60s
 ```
 
@@ -300,6 +306,7 @@ LIMIT 10;
 - Backoff: 1min → 5min → 15min
 - Retryable errors: network, timeout, nonce
 - Non-retryable: reverts, business logic failures
+- Terminal states (spending cap, not active, max failures) stop processing immediately — no retries
 
 ---
 
@@ -310,9 +317,11 @@ LIMIT 10;
 | Event | When |
 |-------|------|
 | `charge.succeeded` | Payment collected |
-| `charge.failed` | Payment failed |
+| `charge.failed` | Payment failed (balance/allowance) |
 | `policy.created` | New subscription |
-| `policy.revoked` | Subscription cancelled |
+| `policy.revoked` | Subscription cancelled by user |
+| `policy.cancelled_by_failure` | Auto-cancelled after consecutive charge failures |
+| `policy.completed` | Spending cap reached (natural end) |
 
 **Payload Format:**
 ```json
@@ -482,6 +491,11 @@ async function markWebhookFailed(id: number, error: string): Promise<void>
 | `relayer charge <policyId>` | Manually charge a policy |
 | `relayer backfill --from-block` | Backfill events from block |
 | `relayer status` | Show relayer status |
+| `relayer metadata:add` | Register plan metadata |
+| `relayer metadata:list` | List all plan metadata |
+| `relayer metadata:get` | Get plan metadata (supports `--merchant`) |
+| `relayer metadata:delete` | Delete plan metadata (supports `--merchant`) |
+| `relayer metadata:upload-ipfs` | Upload active plans to IPFS |
 
 ---
 

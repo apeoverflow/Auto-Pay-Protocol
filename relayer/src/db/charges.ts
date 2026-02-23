@@ -65,6 +65,19 @@ export async function markChargeFailed(
   logger.debug({ chargeId, errorMessage }, 'Marked charge as failed')
 }
 
+export async function deleteChargeRecord(
+  databaseUrl: string,
+  chargeId: number
+) {
+  const db = getDb(databaseUrl)
+
+  await db`
+    DELETE FROM charges WHERE id = ${chargeId}
+  `
+
+  logger.debug({ chargeId }, 'Deleted charge record')
+}
+
 export async function incrementChargeAttempt(
   databaseUrl: string,
   chargeId: number

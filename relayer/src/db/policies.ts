@@ -4,6 +4,21 @@ import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('db:policies')
 
+/**
+ * Extract plan_id and plan_merchant from a metadata URL if it matches
+ * the relayer's URL pattern. Returns null for external/unrecognized URLs.
+ */
+function extractPlanRef(metadataUrl: string | null): { planId: string; planMerchant: string } | null {
+  if (!metadataUrl) return null
+  // New format: /metadata/0xABC.../pro-plan
+  const newMatch = metadataUrl.match(/\/metadata\/(0x[a-fA-F0-9]{40})\/([^/?#]+)$/)
+  if (newMatch) return { planMerchant: newMatch[1].toLowerCase(), planId: newMatch[2] }
+  // Legacy format: /metadata/pro-plan (merchant unknown in URL)
+  const legacyMatch = metadataUrl.match(/\/metadata\/([^/?#]+)$/)
+  if (legacyMatch) return { planMerchant: '', planId: legacyMatch[1] }
+  return null
+}
+
 export async function insertPolicy(
   databaseUrl: string,
   chainId: number,
@@ -16,11 +31,15 @@ export async function insertPolicy(
   // First charge happens immediately on createPolicy, so next charge is interval after creation
   const nextChargeAt = new Date(timestamp.getTime() + event.interval * 1000)
 
+  // Extract plan reference from metadata URL for soft FK lookups
+  const planRef = extractPlanRef(event.metadataUrl || null)
+
   await db`
     INSERT INTO policies (
       id, chain_id, payer, merchant, charge_amount, spending_cap,
       interval_seconds, last_charged_at, next_charge_at, charge_count,
-      total_spent, active, metadata_url, created_at, created_block, created_tx
+      total_spent, active, metadata_url, plan_id, plan_merchant,
+      created_at, created_block, created_tx
     ) VALUES (
       ${event.policyId},
       ${chainId},
@@ -35,6 +54,8 @@ export async function insertPolicy(
       ${event.chargeAmount.toString()},
       ${true},
       ${event.metadataUrl || null},
+      ${planRef?.planId ?? null},
+      ${planRef?.planMerchant ?? null},
       ${timestamp},
       ${Number(event.blockNumber)},
       ${event.transactionHash}
@@ -184,8 +205,13 @@ export async function markPolicyNeedsAttention(
 ) {
   const db = getDb(databaseUrl)
 
-  // For now, just log. Could add a needs_attention column later.
-  logger.warn({ policyId, chainId, reason }, 'Policy needs attention')
+  await db`
+    UPDATE policies
+    SET last_failure_reason = ${reason}
+    WHERE id = ${policyId} AND chain_id = ${chainId}
+  `
+
+  logger.warn({ policyId, chainId, reason }, 'Policy needs attention — hard-fail retries exhausted')
 }
 
 export async function incrementConsecutiveFailures(
@@ -254,4 +280,23 @@ export async function markPolicyCancelledByFailure(
   `
 
   logger.info({ policyId, chainId }, 'Policy cancelled by consecutive failures')
+}
+
+export async function markPolicyCompleted(
+  databaseUrl: string,
+  chainId: number,
+  policyId: string,
+  timestamp: Date
+) {
+  const db = getDb(databaseUrl)
+
+  await db`
+    UPDATE policies
+    SET
+      active = false,
+      ended_at = ${timestamp}
+    WHERE id = ${policyId} AND chain_id = ${chainId}
+  `
+
+  logger.info({ policyId, chainId }, 'Policy completed (spending cap reached)')
 }

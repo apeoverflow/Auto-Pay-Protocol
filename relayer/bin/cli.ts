@@ -35,7 +35,7 @@ program
 program
   .command('index')
   .description('Run the indexer once for a chain')
-  .option('--chain <chain>', 'Chain to index (arcTestnet)', 'arcTestnet')
+  .option('--chain <chain>', 'Chain to index', 'flowEvm')
   .option('--from-block <block>', 'Start from specific block')
   .action(async (options) => {
     const config = loadConfig()
@@ -84,7 +84,7 @@ program
 program
   .command('backfill')
   .description('Backfill events from a specific block')
-  .option('--chain <chain>', 'Chain to backfill', 'arcTestnet')
+  .option('--chain <chain>', 'Chain to backfill', 'flowEvm')
   .requiredOption('--from-block <block>', 'Block to start from')
   .action(async (options) => {
     const config = loadConfig()
@@ -174,6 +174,7 @@ program
   .requiredOption('--id <id>', 'Metadata ID (used in URL: /metadata/<id>)')
   .requiredOption('--merchant <address>', 'Merchant address')
   .requiredOption('--file <path>', 'Path to JSON metadata file')
+  .option('--status <status>', 'Plan status (draft, active, archived)', 'active')
   .action(async (options) => {
     const { readFileSync } = await import('fs')
     const config = loadConfig()
@@ -187,13 +188,14 @@ program
         config.databaseUrl,
         options.id,
         options.merchant,
-        metadata
+        metadata,
+        options.status
       )
 
       console.log(`\n✅ Metadata saved!`)
       console.log(`   ID: ${options.id}`)
       console.log(`   Merchant: ${options.merchant}`)
-      console.log(`   URL: /metadata/${options.id}`)
+      console.log(`   URL: /metadata/${options.merchant.toLowerCase()}/${options.id}`)
       console.log()
     } catch (err) {
       logger.error({ error: err }, 'Failed to add metadata')
@@ -220,7 +222,8 @@ program
         console.log(`ID: ${m.id}`)
         console.log(`  Merchant: ${m.merchant_address}`)
         console.log(`  Plan: ${m.metadata.plan?.name ?? 'N/A'}`)
-        console.log(`  URL: /metadata/${m.id}`)
+        console.log(`  Status: ${m.status}`)
+        console.log(`  URL: /metadata/${m.merchant_address}/${m.id}`)
         console.log(`  Created: ${m.created_at}`)
         console.log()
       }
@@ -231,36 +234,84 @@ program
   .command('metadata:get')
   .description('Get plan metadata by ID')
   .argument('<id>', 'Metadata ID')
-  .action(async (id: string) => {
+  .option('--merchant <address>', 'Merchant address (scoped lookup)')
+  .action(async (id: string, options: { merchant?: string }) => {
     const config = loadConfig()
     const { getPlanMetadata } = await import('../src/db/metadata.js')
 
-    const metadata = await getPlanMetadata(config.databaseUrl, id)
+    const metadata = await getPlanMetadata(config.databaseUrl, id, options.merchant)
 
     if (!metadata) {
-      console.log(`\n❌ Metadata not found: ${id}\n`)
+      console.log(`\n❌ Metadata not found: ${id}${options.merchant ? ` (merchant: ${options.merchant})` : ''}\n`)
       process.exit(1)
     }
 
     console.log('\n=== Plan Metadata ===\n')
+    console.log(`ID: ${metadata.id}`)
+    console.log(`Merchant: ${metadata.merchant_address}`)
+    console.log(`Status: ${metadata.status}`)
+    console.log(`URL: /metadata/${metadata.merchant_address}/${metadata.id}`)
+    console.log()
     console.log(JSON.stringify(metadata.metadata, null, 2))
     console.log()
+  })
+
+program
+  .command('metadata:upload-ipfs')
+  .description('Upload active plan metadata to IPFS via Storacha (backfill missing CIDs)')
+  .option('--id <id>', 'Upload a specific plan only')
+  .action(async (options) => {
+    const config = loadConfig()
+    const { listPlansWithoutIpfsCid } = await import('../src/db/metadata.js')
+    const { uploadPlanToIPFS } = await import('../src/lib/ipfs-upload.js')
+    const { isStorachaEnabled } = await import('../src/lib/storacha.js')
+
+    if (!isStorachaEnabled()) {
+      console.log('\n❌ Storacha not configured. Set STORACHA_PRINCIPAL_KEY and STORACHA_DELEGATION_PROOF.\n')
+      process.exit(1)
+    }
+
+    const plans = await listPlansWithoutIpfsCid(config.databaseUrl, options.id)
+
+    if (plans.length === 0) {
+      console.log('\n✅ No active plans missing IPFS CIDs.\n')
+      return
+    }
+
+    console.log(`\nUploading ${plans.length} plan(s) to IPFS...\n`)
+
+    let success = 0
+    let failed = 0
+
+    for (const plan of plans) {
+      try {
+        await uploadPlanToIPFS(config.databaseUrl, plan.id, plan.merchant_address, plan.metadata)
+        console.log(`  ✅ ${plan.id}`)
+        success++
+      } catch (err) {
+        console.log(`  ❌ ${plan.id}: ${err instanceof Error ? err.message : String(err)}`)
+        failed++
+      }
+    }
+
+    console.log(`\nDone: ${success} uploaded, ${failed} failed.\n`)
   })
 
 program
   .command('metadata:delete')
   .description('Delete plan metadata')
   .argument('<id>', 'Metadata ID to delete')
-  .action(async (id: string) => {
+  .option('--merchant <address>', 'Merchant address (scoped delete)')
+  .action(async (id: string, options: { merchant?: string }) => {
     const config = loadConfig()
     const { deletePlanMetadata } = await import('../src/db/metadata.js')
 
-    const deleted = await deletePlanMetadata(config.databaseUrl, id)
+    const deleted = await deletePlanMetadata(config.databaseUrl, id, options.merchant)
 
     if (deleted) {
       console.log(`\n✅ Deleted metadata: ${id}\n`)
     } else {
-      console.log(`\n❌ Metadata not found: ${id}\n`)
+      console.log(`\n❌ Metadata not found: ${id}${options.merchant ? ` (merchant: ${options.merchant})` : ''}\n`)
       process.exit(1)
     }
   })

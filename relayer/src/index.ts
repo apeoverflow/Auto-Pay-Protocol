@@ -19,6 +19,11 @@ export async function startRelayer() {
   const account = privateKeyToAccount(config.privateKey)
   logger.info({ wallet: account.address }, 'Relayer wallet')
 
+  // Warn if auth is disabled
+  if (process.env.AUTH_ENABLED !== 'true') {
+    logger.warn('⚠️  AUTH_ENABLED is not set to "true" — all plan write endpoints are OPEN without authentication. Set AUTH_ENABLED=true in production.')
+  }
+
   // Log merchant filter status
   if (config.merchantAddresses) {
     logger.info(

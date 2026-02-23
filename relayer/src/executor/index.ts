@@ -1,8 +1,8 @@
 import type { RelayerConfig, ChainConfig, WebhookPayload } from '../types.js'
 import { chargePolicy, cancelFailedPolicyOnChain } from './charge.js'
-import { shouldRetry, isRetryableError, logRetryDecision } from './retry.js'
-import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures, markPolicyCancelledByFailure, pushNextChargeAt } from '../db/policies.js'
-import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt } from '../db/charges.js'
+import { shouldRetry, isRetryableError, logRetryDecision, getNextRetryDelay } from './retry.js'
+import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures, markPolicyCancelledByFailure, markPolicyCompleted, pushNextChargeAt } from '../db/policies.js'
+import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt, deleteChargeRecord } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { createLogger } from '../utils/logger.js'
 
@@ -97,6 +97,93 @@ async function processChainCharges(
       )
 
       succeeded++
+    } else if (result.skipped) {
+      // Timing race: DB said due but on-chain interval hasn't elapsed.
+      // Clean up the charge record and move on — not an error.
+      await deleteChargeRecord(config.databaseUrl, chargeId)
+
+    } else if (result.terminal) {
+      // Terminal: policy can never be charged again.
+      // Dispatch based on reason for correct DB state and webhook.
+      const reason = result.error ?? ''
+
+      logger.info(
+        { policyId: policy.id, reason },
+        'Policy reached terminal state, deactivating'
+      )
+
+      await markChargeFailed(
+        config.databaseUrl,
+        chargeId,
+        reason || 'Terminal: policy permanently unchargeable',
+        1
+      )
+
+      if (reason.includes('Spending cap exceeded')) {
+        // Natural completion — subscription fulfilled its full cap
+        await markPolicyCompleted(
+          config.databaseUrl,
+          chainConfig.chainId,
+          policy.id,
+          new Date()
+        )
+
+        await queueWebhook(
+          config.databaseUrl,
+          policy.id,
+          'policy.completed',
+          {
+            event: 'policy.completed',
+            timestamp: new Date().toISOString(),
+            data: {
+              policyId: policy.id,
+              chainId: chainConfig.chainId,
+              payer: policy.payer,
+              merchant: policy.merchant,
+              reason,
+            },
+          } as WebhookPayload,
+          chargeId
+        )
+      } else if (reason.includes('Max consecutive failures')) {
+        // Already at max failures on-chain — cancel in DB and notify
+        await markPolicyCancelledByFailure(
+          config.databaseUrl,
+          chainConfig.chainId,
+          policy.id,
+          new Date()
+        )
+
+        await queueWebhook(
+          config.databaseUrl,
+          policy.id,
+          'policy.cancelled_by_failure',
+          {
+            event: 'policy.cancelled_by_failure',
+            timestamp: new Date().toISOString(),
+            data: {
+              policyId: policy.id,
+              chainId: chainConfig.chainId,
+              payer: policy.payer,
+              merchant: policy.merchant,
+              reason,
+            },
+          } as WebhookPayload,
+          chargeId
+        )
+      } else {
+        // "Policy not active" — already revoked on-chain but indexer hasn't caught up.
+        // Just sync DB state. The indexer will process the revocation event with
+        // the correct timestamp and queue the proper webhook.
+        await markPolicyCompleted(
+          config.databaseUrl,
+          chainConfig.chainId,
+          policy.id,
+          new Date()
+        )
+      }
+
+      failed++
     } else if (result.softFailed) {
       // Soft-fail: either an on-chain charge returned false (ChargeFailed event),
       // or canCharge pre-check detected insufficient balance/allowance (no tx sent).
@@ -197,12 +284,15 @@ async function processChainCharges(
 
       logRetryDecision(policy.id, attemptCount, willRetry, result.error, config.retry)
 
-      // Always push next_charge_at forward to prevent re-picking up every run
+      // Push next_charge_at forward using configured retry backoff (not subscription interval)
+      const retryDelayMs = willRetry
+        ? getNextRetryDelay(attemptCount, config.retry)
+        : policy.interval_seconds * 1000 // If not retrying, use full interval
       await pushNextChargeAt(
         config.databaseUrl,
         chainConfig.chainId,
         policy.id,
-        policy.interval_seconds
+        Math.ceil(retryDelayMs / 1000)
       )
 
       if (!willRetry) {

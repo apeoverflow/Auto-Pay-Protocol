@@ -72,6 +72,8 @@ export interface PolicyRow {
   last_failure_reason: string | null
   cancelled_by_failure: boolean
   cancelled_at: Date | null
+  plan_id: string | null
+  plan_merchant: string | null
 }
 
 export interface ChargeRow {
@@ -111,6 +113,12 @@ export interface MerchantRow {
   address: string
   webhook_url: string | null
   webhook_secret: string | null
+  encryption_key: string | null
+  name: string | null
+  website: string | null
+  support_email: string | null
+  profile_cid: string | null
+  registered_at: Date | null
   created_at: Date
 }
 
@@ -122,6 +130,7 @@ export type WebhookEventType =
   | 'policy.created'
   | 'policy.revoked'
   | 'policy.cancelled_by_failure'
+  | 'policy.completed'
 
 export interface WebhookPayload {
   event: WebhookEventType
@@ -198,6 +207,8 @@ export interface PolicyCancelledByFailureEvent {
 export interface ChargeResult {
   success: boolean
   softFailed?: boolean // tx succeeded but charge soft-failed (balance/allowance)
+  terminal?: boolean   // policy permanently unchargeable (e.g. spending cap reached)
+  skipped?: boolean    // not an error — timing race, policy not yet due on-chain
   policyId: string
   txHash?: string
   amount?: string

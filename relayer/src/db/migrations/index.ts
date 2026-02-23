@@ -17,7 +17,7 @@ function loadMigrations(): Migration[] {
   const migrations: Migration[] = []
 
   // Load SQL migration files
-  const files = ['001_initial_schema.sql', '002_metadata.sql', '003_consecutive_failures.sql']
+  const files = ['001_initial_schema.sql', '002_metadata.sql', '003_consecutive_failures.sql', '004_filecoin_storage.sql', '005_plan_status.sql', '006_plan_composite_key.sql']
 
   for (const file of files) {
     const sql = readFileSync(join(__dirname, file), 'utf-8')
