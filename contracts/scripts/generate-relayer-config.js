@@ -4,23 +4,16 @@ const fs = require('fs');
 const path = require('path');
 
 const DEPLOYMENTS_DIR = 'deployments';
+const REGISTRY_FILE = 'chains.json';
 const OUTPUT_FILE = '../relayer/src/contracts.ts';
 
-// Chain configurations for relayer
-const CHAINS = {
-  flowEvm: {
-    chainId: 747,
-    name: 'Flow EVM',
-    rpcUrl: 'https://mainnet.evm.nodes.onflow.org',
-    usdc: '0xF1815bd50389c46847f0Bda824eC8da914045D14',
-    pollIntervalMs: 15000,
-    batchSize: 9000,
-    confirmations: 2,
-  },
-  // Future chains (disabled)
-  // polygonAmoy: { chainId: 80002, ... },
-  // arbitrumSepolia: { chainId: 421614, ... },
-};
+function loadRegistry() {
+  if (!fs.existsSync(REGISTRY_FILE)) {
+    console.error('Error: chains.json not found');
+    process.exit(1);
+  }
+  return JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf8'));
+}
 
 function loadDeployments() {
   const deployments = {};
@@ -40,16 +33,22 @@ function loadDeployments() {
 }
 
 function generate() {
+  const registry = loadRegistry();
   const deployments = loadDeployments();
 
   // Build chain configs with deployment info
   const chainConfigs = {};
 
-  for (const [key, chain] of Object.entries(CHAINS)) {
+  for (const [key, chain] of Object.entries(registry)) {
     const deployment = deployments[chain.chainId];
 
     chainConfigs[key] = {
-      ...chain,
+      chainId: chain.chainId,
+      name: chain.name,
+      rpcUrl: chain.rpcUrl,
+      pollIntervalMs: chain.pollIntervalMs,
+      batchSize: chain.batchSize,
+      confirmations: chain.confirmations,
       policyManagerAddress: deployment?.contracts?.policyManager || null,
       startBlock: deployment?.deployBlock || 0,
       enabled: !!deployment?.contracts?.policyManager,

@@ -12,6 +12,33 @@ YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# If a chain name is provided, resolve config from chains.json
+CHAIN="${1:-}"
+if [ -n "$CHAIN" ]; then
+    REGISTRY="chains.json"
+    if [ ! -f "$REGISTRY" ]; then
+        echo -e "${RED}Error: chains.json not found${NC}"
+        exit 1
+    fi
+
+    CHAIN_DATA=$(jq -r --arg c "$CHAIN" '.[$c] // empty' "$REGISTRY")
+    if [ -z "$CHAIN_DATA" ]; then
+        AVAILABLE=$(jq -r 'keys | join(", ")' "$REGISTRY")
+        echo -e "${RED}Error: Unknown chain '$CHAIN'. Available: $AVAILABLE${NC}"
+        exit 1
+    fi
+
+    RPC_URL=$(echo "$CHAIN_DATA" | jq -r '.rpcUrl')
+    USDC_ADDRESS=$(echo "$CHAIN_DATA" | jq -r '.usdc')
+    CHAIN_NAME="$CHAIN"
+
+    echo -e "${YELLOW}Resolved from chains.json:${NC}"
+    echo -e "  Chain:  $CHAIN_NAME ($(echo "$CHAIN_DATA" | jq -r '.chainId'))"
+    echo -e "  RPC:    $RPC_URL"
+    echo -e "  USDC:   $USDC_ADDRESS"
+    echo ""
+fi
+
 # check required env vars
 if [ -z "$PRIVATE_KEY" ]; then
     echo -e "${RED}Error: PRIVATE_KEY not set${NC}"
@@ -19,7 +46,7 @@ if [ -z "$PRIVATE_KEY" ]; then
 fi
 
 if [ -z "$RPC_URL" ]; then
-    echo -e "${RED}Error: RPC_URL not set${NC}"
+    echo -e "${RED}Error: RPC_URL not set (provide CHAIN arg or set in .env)${NC}"
     exit 1
 fi
 
@@ -29,7 +56,7 @@ if [ -z "$FEE_RECIPIENT" ]; then
 fi
 
 if [ -z "$USDC_ADDRESS" ]; then
-    echo -e "${RED}Error: USDC_ADDRESS not set${NC}"
+    echo -e "${RED}Error: USDC_ADDRESS not set (provide CHAIN arg or set in .env)${NC}"
     exit 1
 fi
 

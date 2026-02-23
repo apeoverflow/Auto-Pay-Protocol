@@ -22,8 +22,26 @@ if [ -z "$DATABASE_URL" ]; then
     echo -e "${YELLOW}Using default DATABASE_URL: $DATABASE_URL${NC}"
 fi
 
-# Get deploy block from deployment file
-CHAIN_ID="${1:-5042002}"
+# Resolve chain ID: accept chain name (from chains.json) or raw chain ID
+ARG="${1:-}"
+if [ -n "$ARG" ]; then
+    REGISTRY="chains.json"
+    if [ -f "$REGISTRY" ]; then
+        # Try as chain name first
+        RESOLVED=$(jq -r --arg c "$ARG" '.[$c].chainId // empty' "$REGISTRY")
+        if [ -n "$RESOLVED" ]; then
+            CHAIN_ID="$RESOLVED"
+        else
+            # Fall back to raw chain ID
+            CHAIN_ID="$ARG"
+        fi
+    else
+        CHAIN_ID="$ARG"
+    fi
+else
+    CHAIN_ID="5042002"
+fi
+
 DEPLOY_FILE="deployments/${CHAIN_ID}.json"
 
 if [ -f "$DEPLOY_FILE" ]; then
@@ -44,7 +62,7 @@ if [ -n "$RELAYER_PIDS" ]; then
     echo -e "${YELLOW}Stopping relayer (PIDs: $RELAYER_PIDS)...${NC}"
     echo "$RELAYER_PIDS" | xargs kill 2>/dev/null || true
     sleep 1
-    echo "  ✓ Relayer stopped"
+    echo "  Relayer stopped"
 fi
 
 echo ""

@@ -1,0 +1,24 @@
+{
+  "flowEvm": {
+    "chainId": 747,
+    "name": "Flow EVM",
+    "rpcUrl": "https://mainnet.evm.nodes.onflow.org",
+    "usdc": "0xF1815bd50389c46847f0Bda824eC8da914045D14",
+    "blockExplorer": "https://evm.flowscan.io",
+    "verifierUrl": "https://evm.flowscan.io/api/",
+    "pollIntervalMs": 15000,
+    "batchSize": 9000,
+    "confirmations": 2
+  },
+  "arcTestnet": {
+    "chainId": 5042002,
+    "name": "Arc Testnet",
+    "rpcUrl": "https://rpc.arc.testnet",
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "blockExplorer": "https://explorer.arc.testnet",
+    "verifierUrl": "https://explorer.arc.testnet/api/",
+    "pollIntervalMs": 10000,
+    "batchSize": 5000,
+    "confirmations": 1
+  }
+}

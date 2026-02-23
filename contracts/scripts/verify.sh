@@ -12,11 +12,33 @@ YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-CHAIN_ID="${1:-747}"
+# If a chain name is provided, resolve config from chains.json
+CHAIN="${1:-}"
+if [ -n "$CHAIN" ]; then
+    REGISTRY="chains.json"
+    if [ ! -f "$REGISTRY" ]; then
+        echo -e "${RED}Error: chains.json not found${NC}"
+        exit 1
+    fi
+
+    CHAIN_DATA=$(jq -r --arg c "$CHAIN" '.[$c] // empty' "$REGISTRY")
+    if [ -z "$CHAIN_DATA" ]; then
+        AVAILABLE=$(jq -r 'keys | join(", ")' "$REGISTRY")
+        echo -e "${RED}Error: Unknown chain '$CHAIN'. Available: $AVAILABLE${NC}"
+        exit 1
+    fi
+
+    CHAIN_ID=$(echo "$CHAIN_DATA" | jq -r '.chainId')
+    VERIFIER_URL=$(echo "$CHAIN_DATA" | jq -r '.verifierUrl')
+    EXPLORER_URL=$(echo "$CHAIN_DATA" | jq -r '.blockExplorer')
+else
+    CHAIN_ID="${CHAIN_ID:-747}"
+fi
+
 DEPLOYMENT_FILE="deployments/${CHAIN_ID}.json"
 
 if [ ! -f "$DEPLOYMENT_FILE" ]; then
-    echo -e "${RED}Error: No deployment found. Run 'make deploy' first.${NC}"
+    echo -e "${RED}Error: No deployment found at ${DEPLOYMENT_FILE}. Run 'make deploy' first.${NC}"
     exit 1
 fi
 
@@ -24,7 +46,13 @@ CONTRACT=$(jq -r '.contracts.policyManager' "$DEPLOYMENT_FILE")
 FEE_RECV=$(jq -r '.addresses.feeRecipient' "$DEPLOYMENT_FILE")
 USDC=$(jq -r '.addresses.usdc' "$DEPLOYMENT_FILE")
 
+if [ -z "$VERIFIER_URL" ]; then
+    echo -e "${RED}Error: VERIFIER_URL not set (provide CHAIN arg or set in .env)${NC}"
+    exit 1
+fi
+
 echo -e "${YELLOW}Verifying PolicyManager on Blockscout...${NC}"
+echo "  Chain ID: $CHAIN_ID"
 echo "  Contract: $CONTRACT"
 echo "  USDC: $USDC"
 echo "  Fee Recipient: $FEE_RECV"
