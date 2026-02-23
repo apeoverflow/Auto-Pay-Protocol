@@ -47,13 +47,27 @@ Go to your relayer service > **Variables** tab > **New Variable**:
 | Variable | Value |
 |----------|-------|
 | `RELAYER_PRIVATE_KEY` | `0xYOUR_PRIVATE_KEY_HERE` |
-| `ARC_TESTNET_RPC` | `https://rpc.testnet.arc.network` |
+| `FLOW_EVM_RPC` | `https://mainnet.evm.nodes.onflow.org` |
 | `PORT` | `3001` |
 | `LOG_LEVEL` | `info` |
 | `RETRY_PRESET` | `standard` |
 | `MERCHANT_ADDRESSES` | *(optional)* Comma-separated merchant addresses |
 
-If using Supabase, also add:
+For IPFS/Filecoin metadata archival (optional):
+
+| Variable | Value |
+|----------|-------|
+| `STORACHA_PRINCIPAL_KEY` | Ed25519 DID key |
+| `STORACHA_DELEGATION_PROOF` | Base64-encoded delegation CAR |
+
+For logo uploads via Supabase Storage (optional):
+
+| Variable | Value |
+|----------|-------|
+| `SUPABASE_URL` | `https://your-project.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_...` |
+
+If using Supabase for database, also add:
 
 | Variable | Value |
 |----------|-------|
@@ -90,7 +104,7 @@ curl https://YOUR-RAILWAY-URL.up.railway.app/health
 
 ### Step 9: Fund Relayer Wallet
 
-Check deployment logs for your wallet address and fund from the Arc Testnet faucet.
+Check deployment logs for your wallet address and fund it with native tokens for gas on the consolidation chain (e.g. FLOW on Flow EVM).
 
 ### Step 10: Run CLI Commands
 
@@ -152,17 +166,17 @@ services:
     environment:
       DATABASE_URL: postgres://autopay:password@db:5432/autopay
       RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY}
-      ARC_TESTNET_RPC: ${ARC_TESTNET_RPC:-https://rpc.testnet.arc.network}
+      FLOW_EVM_RPC: ${FLOW_EVM_RPC:-https://mainnet.evm.nodes.onflow.org}
       PORT: ${PORT:-3001}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       RETRY_PRESET: ${RETRY_PRESET:-standard}
+      # SUPABASE_URL: ${SUPABASE_URL}
+      # SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "3001:3001"
-    volumes:
-      - ./logos:/app/logos
     restart: unless-stopped
 
   db:
@@ -217,7 +231,7 @@ npm run build
 # Set environment
 export DATABASE_URL=postgres://user:pass@your-provider.com:5432/autopay
 export RELAYER_PRIVATE_KEY=0x...
-export ARC_TESTNET_RPC=https://rpc.testnet.arc.network
+export FLOW_EVM_RPC=https://mainnet.evm.nodes.onflow.org
 
 # Run migrations and start
 npm run cli -- db:migrate
@@ -232,12 +246,15 @@ Use a process manager like `pm2` or `systemd` to keep it running.
 
 - [ ] PostgreSQL set up with backups (Supabase, Neon, RDS, or self-hosted)
 - [ ] `RELAYER_PRIVATE_KEY` stored securely (not in plain text env files)
-- [ ] Private/dedicated RPC endpoint configured
+- [ ] Private/dedicated RPC endpoint configured for the consolidation chain
 - [ ] Relayer wallet funded with native tokens for gas
 - [ ] Auto-restart on failure (`restart: unless-stopped` in Docker, or `pm2`/`systemd`)
 - [ ] Health monitoring configured (see below)
 - [ ] Log aggregation set up for debugging
 - [ ] Database migrations applied (`npm run cli -- db:migrate`)
+- [ ] Logo storage configured (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` for logo uploads)
+- [ ] Storacha credentials set (optional, for IPFS metadata archival)
+- [ ] CORS and auth configured for production (`AUTH_ENABLED=true`)
 
 ---
 
@@ -339,7 +356,7 @@ npm start
 ### Relayer Not Indexing
 
 - Check logs for indexer errors
-- Verify `ARC_TESTNET_RPC` is correct and reachable
+- Verify `FLOW_EVM_RPC` is correct and reachable
 - Ensure relayer wallet has gas tokens
 
 ---

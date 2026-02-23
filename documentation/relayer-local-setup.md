@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks you through setting up and running the AutoPay relayer on your local machine for development and testing. The relayer indexes policy events from Arc Testnet, executes charges when subscriptions are due, and sends webhooks to merchants.
+This guide walks you through setting up and running the AutoPay relayer on your local machine for development and testing. The relayer indexes policy events from the consolidation chain (currently Flow EVM), executes charges when subscriptions are due, and sends webhooks to merchants.
 
 ---
 
@@ -10,7 +10,7 @@ This guide walks you through setting up and running the AutoPay relayer on your 
 
 - **Node.js** 20+
 - **Docker** (for PostgreSQL) or a managed Postgres instance
-- **A funded wallet** with native tokens for gas (Arc Testnet)
+- **A funded wallet** with native tokens for gas on the consolidation chain (e.g. FLOW on Flow EVM)
 
 ---
 
@@ -76,17 +76,25 @@ DATABASE_URL=postgres://autopay:password@localhost:5432/autopay
 RELAYER_PRIVATE_KEY=0x...  # Your relayer wallet private key
 
 # Optional
-ARC_TESTNET_RPC=https://rpc.testnet.arc.network
+FLOW_EVM_RPC=https://mainnet.evm.nodes.onflow.org
 PORT=3001
 LOG_LEVEL=info
 RETRY_PRESET=standard
+```
+
+For IPFS metadata archival (optional):
+
+```bash
+# Storacha credentials (IPFS + Filecoin)
+STORACHA_PRINCIPAL_KEY=...
+STORACHA_DELEGATION_PROOF=...
 ```
 
 See the [Configuration Reference](./relayer-configuration.md) for all available options.
 
 ### 4. Fund Your Relayer Wallet
 
-The relayer wallet pays gas for `charge()` transactions. Fund it with native tokens from the Arc Testnet faucet.
+The relayer wallet pays gas for `charge()` transactions. Fund it with native tokens for the consolidation chain (e.g. FLOW on Flow EVM).
 
 To find your relayer wallet address, start the relayer and check the logs:
 
@@ -140,8 +148,8 @@ Expected output:
 ```
 === AutoPay Relayer Status ===
 
-Arc Testnet (5042002):
-  Last indexed block: 25315000
+Flow EVM (747):
+  Last indexed block: 56881090
   Active policies: 5
   Pending charges: 0
 
@@ -163,9 +171,9 @@ Expected output:
   "status": "healthy",
   "timestamp": "2026-02-05T12:00:00Z",
   "chains": {
-    "5042002": {
-      "name": "Arc Testnet",
-      "lastIndexedBlock": 25315000,
+    "747": {
+      "name": "Flow EVM",
+      "lastIndexedBlock": 56881090,
       "activePolicies": 5,
       "pendingCharges": 0,
       "healthy": true
@@ -183,7 +191,7 @@ Expected output:
 To index events without starting the full relayer:
 
 ```bash
-npm run cli -- index --chain arcTestnet
+npm run cli -- index --chain flowEvm
 ```
 
 ---
@@ -209,7 +217,7 @@ npm run cli -- charge 0xPOLICY_ID_HERE
 If you need to re-index from a specific block:
 
 ```bash
-npm run cli -- backfill --chain arcTestnet --from-block 26573469
+npm run cli -- backfill --chain flowEvm --from-block 56881090
 ```
 
 ### Reset Database
@@ -250,13 +258,13 @@ docker start autopay-db
 
 ### "Insufficient funds for gas"
 
-Your relayer wallet needs native tokens. Check the startup logs for your wallet address and fund it from the Arc Testnet faucet.
+Your relayer wallet needs native tokens for gas. Check the startup logs for your wallet address and fund it on the consolidation chain.
 
 ### "Rate limited" or "Too many requests"
 
-Arc RPC has rate limits. The relayer handles this with delays and batch sizing, but if you see issues:
+Some RPCs have rate limits. The relayer handles this with delays and batch sizing, but if you see issues:
 - Use a private RPC endpoint
-- The default batch size of 9,000 blocks stays within Arc's 10k limit
+- The default batch size of 9,000 blocks stays within most RPC provider limits
 
 ### Relayer Not Picking Up Events
 

@@ -32,10 +32,11 @@ This guide is for businesses and creators who want to accept recurring crypto pa
 ### The Subscriber Experience
 
 1. Subscriber visits your checkout page
-2. Creates a wallet with a passkey (Face ID / fingerprint) - no MetaMask, no seed phrase
-3. One-time USDC approval (handled automatically)
-4. Subscribes to your plan - first payment charged immediately
-5. Recurring charges happen automatically each billing cycle
+2. Connects their wallet via RainbowKit (MetaMask, Rabby, WalletConnect, etc.)
+3. Bridges USDC from any chain if needed (via built-in LiFi widget)
+4. One-time USDC approval (handled automatically)
+5. Subscribes to your plan - first payment charged immediately
+6. Recurring charges happen automatically each billing cycle
 
 ### What You Receive
 
@@ -70,7 +71,7 @@ You need an Ethereum-compatible wallet address to receive payments. This can be:
 - A hardware wallet (Ledger, Trezor)
 - A software wallet (MetaMask, Coinbase Wallet)
 - A multisig (Safe)
-- Any address you control on Arc Testnet
+- Any address you control on the consolidation chain (e.g. Flow EVM)
 
 > **Important:** Make sure you control the private key to this address. All payments are sent directly here.
 
@@ -116,7 +117,7 @@ Each subscription plan needs **metadata** - the display information subscribers 
 }
 ```
 
-The relayer operator registers this metadata and provides you with a **metadata URL** (e.g., `https://relayer.example.com/metadata/pro-plan`). This URL is embedded in the subscription when a customer signs up.
+The relayer operator registers this metadata and provides you with a **metadata URL** (e.g., `https://relayer.example.com/metadata/{merchant}/{planId}`). This URL is embedded in the subscription when a customer signs up.
 
 **What's on-chain vs off-chain:**
 
@@ -137,6 +138,7 @@ When subscription events occur, AutoPay sends HTTP POST requests to your webhook
 | `charge.succeeded` | Recurring payment collected | Extend access for another billing period |
 | `charge.failed` | Payment failed (will retry) | Optionally notify the customer to add funds |
 | `policy.revoked` | Customer cancelled | Revoke access at end of current period |
+| `policy.completed` | Spending cap reached, subscription complete | Revoke access (natural end of subscription) |
 | `policy.cancelled_by_failure` | 3 consecutive failures, auto-cancelled | Revoke access immediately |
 
 Each webhook includes the subscriber's wallet address, policy ID, amounts, and a cryptographic signature you can verify for security.
@@ -145,10 +147,48 @@ Each webhook includes the subscriber's wallet address, policy ID, amounts, and a
 
 ### Step 5: Build or Embed a Checkout Page
 
-You have two options:
+You have three options:
 
 1. **Use the AutoPay frontend** - Point subscribers to the hosted checkout with your plan details pre-filled
-2. **Build your own** - See the [Checkout Example](./merchant-checkout-example.md) for a full merchant server with checkout links
+2. **Use `createCheckoutUrlFromPlan()`** - Build checkout URLs directly from relayer-managed plans (fetches plan data and uses the IPFS metadata URL when available):
+   ```typescript
+   import { createCheckoutUrlFromPlan } from '@autopayprotocol/sdk'
+   const url = await createCheckoutUrlFromPlan({
+     relayerUrl: 'https://relayer.autopayprotocol.com',
+     merchant: '0xYOUR_ADDRESS',
+     planId: 'pro',
+     successUrl: 'https://yoursite.com/success',
+     cancelUrl: 'https://yoursite.com/cancel',
+   })
+   ```
+3. **Build your own** - See the [Checkout Example](./merchant-checkout-example.md) for a full merchant server with checkout links
+
+---
+
+## Merchant Dashboard
+
+The merchant dashboard provides a self-service UI for managing your subscription business. Access it by connecting your merchant wallet and signing an authentication message.
+
+### Plan Management
+
+Create and manage subscription plans through the dashboard UI:
+
+- **Draft** plans while you configure pricing and features
+- **Activate** plans to make them available for checkout (metadata is uploaded to IPFS when Storacha is configured)
+- **Archive** plans to stop new subscriptions while keeping existing ones active
+
+Each plan has a composite key of `(planId, merchantAddress)`, so different merchants can use the same plan slug (e.g., "pro").
+
+### Dashboard Features
+
+- View subscriber count and active subscription stats
+- Monitor recent charges and revenue
+- Upload merchant logos for checkout branding
+- Manage plan lifecycle (draft → active → archived)
+
+### Authenticated API
+
+The dashboard uses EIP-191 signature authentication. Merchants sign a nonce with their wallet to prove ownership. All plan management endpoints require this authentication.
 
 ---
 
@@ -158,8 +198,9 @@ You have two options:
 
 The relayer tracks all subscription data. You can:
 
+- Use the **merchant dashboard** to view subscribers, revenue, and charge history
 - Query the database for active subscribers, churn, and revenue
-- Use the API endpoint (`/metadata`) to verify your plans are set up correctly
+- Use the API endpoint (`/metadata/{merchant}/{planId}`) to verify your plans are set up correctly
 - Check the relayer health endpoint to ensure the service is running
 
 ### Handling Failed Payments
@@ -267,30 +308,13 @@ See the [Deployment Guide](./relayer-deployment.md) for setup instructions. A ba
 
 ---
 
-## Relayer as a Service (Coming Soon)
+## Relayer as a Service (Planned)
 
-> **This feature is not yet available.** Join the waitlist to be notified when it launches.
+> **This feature is not yet available.** Currently, merchants either use the AutoPay-hosted relayer or self-host their own instance.
 
-Don't want to self-host? **Relayer as a Service** is a managed relayer that you can deploy in one click from the AutoPay dashboard.
+Don't want to self-host? **Relayer as a Service** will be a managed relayer that you can deploy from the AutoPay dashboard.
 
-### What You Get
-
-- **One-click deploy** — Spin up a dedicated relayer instance without touching infrastructure
-- **Dashboard config** — Manage webhook URLs, retry settings, merchant metadata, and plan configuration through a web UI
-- **Monitoring** — Built-in health checks, charge history, and failure alerts
-- **Auto-scaling** — Your relayer scales with your subscriber count
-- **Zero maintenance** — We handle updates, uptime, and database backups
-
-### How It Works
-
-1. Connect your merchant wallet in the AutoPay dashboard
-2. Click **Deploy Relayer**
-3. Configure your webhook URL and plans through the UI
-4. Share your checkout link — everything else is handled for you
-
-### Pricing
-
-Relayer as a Service will be billed monthly based on usage (active subscriptions and charges processed). Self-hosting remains free — you only pay the 2.5% protocol fee on charges.
+Self-hosting remains free — you only pay the 2.5% protocol fee on charges. See the [Deployment Guide](./relayer-deployment.md) for self-hosting instructions.
 
 ---
 
@@ -341,7 +365,7 @@ You cannot change the price of existing subscriptions - the charge amount is loc
 <details>
 <summary>What chains are supported?</summary>
 
-Subscribers can pay from any of 12+ supported chains (Ethereum, Arbitrum, Base, Polygon, Solana, Avalanche, and more) via [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains). Funds are automatically bridged to your wallet on Arc.
+AutoPay deploys to **consolidation chains** — EVM chains where subscriptions settle. Currently live on **Flow EVM Mainnet**, with Base planned as the default. Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) via the built-in [LiFi](https://li.fi) bridge widget.
 
 </details>
 

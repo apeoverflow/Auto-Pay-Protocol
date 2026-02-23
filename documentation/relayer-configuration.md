@@ -12,7 +12,7 @@ The AutoPay relayer is configured entirely through environment variables. This r
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string |
 | `RELAYER_PRIVATE_KEY` | Yes | - | Wallet private key (must start with `0x`) |
-| `ARC_TESTNET_RPC` | No | `https://rpc.testnet.arc.network` | Arc Testnet RPC URL |
+| `FLOW_EVM_RPC` | No | `https://mainnet.evm.nodes.onflow.org` | Flow EVM Mainnet RPC URL |
 | `PORT` | No | `3001` | API server port |
 | `LOG_LEVEL` | No | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `RETRY_PRESET` | No | `standard` | Retry preset: `aggressive`, `standard`, `conservative`, `custom` |
@@ -20,7 +20,12 @@ The AutoPay relayer is configured entirely through environment variables. This r
 | `RETRY_BACKOFF_MS` | No | `60000,300000,900000` | Custom: comma-separated backoff delays (ms) |
 | `RETRY_MAX_CONSECUTIVE_FAILURES` | No | `3` | Custom: consecutive soft-fails before on-chain cancel |
 | `MERCHANT_ADDRESSES` | No | - | Comma-separated merchant addresses to filter by |
-| `LOGOS_DIR` | No | `./logos` | Directory for merchant logo files |
+| `SUPABASE_URL` | No | - | Supabase project URL (required for logo uploads) |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | - | Supabase service role key (required for logo uploads) |
+| `STORACHA_PRINCIPAL_KEY` | No | - | Ed25519 DID key for Storacha (IPFS + Filecoin) |
+| `STORACHA_DELEGATION_PROOF` | No | - | Base64-encoded delegation CAR for Storacha |
+| `IPFS_GATEWAY` | No | `https://w3s.link` | IPFS gateway for resolving CIDs |
+| `AUTH_ENABLED` | No | `false` | Enable EIP-191 signature auth for plan management |
 
 ---
 
@@ -33,12 +38,12 @@ DATABASE_URL=postgres://autopay:password@localhost:5432/autopay
 # Relayer wallet private key (must have native tokens for gas)
 RELAYER_PRIVATE_KEY=0x...
 
-# RPC URLs (only Arc enabled for now)
-ARC_TESTNET_RPC=https://rpc.testnet.arc.network
+# RPC URLs (Flow EVM is the current consolidation chain)
+FLOW_EVM_RPC=https://mainnet.evm.nodes.onflow.org
 
-# Future chains (disabled)
+# Future consolidation chains (disabled)
+# BASE_RPC=https://mainnet.base.org
 # POLYGON_AMOY_RPC=https://rpc-amoy.polygon.technology
-# ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
 
 # Optional: Health server port
 PORT=3001
@@ -58,25 +63,55 @@ RETRY_PRESET=standard
 # Optional: Only process policies for specific merchants (comma-separated)
 # When unset/empty, all merchants are processed (default)
 # MERCHANT_ADDRESSES=0xabc...,0xdef...
+
+# Optional: Logo storage (S3-compatible — Supabase Storage or equivalent)
+# Required for logo uploads. Without these, the relayer starts but logos are disabled.
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+
+# Optional: Storacha (IPFS + Filecoin) for immutable plan metadata
+# When configured, plan activation uploads metadata to IPFS (blocking).
+# Without these, plans activate without IPFS CID (self-hosted fallback).
+# STORACHA_PRINCIPAL_KEY=...
+# STORACHA_DELEGATION_PROOF=...
+# IPFS_GATEWAY=https://w3s.link
+
+# Optional: Enable EIP-191 signature auth for plan management
+# AUTH_ENABLED=true
 ```
 
 ---
 
 ## Chain Configuration
 
-The relayer currently supports **Arc Testnet** only. Polygon Amoy and Arbitrum Sepolia are disabled pending contract deployment.
+A **consolidation chain** is any EVM chain where a PolicyManager contract is deployed and subscriptions settle. The relayer supports multiple consolidation chains simultaneously — each with its own config entry in `CHAIN_CONFIGS`.
+
+Currently enabled: **Flow EVM Mainnet**. Base is planned as the future default.
+
+### Flow EVM Mainnet
+
+| Property | Value |
+|----------|-------|
+| Chain ID | `747` |
+| RPC URL | `https://mainnet.evm.nodes.onflow.org` |
+| PolicyManager | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| USDC | `0xF1815bd50389c46847f0Bda824eC8da914045D14` |
+| Start Block | `56881090` |
+| Poll Interval | 15 seconds |
+| Batch Size | 9,000 blocks |
+| Confirmations | 2 blocks |
+
+### Arc Testnet (legacy)
 
 | Property | Value |
 |----------|-------|
 | Chain ID | `5042002` |
 | RPC URL | `https://rpc.testnet.arc.network` |
 | PolicyManager | `0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1` |
+| USDC | `0x3600000000000000000000000000000000000000` |
 | Start Block | `26573469` |
-| Poll Interval | 15 seconds |
-| Batch Size | 9,000 blocks (Arc limits to 10k) |
-| Confirmations | 2 blocks |
 
-Arc's bundler requires a minimum `maxPriorityFeePerGas` of 1 gwei. The relayer handles this automatically.
+> Arc Testnet is not currently enabled in the relayer config but the deployment metadata is retained for reference.
 
 ---
 

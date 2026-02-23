@@ -47,8 +47,8 @@ Output:
 ```
 === AutoPay Relayer Status ===
 
-Arc Testnet (5042002):
-  Last indexed block: 25315000
+Flow EVM (747):
+  Last indexed block: 56881090
   Active policies: 42
   Pending charges: 3
 
@@ -76,12 +76,12 @@ Run this after first install and after updating to a new version.
 Run the indexer once for a specific chain.
 
 ```bash
-npm run cli -- index --chain arcTestnet
+npm run cli -- index --chain flowEvm
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--chain <name>` | Chain to index | `arcTestnet` |
+| `--chain <name>` | Chain to index | `flowEvm` |
 | `--from-block <n>` | Start from specific block | Last indexed |
 
 > **Note:** The `index` and `backfill` commands respect the `MERCHANT_ADDRESSES` filter. When set, only events for the specified merchants are processed. See the [Configuration Reference](./relayer-configuration.md#merchant-filtering).
@@ -91,12 +91,12 @@ npm run cli -- index --chain arcTestnet
 Re-index events from a specific block. Useful for recovering missed events after downtime.
 
 ```bash
-npm run cli -- backfill --chain arcTestnet --from-block 26573469
+npm run cli -- backfill --chain flowEvm --from-block 26573469
 ```
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--chain <name>` | No | Chain to backfill (default: `arcTestnet`) |
+| `--chain <name>` | No | Chain to backfill (default: `flowEvm`) |
 | `--from-block <n>` | Yes | Block to start from |
 
 ---
@@ -276,7 +276,7 @@ Plan metadata customizes how subscriptions appear in the checkout UI. It contain
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | string | Your company/product name |
-| `logo` | string | Logo filename (served from `logos/` dir) or full URL |
+| `logo` | string | Logo filename (from upload API) or full URL |
 | `website` | string | Your website URL |
 | `supportEmail` | string | Customer support email |
 | `termsUrl` | string | Link to terms of service |
@@ -302,7 +302,7 @@ npm run cli -- metadata:add \
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--id <id>` | Yes | Unique identifier (used in URL: `/metadata/<id>`) |
+| `--id <id>` | Yes | Unique identifier (used in URL: `/metadata/{merchant}/{id}`) |
 | `--merchant <addr>` | Yes | Merchant's wallet address |
 | `--file <path>` | Yes | Path to JSON metadata file |
 
@@ -322,7 +322,9 @@ Output:
 ID: pro-plan
   Merchant: 0x742d35Cc6634C0532925a3b844Bc9e7595f2BA53e...
   Plan: Pro Plan
-  URL: /metadata/pro-plan
+  Status: active
+  URL: /metadata/0x742d35Cc6634C0532925a3b844Bc9e7595f2BA53e/acme-pro
+  IPFS CID: bafy...
   Created: 2026-02-05T10:30:00.000Z
 ```
 
@@ -344,57 +346,53 @@ npm run cli -- metadata:delete pro-plan
 
 ---
 
-## Logo / Asset Hosting
+## Logo Storage
 
-The relayer serves merchant logo images via the API for use in checkout UIs.
+The relayer supports merchant logo uploads via the API. Logos are stored in S3-compatible storage (Supabase Storage or equivalent) and served via public URLs.
 
-### Adding Logos
+### Configuration
 
-1. Place image files in the `logos/` directory:
+Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to enable logo uploads. Without these, the relayer starts but logo uploads return an error.
+
+### Uploading Logos
+
+Upload via the API (requires auth when `AUTH_ENABLED=true`):
 
 ```bash
-cp acme-logo.png /path/to/relayer/logos/
+curl -X POST https://YOUR-RELAYER/logos \
+  -H "Content-Type: image/png" \
+  -H "X-Address: 0xYOUR_ADDRESS" \
+  -H "X-Signature: ..." \
+  -H "X-Nonce: ..." \
+  --data-binary @acme-logo.png
 ```
 
-2. Reference in metadata:
+The upload endpoint compresses and resizes images to 512x512 WebP (quality 80). Response:
+
+```json
+{ "filename": "a1b2c3d4-...-.webp" }
+```
+
+Reference the returned filename in plan metadata:
 
 ```json
 {
   "merchant": {
-    "logo": "acme-logo.png"
+    "logo": "a1b2c3d4-...-.webp"
   }
 }
 ```
 
-3. The API serves it at `/logos/acme-logo.png`. When metadata includes a relative logo path, the API automatically converts it to the full path when returning metadata.
+### Supported Upload Formats
 
-### Supported Formats
+| Format | Content-Type |
+|--------|-------------|
+| PNG | `image/png` |
+| JPEG | `image/jpeg` |
+| GIF | `image/gif` |
+| WebP | `image/webp` |
 
-| Format | Extension |
-|--------|-----------|
-| PNG | `.png` |
-| JPEG | `.jpg`, `.jpeg` |
-| GIF | `.gif` |
-| SVG | `.svg` |
-| WebP | `.webp` |
-| ICO | `.ico` |
-
-### Custom Logos Directory
-
-Set the `LOGOS_DIR` environment variable:
-
-```bash
-LOGOS_DIR=/var/www/logos npm run dev
-```
-
-### Docker Volume
-
-When using Docker Compose, logos are mounted as a volume:
-
-```yaml
-volumes:
-  - ./logos:/app/logos
-```
+All uploads are converted to WebP. Max upload size: 512KB.
 
 ---
 
@@ -402,13 +400,25 @@ volumes:
 
 The relayer exposes these HTTP endpoints (default port 3001):
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Service info and available endpoints |
-| `/health` | GET | Health check with chain and webhook status |
-| `/metadata` | GET | List all registered plan metadata |
-| `/metadata/:id` | GET | Get specific plan metadata by ID |
-| `/logos/:filename` | GET | Serve merchant logo images |
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/` | GET | No | Service info and available endpoints |
+| `/health` | GET | No | Health check with chain and webhook status |
+| `/metadata/:merchant/:id` | GET | No | Get specific plan metadata (merchant-scoped) |
+| `/metadata/:id` | GET | No | Legacy redirect (returns first match) |
+| `/logos/:filename` | GET | No | Serve merchant logo images |
+| `/auth/nonce` | POST | No | Request a nonce for EIP-191 signature auth |
+| `/auth/verify` | POST | No | Verify signed nonce, returns session token |
+| `/plans` | GET | Yes | List plans for authenticated merchant |
+| `/plans` | POST | Yes | Create a new plan (status: draft) |
+| `/plans/:id` | PUT | Yes | Update plan details |
+| `/plans/:id/activate` | POST | Yes | Activate plan (draft → active), uploads to IPFS |
+| `/plans/:id/archive` | POST | Yes | Archive plan (active → archived) |
+| `/logos/upload` | POST | Yes | Upload a merchant logo image |
+
+**Authentication:** Endpoints marked "Auth: Yes" require an `Authorization: Bearer <token>` header. Obtain a token by signing a nonce with your merchant wallet (EIP-191). See the [Merchant Guide](./merchant-guide.md#authenticated-api) for details.
+
+**Rate limiting:** All endpoints are rate-limited. Authenticated endpoints allow higher limits.
 
 All endpoints return JSON and include CORS headers (`Access-Control-Allow-Origin: *`).
 
@@ -419,9 +429,9 @@ All endpoints return JSON and include CORS headers (`Access-Control-Allow-Origin
   "status": "healthy",
   "timestamp": "2026-02-05T12:00:00Z",
   "chains": {
-    "5042002": {
-      "name": "Arc Testnet",
-      "lastIndexedBlock": 25315000,
+    "747": {
+      "name": "Flow EVM",
+      "lastIndexedBlock": 56900000,
       "activePolicies": 42,
       "pendingCharges": 3,
       "healthy": true
@@ -515,7 +525,7 @@ docker exec -it autopay-db psql -U autopay -d autopay \
 npm run cli -- status
 
 # 2. Backfill if needed
-npm run cli -- backfill --chain arcTestnet --from-block LAST_KNOWN_BLOCK
+npm run cli -- backfill --chain flowEvm --from-block LAST_KNOWN_BLOCK
 
 # 3. Start relayer
 npm run cli -- start
@@ -557,11 +567,13 @@ npm run cli -- metadata:add \
   --merchant 0x742d35Cc6634C0532925a3b844Bc9e7595f2BA53e \
   --file acme-pro.json
 
-# 4. Add the logo
-cp acme-logo.png logos/
+# 4. Upload the logo (requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY configured)
+curl -X POST http://localhost:3001/logos \
+  -H "Content-Type: image/png" \
+  --data-binary @acme-logo.png
 
 # 5. Verify everything works
-curl http://localhost:3001/metadata/acme-pro
+curl http://localhost:3001/metadata/0x742d35Cc6634C0532925a3b844Bc9e7595f2BA53e/acme-pro
 curl http://localhost:3001/logos/acme-logo.png -o /dev/null -w "%{http_code}\n"
 npm run cli -- merchant:list
 ```
@@ -585,10 +597,10 @@ npm run cli -- merchant:list
 
 ### Logo Not Loading
 
-1. Check file exists in the `logos/` directory
-2. Verify filename matches what's in metadata (case-sensitive)
-3. Only alphanumeric characters, dots, hyphens, and underscores are allowed in filenames
-4. Check supported formats: PNG, JPG, GIF, SVG, WebP, ICO
+1. Verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set
+2. Check the Supabase Storage bucket `logos` exists and is public
+3. Verify filename matches what's in metadata (case-sensitive)
+4. Only alphanumeric characters, dots, hyphens, and underscores are allowed in filenames
 
 ---
 

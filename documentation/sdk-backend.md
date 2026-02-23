@@ -146,6 +146,44 @@ const url = createCheckoutUrl({
 
 **Interval presets:** `'weekly'` (7 days), `'biweekly'` (14 days), `'monthly'` (30 days), `'quarterly'` (90 days), `'yearly'` (365 days). You can also pass raw seconds for custom intervals.
 
+### Building a Checkout URL from a Relayer Plan
+
+If you manage plans via the relayer API, use `createCheckoutUrlFromPlan()` to build checkout URLs directly from your plan data. This fetches the plan, extracts billing params, and uses the IPFS metadata URL when available (falls back to the relayer URL if IPFS is not configured):
+
+```typescript
+import { createCheckoutUrlFromPlan } from '@autopayprotocol/sdk'
+
+const url = await createCheckoutUrlFromPlan({
+  relayerUrl: 'https://relayer.autopayprotocol.com',
+  merchant: '0xYOUR_MERCHANT_ADDRESS',
+  planId: 'pro',
+  successUrl: 'https://yoursite.com/success',
+  cancelUrl: 'https://yoursite.com/cancel',
+  // spendingCap: 500,  // optional override (defaults to plan's billing.cap)
+})
+
+// Redirect users to this URL
+```
+
+You can also use `resolvePlan()` to fetch plan details without building a URL (e.g. to display plan info before redirecting):
+
+```typescript
+import { resolvePlan } from '@autopayprotocol/sdk'
+
+const plan = await resolvePlan({
+  relayerUrl: 'https://relayer.autopayprotocol.com',
+  merchant: '0xYOUR_MERCHANT_ADDRESS',
+  planId: 'pro',
+  successUrl: 'https://yoursite.com/success',
+  cancelUrl: 'https://yoursite.com/cancel',
+})
+
+console.log(plan.amount)          // 9.99
+console.log(plan.intervalSeconds) // 2592000
+console.log(plan.ipfsMetadataUrl) // "https://w3s.link/ipfs/bafy..." or null
+console.log(plan.metadata)        // Full CheckoutMetadata object
+```
+
 ### Parsing the Success Redirect
 
 After subscribing, the user is redirected to your `successUrl` with query params. Parse them to get the subscription details:
@@ -168,6 +206,7 @@ const { policyId, txHash } = parseSuccessRedirect(window.location.search)
 | `charge.succeeded` | Recurring payment collected | Each billing cycle |
 | `charge.failed` | Payment failed (will retry) | Insufficient balance or allowance |
 | `policy.revoked` | Subscription cancelled by user | User cancels |
+| `policy.completed` | Spending cap reached, subscription naturally ended | Total charges reached the spending cap |
 | `policy.cancelled_by_failure` | Auto-cancelled after 3 consecutive failures | Balance/allowance issues persist |
 
 ### Payload Format
@@ -202,6 +241,7 @@ All events include `policyId`, `chainId`, `payer`, and `merchant` in `data`. Add
 | `charge.succeeded` | `amount`, `protocolFee`, `txHash` |
 | `charge.failed` | `reason` (`"InsufficientBalance"` or `"InsufficientAllowance"`) |
 | `policy.revoked` | `endTime` |
+| `policy.completed` | `endTime`, `totalCharged` |
 | `policy.cancelled_by_failure` | `consecutiveFailures`, `endTime` |
 
 ### Signature Verification
@@ -279,6 +319,11 @@ switch (event.type) {
   case 'policy.revoked':
     // User cancelled - revoke at end of billing period
     scheduleAccessRevocation(event.data.payer, event.data.policyId)
+    break
+
+  case 'policy.completed':
+    // Spending cap reached - natural end of subscription
+    revokeAccess(event.data.payer, event.data.policyId)
     break
 
   case 'policy.cancelled_by_failure':
@@ -372,11 +417,11 @@ For the full API reference, see the [SDK README](https://github.com/apeoverflow/
 
 | Category | Functions |
 |----------|-----------|
-| **Checkout** | `createCheckoutUrl()`, `parseSuccessRedirect()`, `resolveInterval()` |
+| **Checkout** | `createCheckoutUrl()`, `createCheckoutUrlFromPlan()`, `resolvePlan()`, `parseSuccessRedirect()`, `resolveInterval()` |
 | **Webhooks** | `verifyWebhook()`, `verifySignature()`, `signPayload()` |
 | **Amounts** | `formatUSDC()`, `parseUSDC()`, `calculateFeeBreakdown()`, `formatInterval()` |
 | **Metadata** | `validateMetadata()`, `createMetadata()` |
-| **Constants** | `intervals`, `PROTOCOL_FEE_BPS`, `chains` |
+| **Constants** | `intervals`, `PROTOCOL_FEE_BPS`, `chains`, `DEFAULT_IPFS_GATEWAY`, `ipfsGatewayUrl()` |
 
 ---
 

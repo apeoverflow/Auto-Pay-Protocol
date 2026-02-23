@@ -85,7 +85,7 @@ A "policy" is a subscription agreement stored on-chain. It defines:
 | Charge amount | How much per cycle | 10 USDC |
 | Interval | How often | 30 days |
 | Spending cap | Maximum total spend | 120 USDC |
-| Metadata URL | Plan details (name, features, branding) | `/metadata/pro-plan` |
+| Metadata URL | Plan details (name, features, branding) | `/metadata/{merchant}/{planId}` |
 
 Subscribers can revoke a policy at any time. Merchants cannot change the charge amount or interval - these are locked at creation.
 
@@ -117,28 +117,19 @@ The system has three main components:
 |-----------|-------------|-------------|
 | **Smart contract** (PolicyManager) | Stores subscription policies, executes charges, enforces limits | Deployed on-chain |
 | **Relayer** | Indexes events, triggers charges, sends webhooks, serves metadata API | Operator / self-hosted |
-| **Frontend** | Subscriber UI for managing subscriptions | Hosted by merchant or AutoPay |
+| **Merchant dashboard** | Plan management, subscriber stats, plan lifecycle (draft → active → archived) | Part of the frontend |
+| **Frontend** | Subscriber UI for managing subscriptions + merchant dashboard | Hosted by merchant or AutoPay |
 
 ### Current Network
 
-AutoPay is live on **Arc Testnet** with USDC. Multi-chain support is powered by [Circle Gateway](https://developers.circle.com/gateway/references/supported-blockchains) -subscribers can pay from any supported chain and funds are automatically bridged to the merchant.
+AutoPay deploys to **consolidation chains** — EVM chains where a PolicyManager contract is deployed and subscriptions settle. Each chain gets its own frontend deployment:
 
-#### Supported Chains (via Circle Gateway)
+| Deployment | Chain | Domain |
+|------------|-------|--------|
+| **Default** | Base (coming soon) | `autopayprotocol.com` / `base.autopayprotocol.com` |
+| **Flow EVM** | Flow EVM Mainnet (747) | `flow.autopayprotocol.com` |
 
-| Mainnet | Testnet |
-|---------|---------|
-| Arbitrum | Arc Testnet |
-| Avalanche | Avalanche Fuji |
-| Base | Base Sepolia |
-| Ethereum | Ethereum Sepolia |
-| HyperEVM | HyperEVM Testnet |
-| OP | Sei Atlantic |
-| Polygon PoS | Solana Devnet |
-| Sei | Sonic Testnet |
-| Solana | World Chain Sepolia |
-| Sonic | |
-| Unichain | |
-| World Chain | |
+Cross-chain funding is powered by [LiFi](https://li.fi) — subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) to the consolidation chain where their subscription settles.
 
 ---
 
@@ -201,7 +192,7 @@ AutoPay is designed with subscriber protection as a priority:
 
 > *Loop Crypto was acquired by Lead Bank in December 2025 and shut down in February 2026. BoomFi is the most comparable active protocol.
 
-### vs. Streaming Protocols (Superfluid, Sablier, LlamaPay)
+### vs. Streaming Protocols 
 
 Streaming protocols solve a different problem. They're built for continuous value flow (payroll, DeFi yield distribution, real-time revenue sharing) where money moves per-second between wallets.
 

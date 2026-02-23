@@ -6,23 +6,19 @@ This guide explains how AutoPay subscriptions work from the subscriber's perspec
 
 ## Getting Started
 
-### 1. Create a Wallet
+### 1. Connect Your Wallet
 
-When you first visit an AutoPay-powered checkout, you'll create a wallet using a **passkey** (like Face ID or fingerprint). No seed phrases, no browser extensions - just your biometric.
-
-This creates a smart wallet tied to your device. Your wallet address is the same across all supported chains.
+Connect using any Ethereum-compatible wallet via RainbowKit (MetaMask, Rabby, WalletConnect, Coinbase Wallet, and more). No special wallet or passkey required - just the browser wallet you already use.
 
 ### 2. Fund Your Wallet
 
-Your wallet needs USDC to pay for subscriptions. You can transfer USDC from another wallet or purchase it through an exchange.
-
-> **Testnet:** During the testnet phase, you can get free test USDC from the faucet to try things out.
+Your wallet needs USDC on the consolidation chain (the chain where the merchant's subscriptions settle, e.g. Flow EVM). If your USDC is on another chain, use the built-in LiFi bridge widget to transfer it — 30+ source chains are supported (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more).
 
 ### 3. Approve USDC Spending
 
 The first time you use AutoPay, you'll approve the AutoPay smart contract to charge USDC from your wallet. This is a one-time setup step.
 
-**Is this safe?** Yes. The smart contract can only charge you according to active subscription policies that you've created. It cannot drain your wallet or charge you arbitrary amounts. See [Safety & Protections](#safety--protections) below for details.
+**Is this safe?** Yes. The smart contract can only charge you according to active subscription policies that you've created. It cannot drain your wallet or charge you arbitrary amounts. See [Safety & Protections](#safety-protections) below for details.
 
 ### 4. Subscribe
 
@@ -69,7 +65,7 @@ To cancel:
 1. Go to your subscriptions dashboard
 2. Find the subscription you want to cancel
 3. Click **Cancel**
-4. Confirm with your passkey
+4. Confirm the transaction in your wallet
 
 After cancellation:
 - No future charges will be made
@@ -176,9 +172,9 @@ AutoPay does not handle refunds - contact the merchant directly. Since all charg
 </details>
 
 <details>
-<summary>What happens if I lose access to my device?</summary>
+<summary>What happens if I lose access to my wallet?</summary>
 
-Your wallet is tied to your passkey (biometric). If you lose your device, you may need to set up a new wallet. Your old subscriptions will fail after 3 missed charges and auto-cancel. Consult your passkey provider's recovery options.
+Your subscriptions are tied to your wallet address. If you lose access to your wallet, your old subscriptions will fail after 3 missed charges and auto-cancel. Consult your wallet provider's recovery options (seed phrase, social recovery, etc.).
 
 </details>
 
@@ -192,7 +188,7 @@ Yes. You can have as many active subscriptions as you want, to different merchan
 <details>
 <summary>What blockchain does this use?</summary>
 
-AutoPay runs on **Arc Testnet** using USDC. You can fund your wallet from 12+ chains (Ethereum, Polygon, Arbitrum, Base, Solana, and more) via Circle Gateway — funds are automatically bridged to Arc.
+AutoPay deploys to **consolidation chains** — EVM chains where subscriptions settle. Currently live on **Flow EVM Mainnet** (with Base planned as the default). You can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) using the built-in LiFi bridge widget.
 
 </details>
 
@@ -206,6 +202,6 @@ No. Gas fees are sponsored - you only need USDC in your wallet.
 <details>
 <summary>How do I see my on-chain transactions?</summary>
 
-Your activity feed shows transaction hashes that link to the [Arc Testnet Explorer](https://testnet.arcscan.app), where you can verify every charge independently.
+Your activity feed shows transaction hashes that link to the block explorer for the consolidation chain (e.g. [Flowscan](https://evm.flowscan.io) for Flow EVM), where you can verify every charge independently.
 
 </details>

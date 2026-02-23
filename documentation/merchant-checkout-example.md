@@ -103,7 +103,7 @@ Fetches plans from the relayer's metadata API and renders cards with pricing, fe
 ```
 https://autopayprotocol.com/checkout?
   merchant=0x2B8b...
-  metadata_url=http://localhost:3420/metadata/pro-plan
+  metadata_url=http://localhost:3420/metadata/0x2B8b.../pro-plan
   amount=0.10
   interval=60
   spending_cap=1.20
