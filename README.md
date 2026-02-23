@@ -4,13 +4,13 @@
 
 **Non-custodial crypto subscription payments. 50% cheaper than Stripe.**
 
-AutoPay is a decentralized subscription payment protocol built on USDC. Users maintain full custody of their funds while enabling merchants to collect recurring payments automatically. All payments settle on Flow EVM, where merchants receive funds.
+AutoPay is a decentralized subscription payment protocol built on USDC. Users maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Payments settle on a **consolidation chain** — currently [Flow EVM](https://flow.autopayprotocol.com) (live) and [Base](https://autopayprotocol.com) (coming soon as primary).
 
 ## Features
 
 - **Non-Custodial**: Funds stay in user wallets until charged. No intermediary custody.
 - **Policy-Based**: Users set spending limits, intervals, and caps. Full control.
-- **Multi-Chain Funding**: Bridge USDC from any chain via LiFi. All settlements on Flow EVM.
+- **Multi-Chain Funding**: Bridge USDC from any chain via LiFi. Settlements on Base (primary) or Flow EVM.
 - **Simple UX**: Users only need USDC. No complex token management.
 - **Low Fees**: 2.5% protocol fee vs 5%+ for traditional processors.
 
@@ -49,7 +49,7 @@ AutoPay is a decentralized subscription payment protocol built on USDC. Users ma
 | Frontend | React, viem, wagmi, RainbowKit, Tailwind CSS |
 | Cross-Chain | LiFi bridge widget |
 | Relayer | Node.js, TypeScript, PostgreSQL |
-| Settlement | Flow EVM Mainnet (Chain ID: 747) |
+| Settlement | Base (primary), Flow EVM (live) |
 
 ## Project Structure
 
@@ -70,7 +70,8 @@ Auto-Pay-Protocol/
 │       ├── indexer/    # Event indexing from chains
 │       ├── executor/   # Charge execution logic
 │       ├── webhooks/   # Merchant notifications
-│       ├── api/        # Health & metadata endpoints
+│       ├── api/        # Health, metadata & logo endpoints
+│       ├── lib/        # Storacha (IPFS), logo storage backends
 │       └── db/         # Postgres client & queries
 ├── packages/
 │   └── sdk/            # Merchant SDK (@autopayprotocol/sdk)
@@ -161,6 +162,7 @@ function cancelFailedPolicy(bytes32 policyId) external;
 
 | Chain | Chain ID | USDC | PolicyManager |
 |-------|----------|------|---------------|
+| Base | 8453 | Coming soon | Coming soon |
 | Flow EVM Mainnet | 747 | `0xF1815bd50389c46847f0Bda824eC8da914045D14` | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
 
 
@@ -176,10 +178,12 @@ function cancelFailedPolicy(bytes32 policyId) external;
 - [x] Merchant SDK (`@autopayprotocol/sdk`)
 - [x] End-to-end local testing
 - [x] Production relayer deployment
-- [ ] Merchant Dashboard
-- [ ] Merchant IPFS Metadata / Assets
-- [ ] Merchant Filecoin encrypted reciept and accounting record data 
-- [ ] Merchant onboarding
+- [x] Merchant IPFS Metadata (Storacha — IPFS + Filecoin pinning)
+- [x] Logo upload & storage (local filesystem or Supabase Storage)
+- [x] Merchant Dashboard
+- [ ] Merchant Filecoin encrypted receipt and accounting record data
+- [x] Merchant onboarding
+- [ ] Base deployment (primary consolidation chain)
 
 ## Interested in Integrating?
 
