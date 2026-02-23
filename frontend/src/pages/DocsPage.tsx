@@ -13,7 +13,7 @@ import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql'
 import yaml from 'react-syntax-highlighter/dist/esm/languages/prism/yaml'
 import toml from 'react-syntax-highlighter/dist/esm/languages/prism/toml'
 import { cn } from '../lib/utils'
-import { ChevronDown, List, Search, X } from 'lucide-react'
+import { ArrowLeft, ChevronDown, List, Search, X } from 'lucide-react'
 
 import overviewMd from '../../../documentation/overview.md?raw'
 import subscriberGuideMd from '../../../documentation/subscriber-guide.md?raw'
@@ -321,14 +321,35 @@ function getTextContent(children: React.ReactNode): string {
   return ''
 }
 
-export function DocsPage({ hideLogo = false }: { hideLogo?: boolean } = {}) {
-  const [activeDoc, setActiveDoc] = React.useState<DocId>('overview')
+export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
+  // Read initial doc/section from URL query params (?doc=...&section=...)
+  const initialParams = React.useMemo(() => {
+    const params = new URLSearchParams(window.location.search)
+    const doc = params.get('doc') as DocId | null
+    const section = params.get('section')
+    const validDoc = doc && allDocs.some((d) => d.id === doc) ? doc : null
+    return { doc: validDoc, section }
+  }, [])
+
+  const [activeDoc, setActiveDoc] = React.useState<DocId>(initialParams.doc ?? 'overview')
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const [tocOpen, setTocOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
   const [searchOpen, setSearchOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const contentRef = React.useRef<HTMLDivElement>(null)
+
+  // Scroll to section from query param after initial render
+  React.useEffect(() => {
+    if (!initialParams.section) return
+    const slug = initialParams.section
+    // Wait for markdown to render, then scroll
+    const timer = setTimeout(() => {
+      const el = document.getElementById(slug)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [initialParams.section])
 
   const searchResults = React.useMemo(() => searchDocs(searchQuery), [searchQuery])
 
@@ -627,12 +648,21 @@ export function DocsPage({ hideLogo = false }: { hideLogo?: boolean } = {}) {
       {/* Desktop sidebar */}
       <div className="hidden w-[220px] flex-shrink-0 border-r border-border/50 bg-muted/20 md:block">
         <div className="sticky top-0 p-4">
-          {/* Logo (hidden when embedded in signed-in view) */}
-          {!hideLogo && (
-            <div className="mb-5 flex justify-center">
-              <img src="/logo.png" alt="AutoPay" className="h-10 w-auto brightness-0 opacity-60" />
+          {/* Logo + back link */}
+          <div className="mb-5 pt-1">
+            <div className="flex justify-center mb-3">
+              <img src="/logo.png" alt="AutoPay" className="h-12 w-auto brightness-0 opacity-60" />
             </div>
-          )}
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full justify-center pt-2 pb-1"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Dashboard
+              </button>
+            )}
+          </div>
           {/* Search trigger */}
           <button
             onClick={openSearch}

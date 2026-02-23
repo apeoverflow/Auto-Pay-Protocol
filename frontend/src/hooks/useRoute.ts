@@ -11,10 +11,18 @@ export type Route =
   | '/demo'
   | '/docs'
   | '/checkout'
+  | '/merchant'
+  | '/merchant/plans'
+  | '/merchant/plans/new'
+  | '/merchant/plans/edit'
+  | '/merchant/settings'
 
 type RouteLayout = 'auth' | 'dashboard' | 'fullscreen'
 
-const DASHBOARD_ROUTES: Route[] = ['/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo']
+const DASHBOARD_ROUTES: Route[] = [
+  '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo',
+  '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/settings',
+]
 
 const ROUTE_TO_NAV: Record<string, NavItem> = {
   '/dashboard': 'dashboard',
@@ -24,6 +32,11 @@ const ROUTE_TO_NAV: Record<string, NavItem> = {
   '/settings': 'settings',
   '/demo': 'demo',
   '/docs': 'docs',
+  '/merchant': 'merchant-overview',
+  '/merchant/plans': 'merchant-plans',
+  '/merchant/plans/new': 'merchant-plans',
+  '/merchant/plans/edit': 'merchant-plans',
+  '/merchant/settings': 'merchant-settings',
 }
 
 const NAV_TO_ROUTE: Record<NavItem, Route> = {
@@ -34,14 +47,21 @@ const NAV_TO_ROUTE: Record<NavItem, Route> = {
   settings: '/settings',
   demo: '/demo',
   docs: '/docs',
+  'merchant-overview': '/merchant',
+  'merchant-plans': '/merchant/plans',
+  'merchant-settings': '/merchant/settings',
 }
+
+const VALID_ROUTES: Route[] = [
+  '/', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout',
+  '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/settings',
+]
 
 function pathToRoute(pathname: string): Route {
   // Strip trailing slash (but keep "/" as-is)
   const stripped = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
   const normalized = stripped === '' ? '/' : stripped
-  const valid: Route[] = ['/', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout']
-  return valid.includes(normalized as Route) ? (normalized as Route) : '/'
+  return VALID_ROUTES.includes(normalized as Route) ? (normalized as Route) : '/'
 }
 
 export function getRouteLayout(route: Route): RouteLayout {

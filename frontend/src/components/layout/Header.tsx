@@ -18,6 +18,9 @@ const pageTitles: Record<NavItem, string> = {
   demo: 'SDK Demo',
   docs: 'Documentation',
   settings: 'Settings',
+  'merchant-overview': 'Merchant Overview',
+  'merchant-plans': 'Plans',
+  'merchant-settings': 'Merchant Settings',
 }
 
 export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps) {

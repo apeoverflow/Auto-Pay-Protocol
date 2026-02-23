@@ -120,6 +120,79 @@ export async function fetchChargesFromDb(
   }
 }
 
+// Fetch policies for a merchant from Supabase
+export async function fetchMerchantPolicies(
+  merchantAddress: string,
+  chainId: number
+): Promise<DbPolicy[] | null> {
+  if (!supabase) return null
+
+  try {
+    const { data, error } = await supabase
+      .from('policies')
+      .select('*')
+      .eq('merchant', merchantAddress.toLowerCase())
+      .eq('chain_id', chainId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.warn('Supabase fetch merchant policies error:', error)
+      return null
+    }
+
+    return data as DbPolicy[]
+  } catch (err) {
+    console.warn('Failed to fetch merchant policies from Supabase:', err)
+    return null
+  }
+}
+
+// Fetch charge stats for a merchant from Supabase
+export async function fetchMerchantChargeStats(
+  merchantAddress: string,
+  chainId: number
+): Promise<{ totalRevenue: string; chargeCount: number } | null> {
+  if (!supabase) return null
+
+  try {
+    // Get merchant's policy IDs
+    const { data: policies, error: policiesError } = await supabase
+      .from('policies')
+      .select('id')
+      .eq('merchant', merchantAddress.toLowerCase())
+      .eq('chain_id', chainId)
+
+    if (policiesError || !policies?.length) {
+      return { totalRevenue: '0', chargeCount: 0 }
+    }
+
+    const policyIds = policies.map(p => p.id)
+
+    // Sum successful charges
+    const { data: charges, error: chargesError } = await supabase
+      .from('charges')
+      .select('amount')
+      .in('policy_id', policyIds)
+      .eq('chain_id', chainId)
+      .eq('status', 'success')
+
+    if (chargesError) {
+      console.warn('Supabase fetch merchant charges error:', chargesError)
+      return null
+    }
+
+    const totalRevenue = (charges || []).reduce(
+      (sum, c) => sum + parseFloat(c.amount || '0'),
+      0
+    ).toString()
+
+    return { totalRevenue, chargeCount: charges?.length || 0 }
+  } catch (err) {
+    console.warn('Failed to fetch merchant charge stats from Supabase:', err)
+    return null
+  }
+}
+
 // Fetch activity (policies + charges) for a payer
 export async function fetchActivityFromDb(
   payerAddress: string,

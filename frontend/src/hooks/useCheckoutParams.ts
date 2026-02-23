@@ -30,6 +30,7 @@ export function useCheckoutParams(): UseCheckoutParamsReturn {
     const amount = search.get('amount')
     const intervalStr = search.get('interval')
     const spendingCap = search.get('spending_cap') // optional
+    const ipfsMetadataUrl = search.get('ipfs_metadata_url') // optional fallback
 
     if (!merchant || !metadataUrl || !successUrl || !cancelUrl || !amount || !intervalStr) {
       return {
@@ -59,7 +60,13 @@ export function useCheckoutParams(): UseCheckoutParamsReturn {
       return { params: null, error: `Invalid amount: ${amount}` }
     }
 
-    const interval = parseInt(intervalStr, 10)
+    // Support both numeric seconds and string labels
+    const labelToSeconds: Record<string, number> = {
+      seconds: 1, minutes: 60, daily: 86400,
+      weekly: 604800, biweekly: 1209600, monthly: 2592000,
+      quarterly: 7776000, yearly: 31536000,
+    }
+    const interval = labelToSeconds[intervalStr] ?? parseInt(intervalStr, 10)
     if (isNaN(interval) || interval <= 0) {
       return { params: null, error: `Invalid interval: ${intervalStr}` }
     }
@@ -73,6 +80,7 @@ export function useCheckoutParams(): UseCheckoutParamsReturn {
         amount,
         interval,
         spendingCap: spendingCap || undefined,
+        ipfsMetadataUrl: ipfsMetadataUrl || undefined,
       },
       error: null,
     }

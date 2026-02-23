@@ -8,6 +8,7 @@ import './index.css'
 import { ChainProvider } from './contexts/ChainContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { WalletProvider } from './contexts/WalletContext'
+import { MerchantModeProvider } from './contexts/MerchantModeContext'
 import { wagmiConfig } from './config/wagmi'
 import App from './App'
 
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <ChainProvider>
             <AuthProvider>
               <WalletProvider>
-                <App />
+                <MerchantModeProvider>
+                  <App />
+                </MerchantModeProvider>
               </WalletProvider>
             </AuthProvider>
           </ChainProvider>

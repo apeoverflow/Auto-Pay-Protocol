@@ -13,6 +13,13 @@ export const CHAINS = {
     "rpcUrl": "https://mainnet.evm.nodes.onflow.org",
     "usdc": "0xF1815bd50389c46847f0Bda824eC8da914045D14",
     "blockExplorer": "https://evm.flowscan.io"
+  },
+  "arcTestnet": {
+    "id": 5042002,
+    "name": "Arc Testnet",
+    "rpcUrl": "https://rpc.arc.testnet",
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "blockExplorer": "https://explorer.arc.testnet"
   }
 } as const;
 
@@ -39,7 +46,7 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
     "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
     "deployBlock": 26573469,
     "contracts": {
-      "arcPolicyManager": "0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1"
+      "policyManager": "0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1"
     },
     "addresses": {
       "usdc": "0x3600000000000000000000000000000000000000",

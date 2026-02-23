@@ -1,7 +1,7 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth, useWallet, useRoute } from './hooks'
 import type { Route } from './hooks/useRoute'
-import { getRouteLayout, navItemToRoute, routeToNavItem, isDashboardRoute } from './hooks/useRoute'
+import { getRouteLayout, navItemToRoute, routeToNavItem } from './hooks/useRoute'
 import type { NavItem } from './components/layout/Sidebar'
 import { AuthScreen } from './components/auth'
 import { DashboardLayout } from './components/layout'
@@ -15,8 +15,13 @@ import {
   DocsPage,
   CheckoutPage,
 } from './pages'
+import {
+  MerchantOverviewPage,
+  MerchantPlansPage,
+  MerchantPlanEditorPage,
+  MerchantSettingsPage,
+} from './pages/merchant'
 import { LoadingView } from './views'
-import { ArrowLeft } from 'lucide-react'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -150,19 +155,8 @@ function App() {
           className={`route-layer ${animClass}`}
           onAnimationEnd={onAnimationEnd}
         >
-          <div className="flex h-screen flex-col bg-background overflow-hidden">
-            <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-border/50 bg-white/80 backdrop-blur-sm px-4">
-              <button
-                onClick={() => animatedNavigate(isLoggedIn ? '/dashboard' : '/')}
-                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to {isLoggedIn ? 'Dashboard' : 'Connect'}
-              </button>
-            </header>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <DocsPage />
-            </div>
+          <div className="flex h-screen bg-background overflow-hidden">
+            <DocsPage onBack={() => animatedNavigate(isLoggedIn ? '/dashboard' : '/')} />
           </div>
         </div>
       </div>
@@ -219,6 +213,17 @@ function App() {
         return <SettingsPage />
       case '/demo':
         return <DemoPage onNavigate={handleSidebarNavigate} />
+      // Merchant routes
+      case '/merchant':
+        return <MerchantOverviewPage onNavigate={handleSidebarNavigate} navigate={navigate} />
+      case '/merchant/plans':
+        return <MerchantPlansPage onNavigate={handleSidebarNavigate} />
+      case '/merchant/plans/new':
+        return <MerchantPlanEditorPage navigate={navigate} />
+      case '/merchant/plans/edit':
+        return <MerchantPlanEditorPage navigate={navigate} />
+      case '/merchant/settings':
+        return <MerchantSettingsPage />
       case '/dashboard':
       default:
         return <DashboardPage onNavigate={(page) => handleSidebarNavigate(page)} />

@@ -16,18 +16,29 @@ export function formatUSDCString(amount: string): string {
   return num.toFixed(2)
 }
 
-/** Format seconds to a human-readable interval (e.g. "1 month") */
-export function formatIntervalLabel(seconds: number): string {
-  if (seconds < 60) return `${seconds} seconds`
-  if (seconds < 3600) {
-    const mins = Math.floor(seconds / 60)
+/** Format seconds or a string label to a human-readable interval (e.g. "1 month", "month") */
+export function formatIntervalLabel(interval: number | string): string {
+  if (typeof interval === 'string') {
+    const labels: Record<string, string> = {
+      seconds: 'second', minutes: 'minute', daily: 'day',
+      weekly: 'week', biweekly: '2 weeks', monthly: 'month',
+      quarterly: 'quarter', yearly: 'year',
+    }
+    if (labels[interval]) return labels[interval]
+    const parsed = Number(interval)
+    if (!isNaN(parsed)) return formatIntervalLabel(parsed)
+    return interval
+  }
+  if (interval < 60) return `${interval} seconds`
+  if (interval < 3600) {
+    const mins = Math.floor(interval / 60)
     return mins === 1 ? '1 minute' : `${mins} minutes`
   }
-  if (seconds < 86400) {
-    const hours = Math.floor(seconds / 3600)
+  if (interval < 86400) {
+    const hours = Math.floor(interval / 3600)
     return hours === 1 ? '1 hour' : `${hours} hours`
   }
-  const days = Math.floor(seconds / 86400)
+  const days = Math.floor(interval / 86400)
   if (days === 1) return '1 day'
   if (days === 7) return '1 week'
   if (days === 30 || days === 31) return '1 month'

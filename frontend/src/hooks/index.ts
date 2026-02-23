@@ -21,3 +21,9 @@ export { useCheckoutParams } from './useCheckoutParams'
 // Metadata fetching
 export { useMetadata, useMetadataBatch } from './useMetadata'
 export type { PolicyMetadata } from './useMetadata'
+
+// Merchant hooks
+export { useMerchantMode } from './useMerchantMode'
+export { useMerchantPlans } from './useMerchantPlans'
+export { useMerchantPlan } from './useMerchantPlan'
+export { useMerchantStats } from './useMerchantStats'

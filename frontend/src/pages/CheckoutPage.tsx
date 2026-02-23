@@ -28,8 +28,8 @@ export function CheckoutPage() {
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [step, setStep] = React.useState<Step>('loading')
   const [reviewedPlan, setReviewedPlan] = React.useState(false)
-  // User-editable spending cap — defaults to unlimited, adjustable in ConfirmStep
-  const [userSpendingCap, setUserSpendingCap] = React.useState<string | undefined>(undefined)
+  // User-editable spending cap — defaults to URL param value, adjustable in ConfirmStep
+  const [userSpendingCap, setUserSpendingCap] = React.useState<string | undefined>(params?.spendingCap)
 
   // Ensure Flow EVM is selected for checkout
   React.useEffect(() => {
@@ -51,23 +51,34 @@ export function CheckoutPage() {
   }, [balance, params?.amount])
 
   // Fetch display metadata on mount (plan name, description, features, merchant branding)
+  // Falls back to IPFS metadata URL if the primary (relayer) URL fails
   React.useEffect(() => {
     if (!params) return
 
-    fetch(params.metadataUrl)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to fetch metadata: ${res.status}`)
-        return res.json()
-      })
-      .then((data: CheckoutMetadata) => {
-        if (!data.plan?.name) {
-          throw new Error('Invalid metadata: missing required field (plan.name)')
+    const fetchMetadata = async () => {
+      const urls = [params.metadataUrl, params.ipfsMetadataUrl].filter(Boolean) as string[]
+
+      for (const url of urls) {
+        try {
+          const res = await fetch(url)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data: CheckoutMetadata = await res.json()
+          if (!data.plan?.name) {
+            throw new Error('Invalid metadata: missing required field (plan.name)')
+          }
+          setMetadata(data)
+          return
+        } catch (err) {
+          // If this was the last URL, report the error
+          if (url === urls[urls.length - 1]) {
+            setFetchError(err instanceof Error ? err.message : 'Failed to load plan details')
+          }
+          // Otherwise try next URL
         }
-        setMetadata(data)
-      })
-      .catch((err) => {
-        setFetchError(err instanceof Error ? err.message : 'Failed to load plan details')
-      })
+      }
+    }
+
+    fetchMetadata()
   }, [params])
 
   // Determine current step based on state

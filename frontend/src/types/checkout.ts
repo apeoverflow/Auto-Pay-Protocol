@@ -7,6 +7,8 @@ export interface CheckoutParams {
   amount: string       // e.g. "9.99" (USDC)
   interval: number     // seconds
   spendingCap?: string // e.g. "119.88" — omit for unlimited (0 on-chain)
+  /** IPFS metadata URL — fallback if metadataUrl (relayer) is unreachable */
+  ipfsMetadataUrl?: string
 }
 
 /** Display-only metadata fetched from metadataUrl. Billing info comes from CheckoutParams. */

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CreditCard, Loader2, Shield, ChevronDown, ExternalLink } from 'lucide-react'
+import { CreditCard, Loader2, Shield, ChevronDown, ExternalLink, AlertCircle } from 'lucide-react'
 import type { CheckoutMetadata } from '../../types/checkout'
 import { formatUSDCString, formatIntervalLabel, shortenAddress } from '../../lib/utils'
 import { useWallet } from '../../hooks'
@@ -15,6 +15,51 @@ interface ConfirmStepProps {
   isLoading: boolean
   error: string | null
   cancelUrl: string
+}
+
+/** Extract a short user-friendly message from a verbose error string */
+function friendlyError(raw: string): { summary: string; details: string | null } {
+  if (raw.includes('User rejected') || raw.includes('User denied')) {
+    return { summary: 'Transaction rejected — please try again.', details: raw }
+  }
+  if (raw.includes('insufficient funds')) {
+    return { summary: 'Insufficient funds for gas fees.', details: raw }
+  }
+  if (raw.length <= 120) {
+    return { summary: raw, details: null }
+  }
+  const firstSentence = raw.split(/\.\s/)[0]
+  const summary = firstSentence.length <= 120 ? firstSentence + '.' : raw.slice(0, 120) + '...'
+  return { summary, details: raw }
+}
+
+function ErrorBanner({ summary, details }: { summary: string; details: string | null }) {
+  const [showDetails, setShowDetails] = React.useState(false)
+  return (
+    <div className="p-3 rounded-lg bg-red-50 border border-red-100 mb-4">
+      <div className="flex items-start gap-2">
+        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-red-600">{summary}</p>
+          {details && (
+            <button
+              type="button"
+              onClick={() => setShowDetails(!showDetails)}
+              className="mt-1 text-[11px] text-red-400 hover:text-red-500 flex items-center gap-0.5"
+            >
+              {showDetails ? 'Hide' : 'Show'} details
+              <ChevronDown className={`w-3 h-3 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+          {showDetails && details && (
+            <pre className="mt-2 text-[10px] text-red-500/80 whitespace-pre-wrap break-all max-h-24 overflow-y-auto bg-red-50 rounded p-2 border border-red-100">
+              {details}
+            </pre>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /** Build spending cap presets based on charge amount */
@@ -193,11 +238,10 @@ export function ConfirmStep({ metadata, merchant, amount, interval, spendingCap,
         {formatIntervalLabel(interval)}{spendingCap ? ` up to a $${formatUSDCString(spendingCap)} cap` : ' with no spending cap'}. You can cancel anytime.
       </p>
 
-      {error && (
-        <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600 mb-4">
-          {error}
-        </div>
-      )}
+      {error && (() => {
+        const { summary, details } = friendlyError(error)
+        return <ErrorBanner summary={summary} details={details} />
+      })()}
 
       <button
         onClick={onSubscribe}

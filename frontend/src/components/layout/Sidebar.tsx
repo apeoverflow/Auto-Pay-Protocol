@@ -10,11 +10,18 @@ import {
   ArrowDownUp,
   BookOpen,
   ExternalLink,
+  Store,
+  FileText,
+  Users,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { useAuth } from '../../hooks'
+import { useMerchantMode } from '../../hooks/useMerchantMode'
+import type { AppMode } from '../../contexts/MerchantModeContext'
 
-export type NavItem = 'dashboard' | 'subscriptions' | 'activity' | 'bridge' | 'settings' | 'demo' | 'docs'
+export type NavItem =
+  | 'dashboard' | 'subscriptions' | 'activity' | 'bridge' | 'settings' | 'demo' | 'docs'
+  | 'merchant-overview' | 'merchant-plans' | 'merchant-settings'
 
 interface SidebarProps {
   currentPage: NavItem
@@ -23,13 +30,20 @@ interface SidebarProps {
   onClose?: () => void
 }
 
-// Main navigation items
-const mainNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
+// Subscriber navigation items
+const subscriberNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'subscriptions', label: 'Subscriptions', icon: <CreditCard className="h-4 w-4" /> },
   { id: 'activity', label: 'Activity', icon: <Activity className="h-4 w-4" /> },
   { id: 'bridge', label: 'Bridge Funds', icon: <ArrowDownUp className="h-4 w-4" /> },
   { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
+]
+
+// Merchant navigation items
+const merchantNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
+  { id: 'merchant-overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { id: 'merchant-plans', label: 'Plans', icon: <FileText className="h-4 w-4" /> },
+  { id: 'merchant-settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
 ]
 
 // Beta/Developer items (shown at bottom)
@@ -40,6 +54,15 @@ const betaNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
 
 export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }: SidebarProps) {
   const { logout } = useAuth()
+  const { mode, setMode, isMerchant } = useMerchantMode()
+
+  const navItems = isMerchant ? merchantNavItems : subscriberNavItems
+
+  const handleModeSwitch = (newMode: AppMode) => {
+    if (newMode === mode) return
+    setMode(newMode)
+    onNavigate(newMode === 'merchant' ? 'merchant-overview' : 'dashboard')
+  }
 
   return (
     <>
@@ -71,9 +94,39 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
           </button>
         </div>
 
+        {/* Role Toggle */}
+        <div className="px-3 pb-2">
+          <div className="flex rounded-xl bg-white/[0.06] p-1">
+            <button
+              onClick={() => handleModeSwitch('subscriber')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200',
+                !isMerchant
+                  ? 'bg-white/[0.12] text-white shadow-sm'
+                  : 'text-white/40 hover:text-white/60'
+              )}
+            >
+              <Users className="h-3 w-3" />
+              Subscriber
+            </button>
+            <button
+              onClick={() => handleModeSwitch('merchant')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200',
+                isMerchant
+                  ? 'bg-white/[0.12] text-white shadow-sm'
+                  : 'text-white/40 hover:text-white/60'
+              )}
+            >
+              <Store className="h-3 w-3" />
+              Merchant
+            </button>
+          </div>
+        </div>
+
         {/* Main Navigation */}
-        <nav className="flex-1 space-y-1 px-3 pt-3">
-          {mainNavItems.map((item) => (
+        <nav className="flex-1 space-y-1 px-3 pt-1">
+          {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
