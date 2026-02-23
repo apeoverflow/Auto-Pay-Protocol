@@ -15,6 +15,7 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
 const RELAYER_URL = process.env.RELAYER_URL || 'http://localhost:3420'
 const RPC_URL = process.env.RPC_URL || 'https://mainnet.evm.nodes.onflow.org'
 const POLICY_MANAGER = process.env.POLICY_MANAGER || '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345'
+const PLAN_IDS = process.env.PLAN_IDS ? process.env.PLAN_IDS.split(',').map(s => s.trim()).filter(Boolean) : null
 
 // Supabase connection (same DB as relayer, merchant tables)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jlafnlrurqqalgvxshgz.supabase.co'
@@ -433,20 +434,27 @@ app.get('/api/check-access', async (req, res) => {
 // ── Plans endpoint ──
 app.get('/api/plans', async (_req, res) => {
   try {
-    const listRes = await fetch(`${RELAYER_URL}/metadata`)
+    // Use the merchant-specific endpoint with status=active to only get published plans
+    const listRes = await fetch(`${RELAYER_URL}/merchants/${MERCHANT_ADDRESS}/plans?status=active`)
     if (!listRes.ok) throw new Error(`Relayer returned ${listRes.status}`)
-    const list = await listRes.json()
+    let merchantPlans = await listRes.json()
 
-    const merchantPlans = list.filter(
-      (p) => p.merchantAddress?.toLowerCase() === MERCHANT_ADDRESS.toLowerCase()
-    )
+    // Optionally filter to specific plan IDs (set PLAN_IDS env var)
+    if (PLAN_IDS) {
+      merchantPlans = merchantPlans.filter((p) => PLAN_IDS.includes(p.id))
+    }
 
     const plans = await Promise.all(
       merchantPlans.map(async (entry) => {
-        const metaRes = await fetch(`${RELAYER_URL}/metadata/${entry.id}`)
+        const metaRes = await fetch(`${RELAYER_URL}/metadata/${MERCHANT_ADDRESS.toLowerCase()}/${entry.id}`)
         if (!metaRes.ok) return null
         const metadata = await metaRes.json()
-        return { id: entry.id, metadata, metadataUrl: `${RELAYER_URL}/metadata/${entry.id}` }
+        return {
+          id: entry.id,
+          metadata,
+          metadataUrl: `${RELAYER_URL}/metadata/${MERCHANT_ADDRESS.toLowerCase()}/${entry.id}`,
+          ipfsMetadataUrl: entry.ipfsMetadataUrl || null,
+        }
       })
     )
 

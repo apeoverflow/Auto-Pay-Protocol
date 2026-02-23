@@ -214,17 +214,35 @@
       } catch {}
     })()
 
-    function formatInterval(seconds) {
-      if (seconds < 60) return `every ${seconds}s`
-      if (seconds < 3600) {
-        const mins = Math.floor(seconds / 60)
+    function formatInterval(interval) {
+      // Handle string labels (from new plan API)
+      if (typeof interval === 'string') {
+        const labels = {
+          seconds: 'every second',
+          minutes: 'every minute',
+          daily: 'daily',
+          weekly: 'weekly',
+          biweekly: 'biweekly',
+          monthly: 'monthly',
+          quarterly: 'quarterly',
+          yearly: 'yearly',
+        }
+        if (labels[interval]) return labels[interval]
+        // Try parsing as number (seconds)
+        interval = Number(interval)
+        if (isNaN(interval)) return interval
+      }
+      // Handle numeric (seconds)
+      if (interval < 60) return `every ${interval}s`
+      if (interval < 3600) {
+        const mins = Math.floor(interval / 60)
         return `every ${mins} min${mins > 1 ? 's' : ''}`
       }
-      if (seconds < 86400) {
-        const hours = Math.floor(seconds / 3600)
+      if (interval < 86400) {
+        const hours = Math.floor(interval / 3600)
         return `every ${hours} hour${hours > 1 ? 's' : ''}`
       }
-      const days = Math.floor(seconds / 86400)
+      const days = Math.floor(interval / 86400)
       if (days === 30 || days === 31) return 'monthly'
       if (days === 365) return 'yearly'
       return `every ${days} day${days > 1 ? 's' : ''}`
@@ -264,7 +282,7 @@
         container.innerHTML = ''
 
         for (const entry of plans) {
-          const { id, metadata, metadataUrl } = entry
+          const { id, metadata, metadataUrl, ipfsMetadataUrl } = entry
           const plan = metadata.plan || {}
           const billing = metadata.billing || {}
           const display = metadata.display || {}
@@ -277,17 +295,29 @@
           const features = plan.features || []
 
           // Build checkout link — billing params go in the URL (on-chain source of truth)
+          // The checkout page expects interval as seconds (number), so convert labels
+          const intervalLabelToSeconds = {
+            seconds: 1, minutes: 60, daily: 86400,
+            weekly: 604800, biweekly: 1209600, monthly: 2592000,
+            quarterly: 7776000, yearly: 31536000,
+          }
+          const intervalSeconds = typeof billing.interval === 'string'
+            ? (intervalLabelToSeconds[billing.interval] || parseInt(billing.interval, 10) || 2592000)
+            : billing.interval
           const serverUrl = window.location.origin
           const checkoutParams = new URLSearchParams({
             merchant: config.merchantAddress,
             metadata_url: metadataUrl,
-            amount: billing.amount,
-            interval: String(billing.interval),
+            amount: String(billing.amount),
+            interval: String(intervalSeconds),
             success_url: `${serverUrl}/success`,
             cancel_url: `${serverUrl}/cancel`,
           })
-          if (billing.spending_cap) {
-            checkoutParams.set('spending_cap', billing.spending_cap)
+          if (billing.spending_cap || billing.cap) {
+            checkoutParams.set('spending_cap', String(billing.spending_cap || billing.cap))
+          }
+          if (ipfsMetadataUrl) {
+            checkoutParams.set('ipfs_metadata_url', ipfsMetadataUrl)
           }
           const checkoutLink = `${config.checkoutUrl}/?${checkoutParams.toString()}`
 
@@ -303,7 +333,7 @@
             <div class="plan-name">${plan.name || id}</div>
             <div class="plan-desc">${plan.description || ''}</div>
             <div class="plan-price">${amount} <span>${billing.currency || 'USDC'}</span></div>
-            <div class="plan-interval">${interval}${billing.interval <= 300 ? ' (demo)' : ''}</div>
+            <div class="plan-interval">${interval}${['seconds', 'minutes'].includes(billing.interval) || (typeof billing.interval === 'number' && billing.interval <= 300) ? ' (demo)' : ''}</div>
             <ul class="features">
               ${features.map(f => `<li style="--check-color:${color}">${f}</li>`).join('')}
             </ul>
