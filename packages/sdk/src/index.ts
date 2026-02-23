@@ -10,8 +10,12 @@ export type {
   PolicyCreatedEvent,
   PolicyRevokedEvent,
   PolicyCancelledByFailureEvent,
+  PolicyCompletedEvent,
   CheckoutMetadata,
+  BillingInterval,
   FeeBreakdown,
+  PlanCheckoutOptions,
+  ResolvedPlan,
 } from './types'
 
 // Errors
@@ -32,11 +36,13 @@ export {
   MAX_RETRIES,
   chains,
   DEFAULT_CHECKOUT_BASE_URL,
+  DEFAULT_IPFS_GATEWAY,
+  ipfsGatewayUrl,
 } from './constants'
 export type { ChainConfig } from './constants'
 
 // Checkout
-export { createCheckoutUrl, parseSuccessRedirect, resolveInterval } from './checkout'
+export { createCheckoutUrl, createCheckoutUrlFromPlan, resolvePlan, parseSuccessRedirect, resolveInterval } from './checkout'
 
 // Webhooks
 export { verifyWebhook, verifySignature, signPayload } from './webhooks'

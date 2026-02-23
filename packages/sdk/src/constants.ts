@@ -3,8 +3,14 @@
 // ---------------------------------------------------------------------------
 
 export const intervals = {
+  /** 1 second — useful for testing */
+  seconds: 1,
   /** 1 minute — useful for testing */
+  minutes: 60,
+  /** Alias for minutes */
   minute: 60,
+  /** 1 day */
+  daily: 86_400,
   /** 7 days */
   weekly: 604_800,
   /** 14 days */
@@ -86,3 +92,11 @@ export const chains: Record<string, ChainConfig> = {
 
 /** Default checkout base URL */
 export const DEFAULT_CHECKOUT_BASE_URL = 'https://autopayprotocol.com'
+
+/** Default IPFS gateway for resolving CIDs */
+export const DEFAULT_IPFS_GATEWAY = 'https://w3s.link'
+
+/** Build an IPFS gateway URL from a CID */
+export function ipfsGatewayUrl(cid: string, gateway = DEFAULT_IPFS_GATEWAY): string {
+  return `${gateway}/ipfs/${cid}`
+}

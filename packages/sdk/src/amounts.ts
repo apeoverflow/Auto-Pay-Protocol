@@ -68,17 +68,38 @@ export function calculateFeeBreakdown(rawAmount: string): FeeBreakdown {
 }
 
 /**
- * Format an interval in seconds to a human-readable label.
+ * Format an interval to a human-readable label.
+ * Accepts either a number (seconds) or a string label (e.g. "monthly", "daily").
  *
  * @example
  * ```ts
- * formatInterval(2592000)  // "monthly"
- * formatInterval(604800)   // "weekly"
- * formatInterval(86400)    // "1 day"
- * formatInterval(172800)   // "2 days"
+ * formatInterval(2592000)   // "monthly"
+ * formatInterval(604800)    // "weekly"
+ * formatInterval(86400)     // "1 day"
+ * formatInterval('monthly') // "monthly"
+ * formatInterval('minutes') // "every minute"
  * ```
  */
-export function formatInterval(seconds: number): string {
+export function formatInterval(interval: number | string): string {
+  // Handle string labels directly
+  if (typeof interval === 'string') {
+    const labels: Record<string, string> = {
+      seconds: 'every second',
+      minutes: 'every minute',
+      daily: 'daily',
+      weekly: 'weekly',
+      biweekly: 'biweekly',
+      monthly: 'monthly',
+      quarterly: 'quarterly',
+      yearly: 'yearly',
+    }
+    if (labels[interval]) return labels[interval]
+    // Try parsing as numeric string
+    const parsed = Number(interval)
+    if (!isNaN(parsed)) return formatInterval(parsed)
+    return interval
+  }
+
   // Check for well-known presets first
   const presets: Record<number, string> = {
     604_800: 'weekly',
@@ -87,15 +108,15 @@ export function formatInterval(seconds: number): string {
     7_776_000: 'quarterly',
     31_536_000: 'yearly',
   }
-  if (presets[seconds]) return presets[seconds]
+  if (presets[interval]) return presets[interval]
 
-  const days = Math.floor(seconds / 86_400)
-  const hours = Math.floor((seconds % 86_400) / 3_600)
-  const minutes = Math.floor((seconds % 3_600) / 60)
+  const days = Math.floor(interval / 86_400)
+  const hours = Math.floor((interval % 86_400) / 3_600)
+  const minutes = Math.floor((interval % 3_600) / 60)
 
   if (days > 0 && hours > 0) return `${days}d ${hours}h`
   if (days > 0) return days === 1 ? '1 day' : `${days} days`
   if (hours > 0) return hours === 1 ? '1 hour' : `${hours} hours`
   if (minutes > 0) return minutes === 1 ? '1 minute' : `${minutes} minutes`
-  return `${seconds}s`
+  return `${interval}s`
 }

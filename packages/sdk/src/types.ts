@@ -2,7 +2,7 @@
 // Checkout
 // ---------------------------------------------------------------------------
 
-export type IntervalPreset = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
+export type IntervalPreset = 'seconds' | 'minutes' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
 
 export interface CheckoutOptions {
   /** Merchant wallet address (0x-prefixed, 40 hex chars) */
@@ -19,6 +19,8 @@ export interface CheckoutOptions {
   cancelUrl: string
   /** Optional spending cap in human-readable USDC. Omit for unlimited. */
   spendingCap?: number
+  /** Optional IPFS metadata URL — used as fallback if metadataUrl is unreachable */
+  ipfsMetadataUrl?: string
   /** Optional base URL override (default: https://autopayprotocol.com) */
   baseUrl?: string
 }
@@ -38,6 +40,7 @@ export type WebhookEventType =
   | 'policy.created'
   | 'policy.revoked'
   | 'policy.cancelled_by_failure'
+  | 'policy.completed'
 
 interface WebhookBase {
   timestamp: string
@@ -90,12 +93,21 @@ export interface PolicyCancelledByFailureEvent extends WebhookBase {
   }
 }
 
+export interface PolicyCompletedEvent extends WebhookBase {
+  type: 'policy.completed'
+  data: WebhookBase['data'] & {
+    totalSpent: string
+    chargeCount: number
+  }
+}
+
 export type WebhookEvent =
   | ChargeSucceededEvent
   | ChargeFailedEvent
   | PolicyCreatedEvent
   | PolicyRevokedEvent
   | PolicyCancelledByFailureEvent
+  | PolicyCompletedEvent
 
 // ---------------------------------------------------------------------------
 // Metadata
@@ -115,11 +127,23 @@ export interface CheckoutMetadata {
     website?: string
     supportEmail?: string
   }
+  billing?: {
+    /** Charge amount in human-readable USDC (e.g. "9.99") */
+    amount: string
+    /** Currency identifier (default: "USDC") */
+    currency: string
+    /** Billing interval label */
+    interval: BillingInterval
+    /** Spending cap in human-readable USDC (must be >= amount) */
+    cap: string
+  }
   display?: {
     color?: string
     badge?: string
   }
 }
+
+export type BillingInterval = 'seconds' | 'minutes' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
 
 // ---------------------------------------------------------------------------
 // Fee breakdown
@@ -134,4 +158,36 @@ export interface FeeBreakdown {
   protocolFee: string
   /** Fee as percentage string (e.g. "2.5%") */
   feePercentage: string
+}
+
+// ---------------------------------------------------------------------------
+// Plan-based checkout
+// ---------------------------------------------------------------------------
+
+export interface PlanCheckoutOptions {
+  /** Relayer base URL (e.g. "https://relayer.autopayprotocol.com") */
+  relayerUrl: string
+  /** Merchant wallet address */
+  merchant: string
+  /** Plan ID (slug) */
+  planId: string
+  /** Redirect URL on successful subscription */
+  successUrl: string
+  /** Redirect URL on cancel */
+  cancelUrl: string
+  /** Optional spending cap override (defaults to plan's billing.cap) */
+  spendingCap?: number
+  /** Optional checkout app base URL override */
+  baseUrl?: string
+  /** Optional API key for self-hosted relayers that lock down reads */
+  apiKey?: string
+}
+
+export interface ResolvedPlan {
+  metadata: CheckoutMetadata
+  ipfsMetadataUrl: string | null
+  relayerMetadataUrl: string
+  amount: number
+  intervalSeconds: number
+  spendingCap?: number
 }

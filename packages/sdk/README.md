@@ -49,6 +49,8 @@ if (event.type === 'charge.succeeded') {
 | Function | Description |
 |----------|-------------|
 | `createCheckoutUrl(options)` | Build a checkout URL with validation |
+| `createCheckoutUrlFromPlan(options)` | Build a checkout URL from a relayer-hosted plan (fetches plan, prefers IPFS metadata URL) |
+| `resolvePlan(options)` | Fetch and validate a plan from the relayer API, returns billing params + metadata URLs |
 | `parseSuccessRedirect(queryString)` | Parse `policyId` and `txHash` from success redirect |
 | `resolveInterval(preset \| seconds)` | Convert interval preset to seconds |
 
@@ -93,6 +95,8 @@ if (event.type === 'charge.succeeded') {
 | `MAX_INTERVAL` | `31_536_000` (365 days) |
 | `MAX_RETRIES` | `3` |
 | `DEFAULT_CHECKOUT_BASE_URL` | `'https://autopayprotocol.com'` |
+| `DEFAULT_IPFS_GATEWAY` | `'https://w3s.link'` |
+| `ipfsGatewayUrl(cid, gateway?)` | Build IPFS gateway URL from CID |
 | `chains` | Chain configs (Polygon Amoy, Arbitrum Sepolia, Arc Testnet) |
 
 ### Error Classes
@@ -118,11 +122,11 @@ All events share `{ type, timestamp, data: { policyId, chainId, payer, merchant 
 
 ### Exported Types
 
-`CheckoutOptions`, `SuccessRedirect`, `IntervalPreset`, `WebhookEvent`, `WebhookEventType`, `ChargeSucceededEvent`, `ChargeFailedEvent`, `PolicyCreatedEvent`, `PolicyRevokedEvent`, `PolicyCancelledByFailureEvent`, `CheckoutMetadata`, `FeeBreakdown`, `MetadataValidationResult`, `ChainConfig`
+`CheckoutOptions`, `PlanCheckoutOptions`, `ResolvedPlan`, `SuccessRedirect`, `IntervalPreset`, `WebhookEvent`, `WebhookEventType`, `ChargeSucceededEvent`, `ChargeFailedEvent`, `PolicyCreatedEvent`, `PolicyRevokedEvent`, `PolicyCancelledByFailureEvent`, `CheckoutMetadata`, `FeeBreakdown`, `MetadataValidationResult`, `ChainConfig`
 
 ## Zero Dependencies
 
-This package has **zero runtime dependencies**. It only uses Node.js built-in `crypto`.
+This package has **zero runtime dependencies**. It uses Node.js built-in `crypto` and the global `fetch` API (Node.js 18+, all modern browsers).
 
 ## License
 

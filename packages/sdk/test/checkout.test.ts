@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { createCheckoutUrl, parseSuccessRedirect, resolveInterval } from '../src/checkout'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { createCheckoutUrl, createCheckoutUrlFromPlan, resolvePlan, parseSuccessRedirect, resolveInterval } from '../src/checkout'
 import { AutoPayCheckoutError } from '../src/errors'
 
 describe('resolveInterval', () => {
@@ -17,7 +17,7 @@ describe('resolveInterval', () => {
   })
 
   it('throws on invalid preset', () => {
-    expect(() => resolveInterval('daily' as any)).toThrow(AutoPayCheckoutError)
+    expect(() => resolveInterval('invalid-preset' as any)).toThrow(AutoPayCheckoutError)
   })
 })
 
@@ -98,20 +98,205 @@ describe('createCheckoutUrl', () => {
 })
 
 describe('parseSuccessRedirect', () => {
-  it('parses policyId and txHash from query string', () => {
-    const qs = '?policyId=0xabc123&txHash=0xdef456'
+  it('parses policy_id and tx_hash from query string', () => {
+    const qs = '?policy_id=0xabc123&tx_hash=0xdef456'
     const result = parseSuccessRedirect(qs)
     expect(result.policyId).toBe('0xabc123')
     expect(result.txHash).toBe('0xdef456')
   })
 
-  it('throws on missing policyId', () => {
-    expect(() => parseSuccessRedirect('?txHash=0xdef456'))
+  it('throws on missing policy_id', () => {
+    expect(() => parseSuccessRedirect('?tx_hash=0xdef456'))
       .toThrow(AutoPayCheckoutError)
   })
 
-  it('throws on missing txHash', () => {
-    expect(() => parseSuccessRedirect('?policyId=0xabc123'))
+  it('throws on missing tx_hash', () => {
+    expect(() => parseSuccessRedirect('?policy_id=0xabc123'))
       .toThrow(AutoPayCheckoutError)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Plan-based checkout tests
+// ---------------------------------------------------------------------------
+
+const MERCHANT = '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B'
+const RELAYER = 'https://relayer.example.com'
+
+const activePlanResponse = {
+  id: 'pro',
+  merchantAddress: MERCHANT,
+  metadata: {
+    version: '1.0',
+    plan: { name: 'Pro Plan', description: 'The best plan' },
+    merchant: { name: 'Acme' },
+    billing: { amount: '9.99', currency: 'USDC', interval: 'monthly', cap: '119.88' },
+  },
+  status: 'active',
+  amount: 9.99,
+  intervalLabel: 'monthly',
+  spendingCap: 119.88,
+  ipfsCid: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
+  ipfsMetadataUrl: 'https://w3s.link/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
+  createdAt: '2025-01-01T00:00:00Z',
+  updatedAt: '2025-01-01T00:00:00Z',
+}
+
+function mockFetch(response: object, status = 200) {
+  return vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(response),
+  })
+}
+
+describe('resolvePlan', () => {
+  const baseOpts = {
+    relayerUrl: RELAYER,
+    merchant: MERCHANT,
+    planId: 'pro',
+    successUrl: 'https://mysite.com/success',
+    cancelUrl: 'https://mysite.com/cancel',
+  }
+
+  let originalFetch: typeof globalThis.fetch
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('resolves an active plan with IPFS URL', async () => {
+    globalThis.fetch = mockFetch(activePlanResponse) as any
+    const plan = await resolvePlan(baseOpts)
+
+    expect(plan.amount).toBe(9.99)
+    expect(plan.intervalSeconds).toBe(2_592_000)
+    expect(plan.spendingCap).toBe(119.88)
+    expect(plan.ipfsMetadataUrl).toBe(activePlanResponse.ipfsMetadataUrl)
+    expect(plan.relayerMetadataUrl).toBe(`${RELAYER}/metadata/${MERCHANT}/pro`)
+  })
+
+  it('returns null ipfsMetadataUrl when no CID', async () => {
+    globalThis.fetch = mockFetch({ ...activePlanResponse, ipfsCid: null, ipfsMetadataUrl: null }) as any
+    const plan = await resolvePlan(baseOpts)
+
+    expect(plan.ipfsMetadataUrl).toBeNull()
+    expect(plan.relayerMetadataUrl).toBe(`${RELAYER}/metadata/${MERCHANT}/pro`)
+  })
+
+  it('throws on inactive plan', async () => {
+    globalThis.fetch = mockFetch({ ...activePlanResponse, status: 'draft' }) as any
+    await expect(resolvePlan(baseOpts)).rejects.toThrow('not active')
+  })
+
+  it('throws on missing billing', async () => {
+    const noBilling = { ...activePlanResponse, metadata: { ...activePlanResponse.metadata, billing: undefined } }
+    globalThis.fetch = mockFetch(noBilling) as any
+    await expect(resolvePlan(baseOpts)).rejects.toThrow('missing billing')
+  })
+
+  it('throws on 404', async () => {
+    globalThis.fetch = mockFetch({}, 404) as any
+    await expect(resolvePlan(baseOpts)).rejects.toThrow('not found')
+  })
+
+  it('passes API key header when provided', async () => {
+    const fetchMock = mockFetch(activePlanResponse) as any
+    globalThis.fetch = fetchMock
+    await resolvePlan({ ...baseOpts, apiKey: 'sk_test_123' })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ headers: { 'X-API-Key': 'sk_test_123' } }),
+    )
+  })
+
+  it('throws on invalid merchant address', async () => {
+    await expect(resolvePlan({ ...baseOpts, merchant: 'bad' })).rejects.toThrow('Invalid merchant')
+  })
+
+  it('throws on missing relayerUrl', async () => {
+    await expect(resolvePlan({ ...baseOpts, relayerUrl: '' })).rejects.toThrow('relayerUrl')
+  })
+
+  it('wraps network errors as AutoPayCheckoutError', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('fetch failed')) as any
+    await expect(resolvePlan(baseOpts)).rejects.toThrow('Relayer request failed')
+  })
+
+  it('handles numeric interval strings from relayer API', async () => {
+    const numericIntervalPlan = {
+      ...activePlanResponse,
+      metadata: {
+        ...activePlanResponse.metadata,
+        billing: { ...activePlanResponse.metadata.billing, interval: '2592000' },
+      },
+    }
+    globalThis.fetch = mockFetch(numericIntervalPlan) as any
+    const plan = await resolvePlan(baseOpts)
+
+    expect(plan.intervalSeconds).toBe(2_592_000)
+  })
+})
+
+describe('createCheckoutUrlFromPlan', () => {
+  const baseOpts = {
+    relayerUrl: RELAYER,
+    merchant: MERCHANT,
+    planId: 'pro',
+    successUrl: 'https://mysite.com/success',
+    cancelUrl: 'https://mysite.com/cancel',
+  }
+
+  let originalFetch: typeof globalThis.fetch
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('uses relayer URL as primary metadata_url with IPFS as fallback', async () => {
+    globalThis.fetch = mockFetch(activePlanResponse) as any
+    const url = await createCheckoutUrlFromPlan(baseOpts)
+    const parsed = new URL(url)
+
+    // Primary metadata_url is always the relayer
+    expect(parsed.searchParams.get('metadata_url')).toBe(`${RELAYER}/metadata/${MERCHANT}/pro`)
+    // IPFS URL is passed as fallback param
+    expect(parsed.searchParams.get('ipfs_metadata_url')).toBe(activePlanResponse.ipfsMetadataUrl)
+    expect(parsed.searchParams.get('amount')).toBe('9.99')
+    expect(parsed.searchParams.get('interval')).toBe('2592000')
+    expect(parsed.searchParams.get('spending_cap')).toBe('119.88')
+    expect(parsed.searchParams.get('merchant')).toBe(MERCHANT)
+  })
+
+  it('omits ipfs_metadata_url when no CID', async () => {
+    globalThis.fetch = mockFetch({ ...activePlanResponse, ipfsCid: null, ipfsMetadataUrl: null }) as any
+    const url = await createCheckoutUrlFromPlan(baseOpts)
+    const parsed = new URL(url)
+
+    expect(parsed.searchParams.get('metadata_url')).toBe(`${RELAYER}/metadata/${MERCHANT}/pro`)
+    expect(parsed.searchParams.get('ipfs_metadata_url')).toBeNull()
+  })
+
+  it('spending cap override takes precedence over plan cap', async () => {
+    globalThis.fetch = mockFetch(activePlanResponse) as any
+    const url = await createCheckoutUrlFromPlan({ ...baseOpts, spendingCap: 500 })
+    const parsed = new URL(url)
+
+    expect(parsed.searchParams.get('spending_cap')).toBe('500')
+  })
+
+  it('uses custom baseUrl', async () => {
+    globalThis.fetch = mockFetch(activePlanResponse) as any
+    const url = await createCheckoutUrlFromPlan({ ...baseOpts, baseUrl: 'https://staging.autopay.xyz' })
+    expect(url.startsWith('https://staging.autopay.xyz/checkout')).toBe(true)
   })
 })
