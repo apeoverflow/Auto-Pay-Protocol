@@ -1,8 +1,8 @@
 # @autopayprotocol/sdk
 
-Server-side utility package for merchants integrating with [AutoPay Protocol](https://autopayprotocol.com).
+Server-side helpers for merchants integrating with [AutoPay Protocol](https://autopayprotocol.com) — crypto subscriptions that are 50% cheaper than Stripe, fully non-custodial, and multi-chain.
 
-This SDK does **not** interact with the blockchain or manage wallets. It provides typed, zero-dependency helpers for the things merchants need on their backend: building checkout URLs, verifying webhook signatures, and working with USDC amounts/intervals.
+This SDK handles what merchants need on their backend: building checkout URLs, verifying webhook signatures, and working with USDC amounts. It has **zero runtime dependencies** and works with any Node.js framework.
 
 ## Install
 
@@ -10,11 +10,34 @@ This SDK does **not** interact with the blockchain or manage wallets. It provide
 npm install @autopayprotocol/sdk
 ```
 
-## Quick Start
+Requires Node.js 20+.
 
-### Build a checkout URL
+## Checkout URLs
 
-```typescript
+The checkout URL is how you send users to subscribe. There are two ways to build one:
+
+### From a relayer-hosted plan
+
+If you manage plans through the [merchant dashboard](https://autopayprotocol.com), the SDK fetches billing params and metadata automatically:
+
+```ts
+import { createCheckoutUrlFromPlan } from '@autopayprotocol/sdk'
+
+const url = await createCheckoutUrlFromPlan({
+  relayerUrl: 'https://autopay-relayer-production.up.railway.app',
+  merchant: '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B',
+  planId: 'pro-plan',
+  successUrl: 'https://mysite.com/success',
+  cancelUrl: 'https://mysite.com/cancel',
+})
+// Redirect the user to `url`
+```
+
+### Directly with billing params
+
+If you host your own plan metadata JSON:
+
+```ts
 import { createCheckoutUrl } from '@autopayprotocol/sdk'
 
 const url = createCheckoutUrl({
@@ -24,41 +47,224 @@ const url = createCheckoutUrl({
   metadataUrl: 'https://mysite.com/plans/pro.json',
   successUrl: 'https://mysite.com/success',
   cancelUrl: 'https://mysite.com/cancel',
-  spendingCap: 119.88,
+  spendingCap: 119.88, // optional, 12 months worth
 })
 ```
 
-### Verify webhooks
+### Targeting a chain
 
-```typescript
+AutoPay runs on multiple chains. Each chain has its own checkout deployment:
+
+```ts
+import { createCheckoutUrl, chains } from '@autopayprotocol/sdk'
+
+// Base (default) — autopayprotocol.com
+const baseUrl = createCheckoutUrl({ ... })
+
+// Flow EVM — flow.autopayprotocol.com
+const flowUrl = createCheckoutUrl({
+  ...options,
+  baseUrl: chains.flowEvm.checkoutBaseUrl,
+})
+```
+
+Available chains:
+
+| Chain | ID | Checkout URL |
+|-------|-----|-------------|
+| Base | 8453 | `https://autopayprotocol.com` |
+| Flow EVM | 747 | `https://flow.autopayprotocol.com` |
+
+### Intervals
+
+Use preset strings or build custom intervals:
+
+```ts
+import { createCheckoutUrl, intervals } from '@autopayprotocol/sdk'
+
+// Preset strings: 'daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'
+createCheckoutUrl({ ..., interval: 'monthly' })
+
+// Custom: 14 days
+createCheckoutUrl({ ..., interval: intervals.custom(14, 'days') })
+
+// Raw seconds
+createCheckoutUrl({ ..., interval: 604800 })
+```
+
+### Success redirect
+
+After subscribing, users are redirected to your `successUrl` with query params:
+
+```ts
+import { parseSuccessRedirect } from '@autopayprotocol/sdk'
+
+// On your success page:
+const { policyId, txHash } = parseSuccessRedirect(window.location.search)
+```
+
+## Webhooks
+
+The relayer sends webhook events to your server when subscriptions change. Each request includes an `x-autopay-signature` header (HMAC-SHA256).
+
+### Next.js (App Router)
+
+```ts
+// app/api/autopay/route.ts
 import { verifyWebhook } from '@autopayprotocol/sdk'
 
-const event = verifyWebhook(rawBody, req.headers['x-autopay-signature'], secret)
+const SECRET = process.env.AUTOPAY_WEBHOOK_SECRET!
 
-if (event.type === 'charge.succeeded') {
-  console.log(event.data.amount)      // TypeScript knows this exists
-  console.log(event.data.protocolFee)
-  console.log(event.data.txHash)
+export async function POST(request: Request) {
+  const rawBody = await request.text()
+  const signature = request.headers.get('x-autopay-signature') ?? undefined
+
+  try {
+    const event = verifyWebhook(rawBody, signature, SECRET)
+
+    if (event.type === 'charge.succeeded') {
+      // TypeScript knows event.data has amount, protocolFee, txHash
+      await recordPayment(event.data.payer, event.data.amount, event.data.txHash)
+    }
+
+    return Response.json({ received: true })
+  } catch {
+    return Response.json({ error: 'Invalid signature' }, { status: 401 })
+  }
 }
 ```
 
-## API
+### Express
+
+```ts
+import express from 'express'
+import { verifyWebhook } from '@autopayprotocol/sdk'
+
+const app = express()
+const SECRET = process.env.AUTOPAY_WEBHOOK_SECRET!
+
+// Important: use express.text() so the raw body is available for signature verification
+app.post('/webhook/autopay', express.text({ type: '*/*' }), (req, res) => {
+  try {
+    const event = verifyWebhook(req.body, req.headers['x-autopay-signature'] as string, SECRET)
+
+    switch (event.type) {
+      case 'policy.created':    /* grant access */     break
+      case 'charge.succeeded':  /* record payment */   break
+      case 'charge.failed':     /* send reminder */    break
+      case 'policy.revoked':    /* revoke access */    break
+      case 'policy.cancelled_by_failure': /* revoke */ break
+    }
+
+    res.json({ received: true })
+  } catch {
+    res.status(401).json({ error: 'Invalid signature' })
+  }
+})
+```
+
+### Event types
+
+All events include `policyId`, `chainId`, `payer`, and `merchant` in `event.data`.
+
+| Event | Extra fields | When |
+|-------|-------------|------|
+| `policy.created` | `chargeAmount`, `interval`, `spendingCap`, `metadataUrl` | User subscribes |
+| `charge.succeeded` | `amount`, `protocolFee`, `txHash` | Recurring payment collected |
+| `charge.failed` | `reason` | Payment failed (balance/allowance) |
+| `policy.revoked` | `endTime` | User cancelled |
+| `policy.cancelled_by_failure` | `consecutiveFailures`, `endTime` | Auto-cancelled after 3 failures |
+| `policy.completed` | `totalSpent`, `chargeCount` | Spending cap reached |
+
+### Testing webhooks locally
+
+```ts
+import { signPayload } from '@autopayprotocol/sdk'
+
+const body = JSON.stringify({ type: 'charge.succeeded', timestamp: new Date().toISOString(), data: { ... } })
+const signature = signPayload(body, 'your-test-secret')
+
+await fetch('http://localhost:3000/webhook/autopay', {
+  method: 'POST',
+  headers: { 'Content-Type': 'text/plain', 'x-autopay-signature': signature },
+  body,
+})
+```
+
+## USDC helpers
+
+```ts
+import { parseUSDC, formatUSDC, calculateFeeBreakdown } from '@autopayprotocol/sdk'
+
+// Human-readable → raw amount (6 decimals)
+parseUSDC(9.99)  // "9990000"
+
+// Raw amount → human-readable
+formatUSDC('9990000')  // "9.99"
+
+// Fee breakdown (protocol fee is 2.5%)
+const fees = calculateFeeBreakdown('9990000')
+// { total: "9.99", merchantReceives: "9.74", protocolFee: "0.25", feePercentage: "2.5%" }
+```
+
+## Plan metadata
+
+Create and validate the JSON metadata that describes your plan on the checkout page:
+
+```ts
+import { createMetadata, validateMetadata } from '@autopayprotocol/sdk'
+
+const metadata = createMetadata({
+  planName: 'Pro',
+  planDescription: 'All premium features',
+  merchantName: 'Acme Corp',
+  amount: '9.99',
+  interval: 'monthly',
+  cap: '119.88',
+  features: ['Unlimited access', 'Priority support'],
+  website: 'https://acme.com',
+  color: '#6366F1',
+  badge: 'Most Popular',
+})
+
+const { valid, errors } = validateMetadata(metadata)
+```
+
+## Constants
+
+```ts
+import { intervals, chains, PROTOCOL_FEE_BPS, USDC_DECIMALS } from '@autopayprotocol/sdk'
+
+intervals.monthly    // 2592000 (seconds)
+intervals.weekly     // 604800
+intervals.custom(3, 'months') // 7776000
+
+chains.base.chainId         // 8453
+chains.base.checkoutBaseUrl  // "https://autopayprotocol.com"
+chains.flowEvm.chainId      // 747
+chains.flowEvm.checkoutBaseUrl // "https://flow.autopayprotocol.com"
+
+PROTOCOL_FEE_BPS   // 250 (2.5%)
+USDC_DECIMALS      // 6
+```
+
+## Full API reference
 
 ### Checkout
 
 | Function | Description |
 |----------|-------------|
 | `createCheckoutUrl(options)` | Build a checkout URL with validation |
-| `createCheckoutUrlFromPlan(options)` | Build a checkout URL from a relayer-hosted plan (fetches plan, prefers IPFS metadata URL) |
-| `resolvePlan(options)` | Fetch and validate a plan from the relayer API, returns billing params + metadata URLs |
-| `parseSuccessRedirect(queryString)` | Parse `policyId` and `txHash` from success redirect |
+| `createCheckoutUrlFromPlan(options)` | Build from a relayer-hosted plan (fetches billing params, prefers IPFS metadata) |
+| `resolvePlan(options)` | Fetch a plan from the relayer and return structured billing data |
+| `parseSuccessRedirect(queryString)` | Parse `policyId` and `txHash` from the success redirect |
 | `resolveInterval(preset \| seconds)` | Convert interval preset to seconds |
 
 ### Webhooks
 
 | Function | Description |
 |----------|-------------|
-| `verifyWebhook(body, signature, secret)` | Verify + parse webhook (discriminated union) |
+| `verifyWebhook(body, signature, secret)` | Verify + parse webhook into a typed event |
 | `verifySignature(payload, signature, secret)` | Verify HMAC-SHA256 signature only |
 | `signPayload(payload, secret)` | Sign a payload (for testing) |
 
@@ -75,58 +281,16 @@ if (event.type === 'charge.succeeded') {
 
 | Function | Description |
 |----------|-------------|
-| `validateMetadata(data)` | Validate JSON against metadata schema |
-| `createMetadata(options)` | Create a valid metadata object |
+| `validateMetadata(data)` | Validate against the metadata schema |
+| `createMetadata(options)` | Build a valid metadata object |
 
-### Constants
+### Error classes
 
-| Export | Value |
-|--------|-------|
-| `intervals.minute` | `60` |
-| `intervals.weekly` | `604_800` |
-| `intervals.biweekly` | `1_209_600` |
-| `intervals.monthly` | `2_592_000` |
-| `intervals.quarterly` | `7_776_000` |
-| `intervals.yearly` | `31_536_000` |
-| `intervals.custom(count, unit)` | Custom interval — units: `'minutes'`, `'hours'`, `'days'`, `'months'`, `'years'` |
-| `PROTOCOL_FEE_BPS` | `250` (2.5%) |
-| `USDC_DECIMALS` | `6` |
-| `MIN_INTERVAL` | `60` (1 minute) |
-| `MAX_INTERVAL` | `31_536_000` (365 days) |
-| `MAX_RETRIES` | `3` |
-| `DEFAULT_CHECKOUT_BASE_URL` | `'https://autopayprotocol.com'` |
-| `DEFAULT_IPFS_GATEWAY` | `'https://w3s.link'` |
-| `ipfsGatewayUrl(cid, gateway?)` | Build IPFS gateway URL from CID |
-| `chains` | Chain configs (Polygon Amoy, Arbitrum Sepolia, Arc Testnet) |
-
-### Error Classes
-
-| Class | Code |
-|-------|------|
-| `AutoPayError` | Base error with `code` property |
-| `AutoPayWebhookError` | `'WEBHOOK_VERIFICATION_FAILED'` |
-| `AutoPayCheckoutError` | `'INVALID_CHECKOUT_PARAMS'` |
-| `AutoPayMetadataError` | `'INVALID_METADATA'` |
-
-### Webhook Event Types
-
-All events share `{ type, timestamp, data: { policyId, chainId, payer, merchant } }` plus event-specific fields:
-
-| Event | Extra Fields |
-|-------|-------------|
-| `charge.succeeded` | `amount`, `protocolFee`, `txHash` |
-| `charge.failed` | `reason` |
-| `policy.created` | `chargeAmount`, `interval`, `spendingCap`, `metadataUrl` |
-| `policy.revoked` | `endTime` |
-| `policy.cancelled_by_failure` | `consecutiveFailures`, `endTime` |
-
-### Exported Types
-
-`CheckoutOptions`, `PlanCheckoutOptions`, `ResolvedPlan`, `SuccessRedirect`, `IntervalPreset`, `WebhookEvent`, `WebhookEventType`, `ChargeSucceededEvent`, `ChargeFailedEvent`, `PolicyCreatedEvent`, `PolicyRevokedEvent`, `PolicyCancelledByFailureEvent`, `CheckoutMetadata`, `FeeBreakdown`, `MetadataValidationResult`, `ChainConfig`
-
-## Zero Dependencies
-
-This package has **zero runtime dependencies**. It uses Node.js built-in `crypto` and the global `fetch` API (Node.js 18+, all modern browsers).
+| Class | Thrown when |
+|-------|-----------|
+| `AutoPayWebhookError` | Webhook signature verification fails |
+| `AutoPayCheckoutError` | Invalid checkout parameters |
+| `AutoPayMetadataError` | Invalid metadata structure |
 
 ## License
 
