@@ -51,7 +51,7 @@ function generate() {
       confirmations: chain.confirmations,
       policyManagerAddress: deployment?.contracts?.policyManager || null,
       startBlock: deployment?.deployBlock || 0,
-      enabled: !!deployment?.contracts?.policyManager,
+      enabled: chain.enabled && !!deployment?.contracts?.policyManager,
     };
   }
 
@@ -78,8 +78,16 @@ ${Object.entries(chainConfigs).map(([key, config]) => `  ${key}: {
 // Deployment metadata
 export const DEPLOYMENTS = ${JSON.stringify(deployments, null, 2)} as const
 
-// Get enabled chains
+// Get enabled chains, filtered by ENABLED_CHAINS env var if set.
+// Usage: ENABLED_CHAINS=baseSepolia (staging) or ENABLED_CHAINS=flowEvm,base (production)
+// If unset, returns all chains with enabled: true in their config.
 export function getEnabledChainConfigs(): ChainConfig[] {
+  const override = process.env.ENABLED_CHAINS?.split(',').map(s => s.trim()).filter(Boolean)
+  if (override?.length) {
+    return Object.entries(CHAIN_CONFIGS)
+      .filter(([key]) => override.includes(key))
+      .map(([, c]) => c)
+  }
   return Object.values(CHAIN_CONFIGS).filter(c => c.enabled)
 }
 

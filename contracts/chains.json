@@ -32,5 +32,22 @@
     "supportsLifi": true,
     "checkoutBaseUrl": "https://autopayprotocol.com",
     "enabled": true
+  },
+  "baseSepolia": {
+    "chainId": 84532,
+    "name": "Base Sepolia",
+    "shortName": "Base Sepolia",
+    "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+    "rpcUrl": "https://sepolia.base.org",
+    "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "blockExplorer": "https://sepolia.basescan.org",
+    "blockExplorerName": "BaseScan Sepolia",
+    "verifierUrl": "https://api-sepolia.basescan.org/api",
+    "pollIntervalMs": 2000,
+    "batchSize": 10000,
+    "confirmations": 2,
+    "supportsLifi": false,
+    "checkoutBaseUrl": "https://staging.autopayprotocol.com",
+    "enabled": false
   }
 }

@@ -12,9 +12,14 @@ interface MerchantOverviewPageProps {
 }
 
 function formatUSD(amount: string | number) {
-  const raw = typeof amount === 'string' ? parseFloat(amount) : amount
-  const val = raw / 1e6
+  const val = typeof amount === 'string' ? parseFloat(amount) : amount
   return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/** Format raw USDC amount (6 decimals) to human-readable USD */
+function formatRawUSDC(amount: string | number) {
+  const raw = typeof amount === 'string' ? parseFloat(amount) : amount
+  return formatUSD(raw / 1e6)
 }
 
 export function MerchantOverviewPage({ onNavigate, navigate }: MerchantOverviewPageProps) {
@@ -66,7 +71,7 @@ export function MerchantOverviewPage({ onNavigate, navigate }: MerchantOverviewP
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-2xl font-bold tabular-nums">${formatUSD(totalRevenue)}</p>
+              <p className="text-2xl font-bold tabular-nums">${formatRawUSDC(totalRevenue)}</p>
               <p className="text-xs text-muted-foreground">USDC</p>
             </div>
           </CardContent>
