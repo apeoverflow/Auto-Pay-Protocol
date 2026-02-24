@@ -24,7 +24,7 @@ const ChainContext = React.createContext<ChainContextValue | null>(null)
 export function ChainProvider({ children }: { children: React.ReactNode }) {
   const [chainKey, setChainKeyState] = React.useState<ChainKey>(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && CHAIN_CONFIGS[stored]) {
+    if (stored && stored in CHAIN_CONFIGS) {
       return stored as ChainKey
     }
     return DEFAULT_CHAIN
