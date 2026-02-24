@@ -16,15 +16,15 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     confirmations: 2,
     enabled: true,
   },
-  arcTestnet: {
-    chainId: 5042002,
-    name: 'Arc Testnet',
-    rpcUrl: process.env.ARC_TESTNET_RPC || 'https://rpc.arc.testnet',
-    policyManagerAddress: '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1' as `0x${string}`,
-    startBlock: 26573469,
-    pollIntervalMs: 10000,
-    batchSize: 5000,
-    confirmations: 1,
+  base: {
+    chainId: 8453,
+    name: 'Base',
+    rpcUrl: process.env.BASE_RPC || 'https://mainnet.base.org',
+    policyManagerAddress: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a' as `0x${string}`,
+    startBlock: 42554078,
+    pollIntervalMs: 2000,
+    batchSize: 10000,
+    confirmations: 5,
     enabled: true,
   }
 } as const
@@ -45,17 +45,17 @@ export const DEPLOYMENTS = {
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },
-  "5042002": {
-    "chainId": 5042002,
-    "chainName": "arcTestnet",
-    "deployedAt": "2026-02-12T02:51:00Z",
+  "8453": {
+    "chainId": 8453,
+    "chainName": "base",
+    "deployedAt": "2026-02-24T01:45:03Z",
     "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
-    "deployBlock": 26573469,
+    "deployBlock": 42554078,
     "contracts": {
-      "policyManager": "0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1"
+      "policyManager": "0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a"
     },
     "addresses": {
-      "usdc": "0x3600000000000000000000000000000000000000",
+      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   }

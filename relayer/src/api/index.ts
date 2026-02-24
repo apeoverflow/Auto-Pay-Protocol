@@ -1,6 +1,9 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http'
 import { getDb, getStatus } from '../db/index.js'
+import { getChargesByMerchant } from '../db/charges.js'
 import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus } from '../db/metadata.js'
+import { setMerchantEncryptionKey } from '../db/merchants.js'
+import { getReportsByMerchant } from '../db/reports.js'
 import { randomUUID } from 'crypto'
 import { getEnabledChains, type RelayerConfig } from '../config.js'
 import { createLogger } from '../utils/logger.js'
@@ -269,6 +272,9 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             logo: '/logos/:filename',
             merchantPlans: '/merchants/:address/plans',
             merchantPlan: '/merchants/:address/plans/:id',
+            merchantCharges: '/merchants/:address/charges?chain_id=...',
+            merchantEncryptionKey: '/merchants/:address/encryption-key',
+            merchantReports: '/merchants/:address/reports?chain_id=...',
           },
         }))
         return
@@ -321,6 +327,82 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         }
         const chainId = params.get('chain_id')
         await handleMerchantStats(config, address, chainId ? parseInt(chainId, 10) : undefined, res)
+        return
+      }
+
+      // Merchant charges (public, no auth required)
+      const merchantChargesMatch = path.match(/^\/merchants\/([^/]+)\/charges$/)
+      if (merchantChargesMatch && req.method === 'GET') {
+        const address = merchantChargesMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        const chainId = params.get('chain_id')
+        if (!chainId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
+          return
+        }
+        const page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1)
+        const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50', 10) || 50))
+        await handleMerchantCharges(config, address, parseInt(chainId, 10), page, limit, res)
+        return
+      }
+
+      // Merchant encryption key registration
+      const merchantEncKeyMatch = path.match(/^\/merchants\/([^/]+)\/encryption-key$/)
+      if (merchantEncKeyMatch && req.method === 'POST') {
+        const address = merchantEncKeyMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+        const body = await parseBody(req)
+        const encryptionKey = body.encryptionKey as string | undefined
+        if (!encryptionKey || typeof encryptionKey !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(encryptionKey)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'encryptionKey must be a 0x-prefixed 32-byte hex string' }))
+          return
+        }
+        await setMerchantEncryptionKey(config.databaseUrl, address, encryptionKey)
+        logger.info({ address }, 'Merchant encryption key registered')
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true }))
+        return
+      }
+
+      // Merchant reports list (public — CIDs are useless without the merchant's decryption key)
+      const merchantReportsMatch = path.match(/^\/merchants\/([^/]+)\/reports$/)
+      if (merchantReportsMatch && req.method === 'GET') {
+        const address = merchantReportsMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        const chainId = params.get('chain_id')
+        if (!chainId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
+          return
+        }
+        const reports = await getReportsByMerchant(config.databaseUrl, address, parseInt(chainId, 10))
+        const response = reports.map((r) => ({
+          period: r.period,
+          cid: r.cid,
+          createdAt: r.created_at,
+        }))
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(response))
         return
       }
 
@@ -1162,6 +1244,40 @@ async function handleMerchantStats(
     totalRevenue: revenueResult[0]?.total_revenue ?? '0',
     chargeCount: revenueResult[0]?.charge_count ?? 0,
   }))
+}
+
+async function handleMerchantCharges(
+  config: RelayerConfig,
+  merchantAddress: string,
+  chainId: number,
+  page: number,
+  limit: number,
+  res: ServerResponse
+) {
+  const { charges, total } = await getChargesByMerchant(
+    config.databaseUrl,
+    chainId,
+    merchantAddress,
+    page,
+    limit
+  )
+
+  const response = charges.map((c) => ({
+    id: c.id,
+    policyId: c.policy_id,
+    chainId: c.chain_id,
+    payer: c.payer,
+    merchant: c.merchant,
+    amount: c.amount,
+    protocolFee: c.protocol_fee,
+    txHash: c.tx_hash,
+    receiptCid: c.receipt_cid,
+    completedAt: c.completed_at,
+    createdAt: c.created_at,
+  }))
+
+  res.writeHead(200, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ charges: response, total, page, limit }))
 }
 
 export function startApiServer(server: Server, port: number): Promise<void> {

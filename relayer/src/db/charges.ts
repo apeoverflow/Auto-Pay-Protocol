@@ -140,3 +140,71 @@ export async function getRecentChargesForPolicy(
 
   return rows
 }
+
+export async function setChargeReceiptCid(
+  databaseUrl: string,
+  chargeId: number,
+  cid: string
+) {
+  const db = getDb(databaseUrl)
+
+  await db`
+    UPDATE charges
+    SET receipt_cid = ${cid}
+    WHERE id = ${chargeId}
+  `
+
+  logger.debug({ chargeId, cid }, 'Set charge receipt CID')
+}
+
+export interface MerchantChargeRow {
+  id: number
+  policy_id: string
+  chain_id: number
+  payer: string
+  merchant: string
+  amount: string
+  protocol_fee: string | null
+  tx_hash: string | null
+  receipt_cid: string | null
+  status: string
+  completed_at: Date | null
+  created_at: Date
+}
+
+export async function getChargesByMerchant(
+  databaseUrl: string,
+  chainId: number,
+  merchantAddress: string,
+  page = 1,
+  limit = 50
+): Promise<{ charges: MerchantChargeRow[]; total: number }> {
+  const db = getDb(databaseUrl)
+  const addr = merchantAddress.toLowerCase()
+  const offset = (page - 1) * limit
+
+  const [charges, countResult] = await Promise.all([
+    db<MerchantChargeRow[]>`
+      SELECT c.id, c.policy_id, c.chain_id, p.payer, p.merchant,
+             c.amount, c.protocol_fee, c.tx_hash, c.receipt_cid,
+             c.status, c.completed_at, c.created_at
+      FROM charges c
+      JOIN policies p ON c.policy_id = p.id AND c.chain_id = p.chain_id
+      WHERE p.merchant = ${addr}
+        AND c.chain_id = ${chainId}
+        AND c.status = 'success'
+      ORDER BY c.completed_at DESC NULLS LAST
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db`
+      SELECT count(*)::int AS total
+      FROM charges c
+      JOIN policies p ON c.policy_id = p.id AND c.chain_id = p.chain_id
+      WHERE p.merchant = ${addr}
+        AND c.chain_id = ${chainId}
+        AND c.status = 'success'
+    `,
+  ])
+
+  return { charges, total: countResult[0]?.total ?? 0 }
+}

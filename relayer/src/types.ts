@@ -86,6 +86,7 @@ export interface ChargeRow {
   protocol_fee: string | null
   error_message: string | null
   attempt_count: number
+  receipt_cid: string | null
   created_at: Date
   completed_at: Date | null
 }
