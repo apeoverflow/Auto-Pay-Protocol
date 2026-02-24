@@ -20,6 +20,14 @@ export const baseMainnet = defineChain({
   blockExplorers: { default: { name: 'BaseScan', url: 'https://basescan.org' } },
 })
 
+export const baseSepoliaMainnet = defineChain({
+  id: 84532,
+  name: 'Base Sepolia',
+  nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_BASE_SEPOLIA_RPC || 'https://sepolia.base.org'] } },
+  blockExplorers: { default: { name: 'BaseScan Sepolia', url: 'https://sepolia.basescan.org' } },
+})
+
 export interface ChainConfig {
   key: string
   chain: Chain
@@ -57,6 +65,18 @@ export const CHAIN_CONFIGS = {
     explorer: 'https://basescan.org',
     supportsLifi: true,
     enabled: true,
+  },
+  baseSepolia: {
+    key: 'baseSepolia',
+    chain: baseSepoliaMainnet,
+    name: 'Base Sepolia',
+    shortName: 'Base Sepolia',
+    usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    policyManager: DEPLOYMENTS[84532]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[84532]?.deployBlock,
+    explorer: 'https://sepolia.basescan.org',
+    supportsLifi: false,
+    enabled: false,
   }
 } satisfies Record<string, ChainConfig>
 
