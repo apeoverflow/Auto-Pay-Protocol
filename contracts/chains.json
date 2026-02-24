@@ -10,7 +10,7 @@
     "blockExplorerName": "Flowscan",
     "verifierUrl": "https://evm.flowscan.io/api/",
     "pollIntervalMs": 15000,
-    "batchSize": 10,
+    "batchSize": 9000,
     "confirmations": 2,
     "supportsLifi": true,
     "checkoutBaseUrl": "https://flow.autopayprotocol.com",
