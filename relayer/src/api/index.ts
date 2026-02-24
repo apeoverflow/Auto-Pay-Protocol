@@ -1193,7 +1193,6 @@ async function handleLogo(filename: string, res: ServerResponse) {
 
   // If the backend provides a public URL, redirect to it
   const url = storage.publicUrl(filename)
-  logger.info({ filename, publicUrl: url || 'none', backendType: url ? 'supabase' : 'local' }, 'handleLogo: resolving')
   if (url) {
     res.writeHead(302, { Location: url, 'Cache-Control': 'public, max-age=86400' })
     res.end()
@@ -1203,7 +1202,6 @@ async function handleLogo(filename: string, res: ServerResponse) {
   // Otherwise serve from the backend directly (local filesystem)
   const result = await storage.serve(filename)
   if (!result) {
-    logger.warn({ filename }, 'handleLogo: file not found in backend')
     res.writeHead(404, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ error: 'Logo not found' }))
     return
