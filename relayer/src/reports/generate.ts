@@ -97,13 +97,19 @@ export async function generateMonthlyReport(
         AND c.completed_at < ${endIso}
     `,
     // Active subscribers at end of period
+    // A policy was active at period end if it was created before the period ended
+    // AND either still active now OR ended after the period ended
     db`
       SELECT COUNT(*)::int AS active_count
       FROM policies
       WHERE merchant = ${addr}
         AND chain_id = ${chainId}
-        AND active = true
         AND created_at < ${endIso}
+        AND (
+          active = true
+          OR ended_at >= ${endIso}
+          OR cancelled_at >= ${endIso}
+        )
     `,
     // New subscribers in the period
     db`
