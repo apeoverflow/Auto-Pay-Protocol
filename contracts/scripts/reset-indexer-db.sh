@@ -39,7 +39,7 @@ if [ -n "$ARG" ]; then
         CHAIN_ID="$ARG"
     fi
 else
-    CHAIN_ID="5042002"
+    CHAIN_ID="747"
 fi
 
 DEPLOY_FILE="deployments/${CHAIN_ID}.json"

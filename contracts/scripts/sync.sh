@@ -37,6 +37,12 @@ fi
 # generate TypeScript
 echo "  Generating TypeScript..."
 node scripts/generate-contracts-ts.js
+node scripts/generate-frontend-chains.js
+
+# ==================== SDK ====================
+echo ""
+echo "SDK:"
+node scripts/generate-sdk-constants.js
 
 # ==================== Relayer ====================
 echo ""

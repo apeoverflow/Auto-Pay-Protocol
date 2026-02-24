@@ -115,3 +115,8 @@ echo -e "${GREEN}Deployment complete!${NC}"
 echo -e "  Contract: ${MANAGER}"
 echo -e "  Block: ${DEPLOY_BLOCK}"
 echo -e "  Saved to: deployments/${CHAIN_ID}.json"
+
+# Auto-sync to propagate new deployment to frontend, SDK, and relayer
+echo ""
+echo -e "${YELLOW}Running sync...${NC}"
+./scripts/sync.sh
