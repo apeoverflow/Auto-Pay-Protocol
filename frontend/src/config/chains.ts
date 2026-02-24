@@ -8,7 +8,7 @@ export const flowEvmMainnet = defineChain({
   id: 747,
   name: 'Flow EVM',
   nativeCurrency: { decimals: 18, name: 'FLOW', symbol: 'FLOW' },
-  rpcUrls: { default: { http: ['https://mainnet.evm.nodes.onflow.org'] } },
+  rpcUrls: { default: { http: [import.meta.env.VITE_FLOW_EVM_RPC || 'https://mainnet.evm.nodes.onflow.org'] } },
   blockExplorers: { default: { name: 'Flowscan', url: 'https://evm.flowscan.io' } },
 })
 
@@ -16,7 +16,7 @@ export const baseMainnet = defineChain({
   id: 8453,
   name: 'Base',
   nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
-  rpcUrls: { default: { http: ['https://mainnet.base.org'] } },
+  rpcUrls: { default: { http: [import.meta.env.VITE_BASE_RPC || 'https://mainnet.base.org'] } },
   blockExplorers: { default: { name: 'BaseScan', url: 'https://basescan.org' } },
 })
 

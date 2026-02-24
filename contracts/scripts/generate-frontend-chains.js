@@ -50,14 +50,20 @@ function generate() {
     validate(key, chain);
   }
 
-  // Build defineChain blocks
+  // Build env var name from chain key: flowEvm → FLOW_EVM, base → BASE
+  function envKey(key) {
+    return key.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
+  }
+
+  // Build defineChain blocks — RPC can be overridden via VITE_<CHAIN>_RPC env var
   const chainDefs = enabledChains.map(([key, chain]) => {
     const varName = key + 'Mainnet';
+    const envName = `VITE_${envKey(key)}_RPC`;
     return `export const ${varName} = defineChain({
   id: ${chain.chainId},
   name: '${esc(chain.name)}',
   nativeCurrency: { decimals: ${chain.nativeCurrency.decimals}, name: '${esc(chain.nativeCurrency.name)}', symbol: '${esc(chain.nativeCurrency.symbol)}' },
-  rpcUrls: { default: { http: ['${esc(chain.rpcUrl)}'] } },
+  rpcUrls: { default: { http: [import.meta.env.${envName} || '${esc(chain.rpcUrl)}'] } },
   blockExplorers: { default: { name: '${esc(chain.blockExplorerName)}', url: '${esc(chain.blockExplorer)}' } },
 })`;
   }).join('\n\n');

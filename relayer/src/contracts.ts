@@ -12,7 +12,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     policyManagerAddress: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345' as `0x${string}`,
     startBlock: 56881090,
     pollIntervalMs: 15000,
-    batchSize: 9000,
+    batchSize: 10,
     confirmations: 2,
     enabled: true,
   },
@@ -23,7 +23,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     policyManagerAddress: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a' as `0x${string}`,
     startBlock: 42554078,
     pollIntervalMs: 2000,
-    batchSize: 10000,
+    batchSize: 10,
     confirmations: 5,
     enabled: true,
   }
