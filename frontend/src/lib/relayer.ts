@@ -98,6 +98,94 @@ export async function fetchMerchantStats(
   return data as MerchantStatsResponse
 }
 
+// --- Merchant charges ---
+
+export interface MerchantCharge {
+  id: number
+  policyId: string
+  chainId: number
+  payer: string
+  merchant: string
+  amount: string
+  protocolFee: string | null
+  txHash: string | null
+  receiptCid: string | null
+  completedAt: string | null
+  createdAt: string
+}
+
+export interface MerchantChargesResponse {
+  charges: MerchantCharge[]
+  total: number
+  page: number
+  limit: number
+}
+
+export async function fetchMerchantCharges(
+  address: string,
+  chainId: number,
+  page = 1,
+  limit = 50,
+): Promise<MerchantChargesResponse> {
+  const { baseUrl, apiKey } = resolveRelayer(address)
+
+  const headers: Record<string, string> = {}
+  if (apiKey) headers['X-API-Key'] = apiKey
+
+  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/charges`)
+  url.searchParams.set('chain_id', String(chainId))
+  url.searchParams.set('page', String(page))
+  url.searchParams.set('limit', String(limit))
+
+  const res = await fetch(url.toString(), { headers })
+  if (!res.ok) {
+    throw new Error(`Failed to fetch merchant charges: ${res.status}`)
+  }
+
+  const data: unknown = await res.json()
+  if (
+    typeof data !== 'object' || data === null ||
+    !Array.isArray((data as MerchantChargesResponse).charges)
+  ) {
+    throw new Error('Invalid charges response from relayer')
+  }
+
+  return data as MerchantChargesResponse
+}
+
+// --- Merchant reports ---
+
+export interface MerchantReport {
+  period: string
+  cid: string
+  createdAt: string
+}
+
+export async function fetchMerchantReports(
+  address: string,
+  chainId: number,
+): Promise<MerchantReport[]> {
+  const { baseUrl, apiKey } = resolveRelayer(address)
+
+  const headers: Record<string, string> = {}
+  if (apiKey) headers['X-API-Key'] = apiKey
+
+  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/reports`)
+  url.searchParams.set('chain_id', String(chainId))
+
+  const res = await fetch(url.toString(), { headers })
+  if (!res.ok) {
+    throw new Error(`Failed to fetch merchant reports: ${res.status}`)
+  }
+
+  const data: unknown = await res.json()
+  if (!Array.isArray(data)) {
+    throw new Error('Invalid reports response from relayer')
+  }
+
+  return data as MerchantReport[]
+}
+
 type SignMessageFn = (args: { message: string }) => Promise<`0x${string}`>
 
 // --- Types ---
@@ -186,6 +274,26 @@ export async function uploadLogo(
   }
   const { filename } = (await res.json()) as { filename: string }
   return filename
+}
+
+// --- Merchant encryption key ---
+
+export async function registerMerchantEncryptionKey(
+  address: string,
+  encryptionKeyHex: string,
+  signMessage: SignMessageFn,
+): Promise<void> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/encryption-key`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify({ encryptionKey: encryptionKeyHex }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to register encryption key')
+  }
 }
 
 // --- Read endpoints (no auth) ---

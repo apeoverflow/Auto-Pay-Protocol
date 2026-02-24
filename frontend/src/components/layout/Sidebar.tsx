@@ -12,6 +12,8 @@ import {
   ExternalLink,
   Store,
   FileText,
+  Receipt,
+  BarChart3,
   Users,
 } from 'lucide-react'
 import { Button } from '../ui/button'
@@ -21,7 +23,7 @@ import type { AppMode } from '../../contexts/MerchantModeContext'
 
 export type NavItem =
   | 'dashboard' | 'subscriptions' | 'activity' | 'bridge' | 'settings' | 'demo' | 'docs'
-  | 'merchant-overview' | 'merchant-plans' | 'merchant-settings'
+  | 'merchant-overview' | 'merchant-plans' | 'merchant-receipts' | 'merchant-reports' | 'merchant-settings'
 
 interface SidebarProps {
   currentPage: NavItem
@@ -43,6 +45,8 @@ const subscriberNavItems: { id: NavItem; label: string; icon: React.ReactNode }[
 const merchantNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: 'merchant-overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'merchant-plans', label: 'Plans', icon: <FileText className="h-4 w-4" /> },
+  { id: 'merchant-receipts', label: 'Receipts', icon: <Receipt className="h-4 w-4" /> },
+  { id: 'merchant-reports', label: 'Reports', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'merchant-settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
 ]
 

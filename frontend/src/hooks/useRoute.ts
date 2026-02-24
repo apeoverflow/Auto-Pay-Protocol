@@ -15,13 +15,15 @@ export type Route =
   | '/merchant/plans'
   | '/merchant/plans/new'
   | '/merchant/plans/edit'
+  | '/merchant/receipts'
+  | '/merchant/reports'
   | '/merchant/settings'
 
 type RouteLayout = 'auth' | 'dashboard' | 'fullscreen'
 
 const DASHBOARD_ROUTES: Route[] = [
   '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo',
-  '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/settings',
+  '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/receipts', '/merchant/reports', '/merchant/settings',
 ]
 
 const ROUTE_TO_NAV: Record<string, NavItem> = {
@@ -36,6 +38,8 @@ const ROUTE_TO_NAV: Record<string, NavItem> = {
   '/merchant/plans': 'merchant-plans',
   '/merchant/plans/new': 'merchant-plans',
   '/merchant/plans/edit': 'merchant-plans',
+  '/merchant/receipts': 'merchant-receipts',
+  '/merchant/reports': 'merchant-reports',
   '/merchant/settings': 'merchant-settings',
 }
 
@@ -49,12 +53,14 @@ const NAV_TO_ROUTE: Record<NavItem, Route> = {
   docs: '/docs',
   'merchant-overview': '/merchant',
   'merchant-plans': '/merchant/plans',
+  'merchant-receipts': '/merchant/receipts',
+  'merchant-reports': '/merchant/reports',
   'merchant-settings': '/merchant/settings',
 }
 
 const VALID_ROUTES: Route[] = [
   '/', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout',
-  '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/settings',
+  '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/receipts', '/merchant/reports', '/merchant/settings',
 ]
 
 function pathToRoute(pathname: string): Route {

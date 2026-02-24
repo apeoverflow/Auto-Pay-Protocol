@@ -20,6 +20,8 @@ const pageTitles: Record<NavItem, string> = {
   settings: 'Settings',
   'merchant-overview': 'Merchant Overview',
   'merchant-plans': 'Plans',
+  'merchant-receipts': 'Receipts',
+  'merchant-reports': 'Reports',
   'merchant-settings': 'Merchant Settings',
 }
 

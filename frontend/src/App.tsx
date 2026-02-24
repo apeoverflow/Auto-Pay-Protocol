@@ -19,6 +19,8 @@ import {
   MerchantOverviewPage,
   MerchantPlansPage,
   MerchantPlanEditorPage,
+  MerchantReceiptsPage,
+  MerchantReportsPage,
   MerchantSettingsPage,
 } from './pages/merchant'
 import { LoadingView } from './views'
@@ -222,6 +224,10 @@ function App() {
         return <MerchantPlanEditorPage navigate={navigate} />
       case '/merchant/plans/edit':
         return <MerchantPlanEditorPage navigate={navigate} />
+      case '/merchant/receipts':
+        return <MerchantReceiptsPage />
+      case '/merchant/reports':
+        return <MerchantReportsPage />
       case '/merchant/settings':
         return <MerchantSettingsPage />
       case '/dashboard':
