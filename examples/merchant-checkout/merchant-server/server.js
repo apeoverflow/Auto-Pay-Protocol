@@ -7,14 +7,33 @@ import { createClient } from '@supabase/supabase-js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+// ── Chain presets ──
+// Set CHAIN=flowEvm or CHAIN=base to switch everything at once.
+// Individual env vars (RPC_URL, POLICY_MANAGER, CHECKOUT_URL) override the preset.
+const CHAIN_PRESETS = {
+  flowEvm: {
+    rpcUrl: 'https://mainnet.evm.nodes.onflow.org',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
+    checkoutUrl: 'https://flow.autopayprotocol.com/checkout',
+  },
+  base: {
+    rpcUrl: 'https://mainnet.base.org',
+    policyManager: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a',
+    checkoutUrl: 'https://autopayprotocol.com/checkout',
+  },
+}
+
+const CHAIN = process.env.CHAIN || 'flowEvm'
+const preset = CHAIN_PRESETS[CHAIN] || CHAIN_PRESETS.flowEvm
+
 // ── Configuration ──
 const PORT = process.env.PORT || 3002
 const MERCHANT_ADDRESS = process.env.MERCHANT_ADDRESS || '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B'
-const CHECKOUT_URL = process.env.CHECKOUT_URL || 'http://localhost:5173/checkout'
+const CHECKOUT_URL = process.env.CHECKOUT_URL || preset.checkoutUrl
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
 const RELAYER_URL = process.env.RELAYER_URL || 'http://localhost:3420'
-const RPC_URL = process.env.RPC_URL || 'https://mainnet.evm.nodes.onflow.org'
-const POLICY_MANAGER = process.env.POLICY_MANAGER || '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345'
+const RPC_URL = process.env.RPC_URL || preset.rpcUrl
+const POLICY_MANAGER = process.env.POLICY_MANAGER || preset.policyManager
 const PLAN_IDS = process.env.PLAN_IDS ? process.env.PLAN_IDS.split(',').map(s => s.trim()).filter(Boolean) : null
 
 // Supabase connection (same DB as relayer, merchant tables)
@@ -530,16 +549,15 @@ app.get('/', (_req, res) => res.sendFile(join(__dirname, 'public', 'index.html')
 // ── Start ──
 app.listen(PORT, () => {
   console.log(`
-╔══════════════════════════════════════════════════════════╗
-║          AutoPay Merchant Server (Demo)                  ║
-╠══════════════════════════════════════════════════════════╣
-║                                                          ║
-║  Home:     http://localhost:${PORT}                         ║
-║  Merchant: ${MERCHANT_ADDRESS}    ║
-║  Checkout: ${CHECKOUT_URL}                ║
-║  Relayer:  ${RELAYER_URL}                         ║
-║  Supabase: ${supabase ? 'Connected' : 'Not configured (set SUPABASE_KEY)'}${supabase ? '                         ' : ''}            ║
-║                                                          ║
-╚══════════════════════════════════════════════════════════╝
+  AutoPay Merchant Server (Demo)
+  ──────────────────────────────
+  Chain:    ${CHAIN}
+  Home:     http://localhost:${PORT}
+  Merchant: ${MERCHANT_ADDRESS}
+  Checkout: ${CHECKOUT_URL}
+  Relayer:  ${RELAYER_URL}
+  RPC:      ${RPC_URL}
+  Contract: ${POLICY_MANAGER}
+  Supabase: ${supabase ? 'Connected' : 'Not configured (set SUPABASE_KEY)'}
   `)
 })
