@@ -153,7 +153,7 @@ export function getLogoStorage(): LogoStorageBackend {
   if (_backend) return _backend
 
   const supabaseUrl = process.env.SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
 
   if (supabaseUrl && serviceRoleKey) {
     logger.info({ supabaseUrl, bucket: 'logos' }, 'Using S3-compatible storage for logos (Supabase)')
