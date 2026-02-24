@@ -2,13 +2,14 @@ import { createServer, type Server, type IncomingMessage, type ServerResponse } 
 import { getDb, getStatus } from '../db/index.js'
 import { getChargesByMerchant } from '../db/charges.js'
 import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus } from '../db/metadata.js'
-import { setMerchantEncryptionKey } from '../db/merchants.js'
-import { getReportsByMerchant } from '../db/reports.js'
+import { generateMonthlyReport, type MonthlyReport } from '../reports/generate.js'
+import { getReportsByMerchant, getReport, saveReport } from '../db/reports.js'
 import { randomUUID } from 'crypto'
 import { getEnabledChains, type RelayerConfig } from '../config.js'
 import { createLogger } from '../utils/logger.js'
 import { uploadPlanToIPFS } from '../lib/ipfs-upload.js'
 import { isStorachaEnabled, ipfsGatewayUrl } from '../lib/storacha.js'
+import { generateAndUploadReport, generateAndSaveReport } from '../reports/upload.js'
 import { handleNonceRequest, authenticateMerchant, destroyAuthStore } from './auth.js'
 import { SlidingWindowRateLimiter, type RateLimitResult } from './rate-limit.js'
 import { getLogoStorage } from '../lib/logo-storage.js'
@@ -133,6 +134,24 @@ function isValidPlanId(id: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$/.test(id)
 }
 
+// Normalize merchant.logo: strip absolute URLs down to bare filename
+// This prevents stale full URLs from being stored when the editor sends back
+// the resolved URL it received from the metadata endpoint.
+function sanitizeLogo(metadata: PlanMetadata): void {
+  const logo = metadata.merchant?.logo
+  if (!logo) return
+  // If it's a full URL (http/https), extract just the filename
+  if (logo.startsWith('http')) {
+    try {
+      const url = new URL(logo)
+      const filename = url.pathname.split('/').pop()
+      if (filename) {
+        metadata.merchant.logo = filename
+      }
+    } catch { /* leave as-is */ }
+  }
+}
+
 // Validate billing object (all fields required when billing is present)
 function validateBilling(billing: Record<string, unknown>): { valid: true } | { valid: false; error: string } {
   const { amount, interval, cap, currency } = billing
@@ -231,6 +250,50 @@ function deepMerge<T extends Record<string, unknown>>(base: T, patch: Record<str
   return result
 }
 
+// Convert a MonthlyReport to a simple Section,Key,Value CSV
+function reportToCsv(report: MonthlyReport): string {
+  const rows: string[] = ['Section,Key,Value']
+
+  const add = (section: string, key: string, value: string | number) => {
+    // Escape values containing commas or quotes
+    const v = String(value)
+    const escaped = v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v
+    rows.push(`${section},${key},${escaped}`)
+  }
+
+  add('Info', 'Merchant', report.merchant)
+  add('Info', 'Chain ID', report.chainId)
+  add('Info', 'Period', report.period)
+  add('Info', 'Generated At', report.generatedAt)
+
+  add('Revenue', 'Total Revenue', report.revenue.totalRevenue)
+  add('Revenue', 'Protocol Fees', report.revenue.protocolFees)
+  add('Revenue', 'Net Revenue', report.revenue.netRevenue)
+
+  add('Charges', 'Total', report.charges.total)
+  add('Charges', 'Successful', report.charges.successful)
+  add('Charges', 'Failed', report.charges.failed)
+  add('Charges', 'Failure Rate', report.charges.failureRate)
+
+  add('Subscribers', 'Active', report.subscribers.active)
+  add('Subscribers', 'New', report.subscribers.new)
+  add('Subscribers', 'Cancelled', report.subscribers.cancelled)
+  add('Subscribers', 'Cancelled By Failure', report.subscribers.cancelledByFailure)
+  add('Subscribers', 'Churn Rate', report.subscribers.churnRate)
+
+  if (report.topPlans) {
+    for (const plan of report.topPlans) {
+      add('Top Plans', plan.planId || 'N/A', `${plan.subscribers} subscribers / ${plan.revenue} revenue`)
+    }
+  }
+
+  if (report.chargeReceipts && report.chargeReceipts.length > 0) {
+    add('Receipts', 'Count', report.chargeReceipts.length)
+  }
+
+  return rows.join('\n') + '\n'
+}
+
 export async function createApiServer(config: RelayerConfig): Promise<Server> {
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     setCorsHeaders(res)
@@ -273,8 +336,10 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantPlans: '/merchants/:address/plans',
             merchantPlan: '/merchants/:address/plans/:id',
             merchantCharges: '/merchants/:address/charges?chain_id=...',
-            merchantEncryptionKey: '/merchants/:address/encryption-key',
             merchantReports: '/merchants/:address/reports?chain_id=...',
+            merchantReport: '/merchants/:address/reports/:period?chain_id=...',
+            merchantReportGenerate: 'POST /merchants/:address/reports/generate',
+            merchantReportCsv: '/merchants/:address/reports/:period/csv?chain_id=N',
           },
         }))
         return
@@ -351,10 +416,10 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         return
       }
 
-      // Merchant encryption key registration
-      const merchantEncKeyMatch = path.match(/^\/merchants\/([^/]+)\/encryption-key$/)
-      if (merchantEncKeyMatch && req.method === 'POST') {
-        const address = merchantEncKeyMatch[1]
+      // Merchant report generation (on-demand)
+      const merchantReportGenMatch = path.match(/^\/merchants\/([^/]+)\/reports\/generate$/)
+      if (merchantReportGenMatch && req.method === 'POST') {
+        const address = merchantReportGenMatch[1]
         if (!isValidAddress(address)) {
           res.writeHead(400, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
@@ -367,20 +432,139 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           if (!verified) return
         }
         const body = await parseBody(req)
-        const encryptionKey = body.encryptionKey as string | undefined
-        if (!encryptionKey || typeof encryptionKey !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(encryptionKey)) {
+        const chainId = body.chainId as number | undefined
+        if (!chainId || typeof chainId !== 'number') {
           res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'encryptionKey must be a 0x-prefixed 32-byte hex string' }))
+          res.end(JSON.stringify({ error: 'chainId is required and must be a number' }))
           return
         }
-        await setMerchantEncryptionKey(config.databaseUrl, address, encryptionKey)
-        logger.info({ address }, 'Merchant encryption key registered')
-        res.writeHead(200, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ success: true }))
+        // Validate chainId is an enabled chain
+        const enabledChains = getEnabledChains(config)
+        if (!enabledChains.some((c) => c.chainId === chainId)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: `chainId ${chainId} is not an enabled chain` }))
+          return
+        }
+        // Validate period format (default to current month)
+        let period = body.period as string | undefined
+        if (!period) {
+          const now = new Date()
+          period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        }
+        if (!/^\d{4}-\d{2}$/.test(period)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'period must be in YYYY-MM format' }))
+          return
+        }
+        // Merchant can opt into IPFS upload per-report; defaults to true when Storacha is configured
+        const wantsIpfs = body.uploadToIpfs !== false
+        const useIpfs = wantsIpfs && isStorachaEnabled()
+        try {
+          const { cid } = useIpfs
+            ? await generateAndUploadReport(config.databaseUrl, chainId, address, period)
+            : await generateAndSaveReport(config.databaseUrl, chainId, address, period)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ cid, period, ipfsUrl: cid ? ipfsGatewayUrl(cid) : null }))
+        } catch (err) {
+          logger.error({ address, chainId, period, err }, 'Report generation failed')
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Report generation failed', detail: err instanceof Error ? err.message : String(err) }))
+        }
         return
       }
 
-      // Merchant reports list (public — CIDs are useless without the merchant's decryption key)
+      // Merchant report detail (auth-protected, returns full report JSON from DB)
+      const merchantReportDetailMatch = path.match(/^\/merchants\/([^/]+)\/reports\/(\d{4}-\d{2})$/)
+      if (merchantReportDetailMatch && req.method === 'GET') {
+        const address = merchantReportDetailMatch[1]
+        const period = merchantReportDetailMatch[2]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+        const chainId = params.get('chain_id')
+        if (!chainId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
+          return
+        }
+        try {
+          const chainIdNum = parseInt(chainId, 10)
+          // Cache-first: check DB for cached report_json
+          const cached = await getReport(config.databaseUrl, address, chainIdNum, period)
+          let report: MonthlyReport
+          if (cached?.report_json) {
+            report = cached.report_json as MonthlyReport
+          } else {
+            report = await generateMonthlyReport(config.databaseUrl, chainIdNum, address.toLowerCase(), period)
+            // Cache for future requests
+            await saveReport(config.databaseUrl, address.toLowerCase(), chainIdNum, period, cached?.cid ?? null, report)
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(report))
+        } catch (err) {
+          logger.error({ address, period, err }, 'Failed to generate report data')
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Failed to generate report data', detail: err instanceof Error ? err.message : String(err) }))
+        }
+        return
+      }
+
+      // Merchant report CSV download (auth-protected)
+      const merchantReportCsvMatch = path.match(/^\/merchants\/([^/]+)\/reports\/(\d{4}-\d{2})\/csv$/)
+      if (merchantReportCsvMatch && req.method === 'GET') {
+        const address = merchantReportCsvMatch[1]
+        const period = merchantReportCsvMatch[2]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+        const chainId = params.get('chain_id')
+        if (!chainId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
+          return
+        }
+        try {
+          const chainIdNum = parseInt(chainId, 10)
+          // Cache-first: use cached report_json if available
+          const cached = await getReport(config.databaseUrl, address, chainIdNum, period)
+          let report: MonthlyReport
+          if (cached?.report_json) {
+            report = cached.report_json as MonthlyReport
+          } else {
+            report = await generateMonthlyReport(config.databaseUrl, chainIdNum, address.toLowerCase(), period)
+            await saveReport(config.databaseUrl, address.toLowerCase(), chainIdNum, period, cached?.cid ?? null, report)
+          }
+          const csv = reportToCsv(report)
+          res.writeHead(200, {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': `attachment; filename="report-${address.toLowerCase()}-${period}.csv"`,
+          })
+          res.end(csv)
+        } catch (err) {
+          logger.error({ address, period, err }, 'CSV export failed')
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'CSV export failed', detail: err instanceof Error ? err.message : String(err) }))
+        }
+        return
+      }
+
+      // Merchant reports list (public)
       const merchantReportsMatch = path.match(/^\/merchants\/([^/]+)\/reports$/)
       if (merchantReportsMatch && req.method === 'GET') {
         const address = merchantReportsMatch[1]
@@ -399,6 +583,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         const response = reports.map((r) => ({
           period: r.period,
           cid: r.cid,
+          ipfsUrl: r.cid ? ipfsGatewayUrl(r.cid) : null,
           createdAt: r.created_at,
         }))
         res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -713,6 +898,9 @@ async function handleCreatePlan(
   const { id: _id, status: _status, ...metadataFields } = body
   const metadata = metadataFields as unknown as PlanMetadata
 
+  // Normalize logo: always store bare filename, never absolute URLs
+  sanitizeLogo(metadata)
+
   // Validate required metadata fields
   const plan = metadata.plan as PlanMetadata['plan'] | undefined
   const merchant = metadata.merchant as PlanMetadata['merchant'] | undefined
@@ -848,6 +1036,9 @@ async function handleUpdatePlan(
   const newStatus = body.status as string | undefined
   const { id: _id, status: _status, ...metadataFields } = body
   const metadata = metadataFields as unknown as PlanMetadata
+
+  // Normalize logo: always store bare filename, never absolute URLs
+  sanitizeLogo(metadata)
 
   // Validate required metadata fields
   const plan = metadata.plan as PlanMetadata['plan'] | undefined

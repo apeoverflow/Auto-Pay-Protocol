@@ -1,0 +1,35 @@
+services:
+  relayer:
+    build:
+      context: ../..
+      dockerfile: relayer/docker/Dockerfile
+    env_file: ../.env.staging
+    environment:
+      DATABASE_URL: postgres://autopay:password@db:5432/autopay_staging
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3421:3421"
+    volumes:
+      - ./logos:/app/logos
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: autopay_staging
+      POSTGRES_USER: autopay
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autopay -d autopay_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata_staging:

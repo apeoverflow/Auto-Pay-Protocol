@@ -320,7 +320,7 @@ program
 
 program
   .command('reports:generate')
-  .description('Generate encrypted monthly reports for merchants and upload to Filecoin via Storacha')
+  .description('Generate monthly reports for merchants and upload to Filecoin via Storacha')
   .option('--chain <chain>', 'Chain to generate reports for', 'flowEvm')
   .option('--period <YYYY-MM>', 'Report period (default: previous month)')
   .option('--merchant <address>', 'Generate for a specific merchant only')
@@ -332,16 +332,10 @@ program
       process.exit(1)
     }
 
-    const { isStorachaEnabled, getStorachaClient } = await import('../src/lib/storacha.js')
-    if (!isStorachaEnabled()) {
-      console.log('\n❌ Storacha not configured. Set STORACHA_PRINCIPAL_KEY and STORACHA_DELEGATION_PROOF.\n')
-      process.exit(1)
-    }
-
-    const { generateMonthlyReport } = await import('../src/reports/generate.js')
-    const { encryptReport } = await import('../src/reports/encrypt.js')
-    const { getMerchantEncryptionKey, listMerchantsWithEncryptionKeys } = await import('../src/db/merchants.js')
-    const { saveReport } = await import('../src/db/reports.js')
+    const { isStorachaEnabled } = await import('../src/lib/storacha.js')
+    const { generateAndUploadReport, generateAndSaveReport } = await import('../src/reports/upload.js')
+    const useIpfs = isStorachaEnabled()
+    const { listMerchants } = await import('../src/db/merchants.js')
 
     // Determine period (default: previous month)
     let period = options.period as string | undefined
@@ -358,58 +352,30 @@ program
     }
 
     // Get merchants to process
-    let merchants: Array<{ address: string; encryption_key: string | null }>
+    let merchants: Array<{ address: string }>
     if (options.merchant) {
-      const key = await getMerchantEncryptionKey(config.databaseUrl, options.merchant)
-      if (!key) {
-        console.log(`\n❌ Merchant ${options.merchant} has no encryption key registered. Skipping.\n`)
-        process.exit(1)
-      }
-      merchants = [{ address: options.merchant.toLowerCase(), encryption_key: key }]
+      merchants = [{ address: options.merchant.toLowerCase() }]
     } else {
-      merchants = await listMerchantsWithEncryptionKeys(config.databaseUrl)
+      merchants = await listMerchants(config.databaseUrl)
     }
 
     if (merchants.length === 0) {
-      console.log('\n✅ No merchants with encryption keys found. Nothing to generate.\n')
+      console.log('\n✅ No merchants found. Nothing to generate.\n')
       return
     }
 
-    console.log(`\nGenerating ${period} reports for ${merchants.length} merchant(s) on ${chainConfig.name}...\n`)
+    console.log(`\nGenerating ${period} reports for ${merchants.length} merchant(s) on ${chainConfig.name}${useIpfs ? '' : ' (local only)'}...\n`)
 
     let success = 0
     let failed = 0
 
     for (const merchant of merchants) {
       try {
-        if (!merchant.encryption_key) {
-          console.log(`  ⏭ ${merchant.address}: no encryption key, skipping`)
-          continue
-        }
+        const { cid } = useIpfs
+          ? await generateAndUploadReport(config.databaseUrl, chainConfig.chainId, merchant.address, period)
+          : await generateAndSaveReport(config.databaseUrl, chainConfig.chainId, merchant.address, period)
 
-        // Generate report
-        const report = await generateMonthlyReport(
-          config.databaseUrl,
-          chainConfig.chainId,
-          merchant.address,
-          period
-        )
-
-        // Encrypt with merchant's key
-        const aesKey = Buffer.from(merchant.encryption_key.replace('0x', ''), 'hex')
-        const encrypted = encryptReport(JSON.stringify(report), aesKey)
-
-        // Upload encrypted blob to Storacha
-        const client = (await getStorachaClient()) as {
-          uploadFile: (file: Blob) => Promise<{ toString(): string }>
-        }
-        const blob = new Blob([encrypted], { type: 'application/octet-stream' })
-        const cid = await client.uploadFile(blob)
-
-        // Save CID to database
-        await saveReport(config.databaseUrl, merchant.address, chainConfig.chainId, period, cid.toString())
-
-        console.log(`  ✅ ${merchant.address}: ${cid.toString()}`)
+        console.log(`  ✅ ${merchant.address}${cid ? `: ${cid}` : ' (local)'}`)
         success++
       } catch (err) {
         console.log(`  ❌ ${merchant.address}: ${err instanceof Error ? err.message : String(err)}`)

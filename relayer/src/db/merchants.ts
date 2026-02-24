@@ -62,55 +62,6 @@ export async function getMerchantWebhookConfig(
   }
 }
 
-export async function setMerchantEncryptionKey(
-  databaseUrl: string,
-  address: string,
-  encryptionKey: string
-): Promise<void> {
-  const db = getDb(databaseUrl)
-  const addr = address.toLowerCase()
-
-  // Upsert: create merchant row if it doesn't exist, then set encryption key
-  await db`
-    INSERT INTO merchants (address, encryption_key)
-    VALUES (${addr}, ${encryptionKey})
-    ON CONFLICT (address) DO UPDATE
-    SET encryption_key = ${encryptionKey}
-  `
-
-  logger.debug({ address: addr }, 'Set merchant encryption key')
-}
-
-export async function getMerchantEncryptionKey(
-  databaseUrl: string,
-  address: string
-): Promise<string | null> {
-  const db = getDb(databaseUrl)
-  const addr = address.toLowerCase()
-
-  const rows = await db`
-    SELECT encryption_key
-    FROM merchants
-    WHERE address = ${addr}
-  `
-
-  return rows[0]?.encryption_key ?? null
-}
-
-export async function listMerchantsWithEncryptionKeys(
-  databaseUrl: string
-): Promise<MerchantRow[]> {
-  const db = getDb(databaseUrl)
-
-  const rows = await db<MerchantRow[]>`
-    SELECT * FROM merchants
-    WHERE encryption_key IS NOT NULL
-    ORDER BY created_at DESC
-  `
-
-  return rows
-}
-
 export async function listMerchants(
   databaseUrl: string
 ): Promise<MerchantRow[]> {

@@ -26,6 +26,17 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     batchSize: 10,
     confirmations: 5,
     enabled: true,
+  },
+  baseSepolia: {
+    chainId: 84532,
+    name: 'Base Sepolia',
+    rpcUrl: process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org',
+    policyManagerAddress: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345' as `0x${string}`,
+    startBlock: 38095092,
+    pollIntervalMs: 2000,
+    batchSize: 10000,
+    confirmations: 2,
+    enabled: false,
   }
 } as const
 
@@ -58,11 +69,33 @@ export const DEPLOYMENTS = {
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
+  },
+  "84532": {
+    "chainId": 84532,
+    "chainName": "baseSepolia",
+    "deployedAt": "2026-02-24T18:41:12Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 38095092,
+    "contracts": {
+      "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+    },
+    "addresses": {
+      "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
   }
 } as const
 
-// Get enabled chains
+// Get enabled chains, filtered by ENABLED_CHAINS env var if set.
+// Usage: ENABLED_CHAINS=baseSepolia (staging) or ENABLED_CHAINS=flowEvm,base (production)
+// If unset, returns all chains with enabled: true in their config.
 export function getEnabledChainConfigs(): ChainConfig[] {
+  const override = process.env.ENABLED_CHAINS?.split(',').map(s => s.trim()).filter(Boolean)
+  if (override?.length) {
+    return Object.entries(CHAIN_CONFIGS)
+      .filter(([key]) => override.includes(key))
+      .map(([, c]) => c)
+  }
   return Object.values(CHAIN_CONFIGS).filter(c => c.enabled)
 }
 
