@@ -7,23 +7,27 @@ Non-custodial subscription payment contracts for recurring USDC payments.
 ```
 contracts/
 ├── src/
-│   └── PolicyManager.sol        # Subscription policy management
+│   └── PolicyManager.sol              # Subscription policy management
 ├── script/
-│   └── Deploy.s.sol             # Forge deployment script
+│   └── Deploy.s.sol                   # Forge deployment script
 ├── scripts/
-│   ├── deploy.sh                # Deploy + save deployment info
-│   ├── verify.sh                # Verify on Blockscout
-│   ├── verify-check.sh          # Check verification status
-│   ├── sync.sh                  # Sync ABIs/addresses to frontend
-│   └── generate-contracts-ts.js # Generate TypeScript config
+│   ├── deploy.sh                      # Deploy + save deployment info
+│   ├── verify.sh                      # Verify on Blockscout
+│   ├── verify-check.sh                # Check verification status
+│   ├── sync.sh                        # Sync ABIs/addresses to frontend, SDK + relayer
+│   ├── generate-contracts-ts.js       # → frontend/src/config/deployments.ts
+│   ├── generate-frontend-chains.js    # → frontend/src/config/chains.ts
+│   ├── generate-sdk-constants.js      # → packages/sdk/src/constants.ts (chain section)
+│   └── generate-relayer-config.js     # → relayer/src/contracts.ts
 ├── test/
-│   ├── PolicyManager.t.sol      # Contract tests
+│   ├── PolicyManager.t.sol            # Contract tests
 │   └── mocks/
-│       └── MockUSDC.sol         # Mock USDC for testing
-├── deployments/                 # Deployment records (JSON per chain)
-├── abis/                        # Generated ABI files
-├── Makefile                     # All commands
-└── .env.example                 # Environment template
+│       └── MockUSDC.sol               # Mock USDC for testing
+├── chains.json                        # Chain registry (single source of truth)
+├── deployments/                       # Deployment records (JSON per chain)
+├── abis/                              # Generated ABI files
+├── Makefile                           # All commands
+└── .env.example                       # Environment template
 ```
 
 ## Contracts
@@ -87,7 +91,7 @@ make verify-check      # Check if verification succeeded
 
 # Sync
 make generate-abis     # Generate ABI JSON files
-make sync              # Sync ABIs and addresses to frontend
+make sync              # Sync ABIs and addresses to frontend, SDK + relayer
 make reset-indexer-db  # Reset indexer DB after new deployment
 
 # Utils
@@ -153,6 +157,69 @@ MAX_INTERVAL = 365 days
 | `ChargeSucceeded` | Payment processed successfully |
 | `ChargeFailed` | Payment failed (batch charge only) |
 | `FeesWithdrawn` | Protocol fees withdrawn |
+
+## Chain Registry (`chains.json`)
+
+`chains.json` is the **single source of truth** for all chain configurations. Running `make sync` auto-generates config for all downstream consumers:
+
+```
+chains.json ──┬── generate-contracts-ts.js ───► frontend/src/config/deployments.ts
+              ├── generate-frontend-chains.js ─► frontend/src/config/chains.ts
+              ├── generate-sdk-constants.js ───► packages/sdk/src/constants.ts (chain section)
+              └── generate-relayer-config.js ──► relayer/src/contracts.ts
+```
+
+### Adding a New Chain
+
+1. Add the chain entry to `chains.json`:
+
+```json
+{
+  "myChain": {
+    "chainId": 12345,
+    "name": "My Chain",
+    "shortName": "My",
+    "nativeCurrency": { "name": "ETH", "symbol": "ETH", "decimals": 18 },
+    "rpcUrl": "https://rpc.mychain.io",
+    "usdc": "0x...",
+    "blockExplorer": "https://explorer.mychain.io",
+    "blockExplorerName": "MyExplorer",
+    "verifierUrl": "https://api.explorer.mychain.io/api",
+    "pollIntervalMs": 2000,
+    "batchSize": 10000,
+    "confirmations": 5,
+    "supportsLifi": true,
+    "checkoutBaseUrl": "https://mychain.autopayprotocol.com",
+    "enabled": true
+  }
+}
+```
+
+2. Run `make sync` — all downstream config files are regenerated automatically.
+
+3. Deploy the contract: `make deploy CHAIN=myChain`
+
+4. Run `make sync` again — deployment addresses propagate to frontend, SDK, and relayer.
+
+### Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `chainId` | number | EVM chain ID |
+| `name` | string | Full display name (e.g. "Flow EVM") |
+| `shortName` | string | Short label for UI (e.g. "Flow") |
+| `nativeCurrency` | object | `{ name, symbol, decimals }` for viem chain definition |
+| `rpcUrl` | string | Public RPC endpoint |
+| `usdc` | string | USDC contract address on this chain |
+| `blockExplorer` | string | Block explorer base URL |
+| `blockExplorerName` | string | Block explorer display name |
+| `verifierUrl` | string | Block explorer API URL (for contract verification) |
+| `pollIntervalMs` | number | Relayer polling interval (ms) |
+| `batchSize` | number | Relayer event batch size |
+| `confirmations` | number | Required block confirmations |
+| `supportsLifi` | boolean | Whether LiFi bridge widget is available |
+| `checkoutBaseUrl` | string | Frontend checkout URL for this chain |
+| `enabled` | boolean | Whether to include in generated config |
 
 ## License
 
