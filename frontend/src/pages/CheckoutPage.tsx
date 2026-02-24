@@ -2,6 +2,7 @@ import * as React from 'react'
 import { parseUnits } from 'viem'
 import { useCheckoutParams, useAuth, useWallet, useCreatePolicy, useChain } from '../hooks'
 import { USDC_DECIMALS } from '../config'
+import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
 import type { CheckoutMetadata } from '../types/checkout'
 import {
   LoadingStep,
@@ -233,7 +234,7 @@ export function CheckoutPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-muted-foreground mt-4">
-          Powered by AutoPay Protocol &middot; Non-custodial &middot; Flow Mainnet
+          Powered by AutoPay Protocol &middot; Non-custodial &middot; {CHAIN_CONFIGS[DEFAULT_CHAIN].name}
         </p>
       </div>
     </div>

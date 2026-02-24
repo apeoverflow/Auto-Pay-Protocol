@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
 import { formatUnits, erc20Abi } from 'viem'
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useReadContract } from 'wagmi'
 import confetti from 'canvas-confetti'
@@ -337,7 +338,7 @@ export function FundWalletCard({ destinationAddress, onSuccess }: FundWalletCard
           <div className="fund-destination">
             <div className="fund-destination-label">
               <span>Destination</span>
-              <span className="fund-destination-badge">Flow Mainnet</span>
+              <span className="fund-destination-badge">{CHAIN_CONFIGS[DEFAULT_CHAIN].name}</span>
             </div>
             <div className="fund-destination-address">{destinationAddress}</div>
           </div>

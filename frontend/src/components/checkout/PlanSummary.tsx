@@ -1,4 +1,5 @@
 import { Zap } from 'lucide-react'
+import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
 import type { CheckoutMetadata } from '../../types/checkout'
 import { formatIntervalLabel } from '../../lib/utils'
 import { PlanPreviewCard } from '../shared/PlanPreviewCard'
@@ -51,7 +52,7 @@ export function PlanSummary({ metadata, metadataUrl, amount, interval, onContinu
         </div>
         <div className="flex justify-between">
           <span>Network</span>
-          <span className="font-medium text-foreground">Flow Mainnet</span>
+          <span className="font-medium text-foreground">{CHAIN_CONFIGS[DEFAULT_CHAIN].name}</span>
         </div>
       </div>
 
