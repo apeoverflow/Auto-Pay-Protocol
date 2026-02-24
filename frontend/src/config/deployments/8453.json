@@ -1,0 +1,14 @@
+{
+  "chainId": 8453,
+  "chainName": "base",
+  "deployedAt": "2026-02-24T01:45:03Z",
+  "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+  "deployBlock": 42554078,
+  "contracts": {
+    "policyManager": "0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a"
+  },
+  "addresses": {
+    "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+  }
+}
