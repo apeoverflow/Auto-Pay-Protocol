@@ -12,9 +12,11 @@ import {
   Trophy,
 } from 'lucide-react'
 import { EmailCaptureDialog, useEmailCaptureDialog } from '../EmailCaptureDialog'
+import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
 
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {
   const emailCapture = useEmailCaptureDialog()
+  const chainName = CHAIN_CONFIGS[DEFAULT_CHAIN].shortName
 
   return (
     <div className="auth-scene">
@@ -71,7 +73,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 <span className="auth-bento-label">cheaper fees</span>
               </div>
               <div className="auth-bento-card">
-                <span className="auth-bento-value">Flow</span>
+                <span className="auth-bento-value">{chainName}</span>
                 <span className="auth-bento-label">EVM powered</span>
               </div>
             </div>
@@ -93,7 +95,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 <div className="auth-feature-icon auth-feature-icon--chain">
                   <Globe className="h-4 w-4" />
                 </div>
-                <span>Flow EVM with any browser wallet</span>
+                <span>{chainName} with any browser wallet</span>
               </div>
             </div>
 
@@ -157,7 +159,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
               </div>
               <div className="auth-mobile-pill">
                 <Globe className="auth-mobile-pill-icon" />
-                <span>Flow EVM</span>
+                <span>{chainName}</span>
               </div>
             </div>
           </div>
@@ -233,7 +235,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           Secured by AutoPayProtocol
         </div>
         <div className="auth-scene-footer-meta">
-          <span><span className="auth-chain-dot" />Flow EVM</span>
+          <span><span className="auth-chain-dot" />{chainName}</span>
           <div className="auth-footer-dot" />
           <span>USDC Payments</span>
         </div>
