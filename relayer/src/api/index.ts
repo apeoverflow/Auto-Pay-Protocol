@@ -295,7 +295,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
       // Get specific metadata — merchant-scoped (canonical URL)
       const metadataScopedMatch = path.match(/^\/metadata\/(0x[a-fA-F0-9]{40})\/([^/]+)$/)
       if (metadataScopedMatch && req.method === 'GET') {
-        await handleMetadata(config, metadataScopedMatch[2], metadataScopedMatch[1], res)
+        await handleMetadata(config, metadataScopedMatch[2], metadataScopedMatch[1], req, res)
         return
       }
 
@@ -616,7 +616,7 @@ async function handleMetadataLegacyRedirect(config: RelayerConfig, id: string, r
   res.end()
 }
 
-async function handleMetadata(config: RelayerConfig, id: string, merchantAddress: string, res: ServerResponse) {
+async function handleMetadata(config: RelayerConfig, id: string, merchantAddress: string, req: IncomingMessage, res: ServerResponse) {
   const metadata = await getPlanMetadata(config.databaseUrl, id, merchantAddress)
 
   // Public endpoint: drafts are hidden; active + archived are served
@@ -634,7 +634,14 @@ async function handleMetadata(config: RelayerConfig, id: string, merchantAddress
   }
   if (metadataResponse.merchant?.logo && !metadataResponse.merchant.logo.startsWith('http') && !metadataResponse.merchant.logo.startsWith('ipfs://')) {
     const publicLogoUrl = getLogos().publicUrl(metadataResponse.merchant.logo)
-    metadataResponse.merchant.logo = publicLogoUrl || `/logos/${metadataResponse.merchant.logo}`
+    if (publicLogoUrl) {
+      metadataResponse.merchant.logo = publicLogoUrl
+    } else {
+      // Build absolute URL so logo works when fetched cross-origin (e.g. from checkout frontend)
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost'
+      const proto = req.headers['x-forwarded-proto'] || 'https'
+      metadataResponse.merchant.logo = `${proto}://${host}/logos/${metadataResponse.merchant.logo}`
+    }
   }
 
   const response = {
