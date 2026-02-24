@@ -14,9 +14,15 @@ import {
 import { EmailCaptureDialog, useEmailCaptureDialog } from '../EmailCaptureDialog'
 import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
 
+const CHAIN_ICONS: Record<string, string> = {
+  flowEvm: '/flow-icon.svg',
+  base: '/base-icon.svg',
+}
+
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {
   const emailCapture = useEmailCaptureDialog()
   const chainName = CHAIN_CONFIGS[DEFAULT_CHAIN].shortName
+  const chainIcon = CHAIN_ICONS[DEFAULT_CHAIN]
 
   return (
     <div className="auth-scene">
@@ -72,9 +78,16 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 <span className="auth-bento-value">50%</span>
                 <span className="auth-bento-label">cheaper fees</span>
               </div>
-              <div className="auth-bento-card">
-                <span className="auth-bento-value">{chainName}</span>
-                <span className="auth-bento-label">EVM powered</span>
+              <div className="auth-bento-card auth-bento-card--chain">
+                <img
+                  src={chainIcon}
+                  alt={chainName}
+                  className="auth-bento-chain-icon"
+                />
+                <div className="auth-bento-chain-meta">
+                  <span className="auth-bento-chain-name">{chainName}</span>
+                  <span className="auth-bento-label">EVM powered</span>
+                </div>
               </div>
             </div>
 
@@ -95,7 +108,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 <div className="auth-feature-icon auth-feature-icon--chain">
                   <Globe className="h-4 w-4" />
                 </div>
-                <span>{chainName} with any browser wallet</span>
+                <span className="auth-feature-chain-text"><img src={chainIcon} alt={chainName} className="auth-feature-chain-icon" />{chainName} with any browser wallet</span>
               </div>
             </div>
 
@@ -158,7 +171,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
                 <span>50% cheaper</span>
               </div>
               <div className="auth-mobile-pill">
-                <Globe className="auth-mobile-pill-icon" />
+                <img src={chainIcon} alt={chainName} className="auth-mobile-pill-chain-icon" />
                 <span>{chainName}</span>
               </div>
             </div>
@@ -235,7 +248,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           Secured by AutoPayProtocol
         </div>
         <div className="auth-scene-footer-meta">
-          <span><span className="auth-chain-dot" />{chainName}</span>
+          <span className="auth-footer-chain"><img src={chainIcon} alt={chainName} className="auth-footer-chain-icon" />{chainName}</span>
           <div className="auth-footer-dot" />
           <span>USDC Payments</span>
         </div>

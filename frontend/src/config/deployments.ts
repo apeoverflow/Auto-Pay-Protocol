@@ -20,6 +20,13 @@ export const CHAINS = {
     "rpcUrl": "https://mainnet.base.org",
     "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "blockExplorer": "https://basescan.org"
+  },
+  "baseSepolia": {
+    "id": 84532,
+    "name": "Base Sepolia",
+    "rpcUrl": "https://sepolia.base.org",
+    "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "blockExplorer": "https://sepolia.basescan.org"
   }
 } as const;
 
@@ -50,6 +57,20 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
     },
     "addresses": {
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
+  "84532": {
+    "chainId": 84532,
+    "chainName": "baseSepolia",
+    "deployedAt": "2026-02-24T18:41:12Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 38095092,
+    "contracts": {
+      "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+    },
+    "addresses": {
+      "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   }

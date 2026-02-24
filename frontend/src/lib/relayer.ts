@@ -157,7 +157,8 @@ export async function fetchMerchantCharges(
 
 export interface MerchantReport {
   period: string
-  cid: string
+  cid: string | null
+  ipfsUrl: string | null
   createdAt: string
 }
 
@@ -184,6 +185,40 @@ export async function fetchMerchantReports(
   }
 
   return data as MerchantReport[]
+}
+
+// --- Generate report on-demand ---
+
+export interface GenerateReportResponse {
+  cid: string | null
+  period: string
+  ipfsUrl: string | null
+}
+
+export async function generateMerchantReport(
+  address: string,
+  chainId: number,
+  signMessage: (args: { message: string }) => Promise<`0x${string}`>,
+  period?: string,
+  uploadToIpfs?: boolean,
+): Promise<GenerateReportResponse> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const body: Record<string, unknown> = { chainId }
+  if (period) body.period = period
+  if (uploadToIpfs !== undefined) body.uploadToIpfs = uploadToIpfs
+
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/reports/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to generate report')
+  }
+
+  return (await res.json()) as GenerateReportResponse
 }
 
 type SignMessageFn = (args: { message: string }) => Promise<`0x${string}`>
@@ -276,24 +311,58 @@ export async function uploadLogo(
   return filename
 }
 
-// --- Merchant encryption key ---
+// --- Merchant report data (auth-protected) ---
 
-export async function registerMerchantEncryptionKey(
+export async function fetchMerchantReportData(
   address: string,
-  encryptionKeyHex: string,
+  chainId: number,
+  period: string,
+  signMessage: SignMessageFn,
+): Promise<unknown> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+
+  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/reports/${encodeURIComponent(period)}`)
+  url.searchParams.set('chain_id', String(chainId))
+
+  const res = await fetch(url.toString(), { headers })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to fetch report data')
+  }
+
+  return res.json()
+}
+
+// --- CSV download ---
+
+export async function downloadMerchantReportCsv(
+  address: string,
+  chainId: number,
+  period: string,
   signMessage: SignMessageFn,
 ): Promise<void> {
   const { baseUrl } = resolveRelayer(address)
   const headers = await getAuthHeaders(address, signMessage)
-  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/encryption-key`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify({ encryptionKey: encryptionKeyHex }),
-  })
+
+  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/reports/${encodeURIComponent(period)}/csv`)
+  url.searchParams.set('chain_id', String(chainId))
+
+  const res = await fetch(url.toString(), { headers })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error((err as { error?: string }).error || 'Failed to register encryption key')
+    throw new Error((err as { error?: string }).error || 'Failed to download CSV')
   }
+
+  const blob = await res.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.download = `report-${address.toLowerCase()}-${period}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(blobUrl)
 }
 
 // --- Read endpoints (no auth) ---

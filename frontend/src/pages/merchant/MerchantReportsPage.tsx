@@ -3,10 +3,10 @@ import { Card, CardContent } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { useMerchantReports, type MerchantReport } from '../../hooks/useMerchantReports'
 import { useWallet } from '../../hooks/useWallet'
-import { deriveReportKey, decryptReport } from '../../lib/decrypt-report'
-import { registerMerchantEncryptionKey } from '../../lib/relayer'
+import { useChain } from '../../hooks/useChain'
+import { fetchMerchantReportData, generateMerchantReport, downloadMerchantReportCsv } from '../../lib/relayer'
 import { useSignMessage } from 'wagmi'
-import { Loader2, ExternalLink, Lock, ShieldCheck, FileText, Eye } from 'lucide-react'
+import { Loader2, ExternalLink, FileText, Eye, Plus, Download, Check, Share2 } from 'lucide-react'
 
 const IPFS_GATEWAY = 'https://w3s.link/ipfs'
 
@@ -32,56 +32,66 @@ interface ReportData {
 export function MerchantReportsPage() {
   const { reports, isLoading, error, refetch } = useMerchantReports()
   const { address } = useWallet()
+  const { chainConfig } = useChain()
   const { signMessageAsync } = useSignMessage()
-  const [decryptedReport, setDecryptedReport] = useState<{ period: string; data: ReportData } | null>(null)
-  const [decrypting, setDecrypting] = useState<string | null>(null)
-  const [decryptError, setDecryptError] = useState<string | null>(null)
-  const [settingUpKey, setSettingUpKey] = useState(false)
-  const [setupError, setSetupError] = useState<string | null>(null)
-  const [setupDone, setSetupDone] = useState(false)
+  const [viewedReport, setViewedReport] = useState<{ period: string; data: ReportData } | null>(null)
+  const [viewing, setViewing] = useState<string | null>(null)
+  const [viewError, setViewError] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [uploadToIpfs, setUploadToIpfs] = useState(true)
+  const [copiedCid, setCopiedCid] = useState<string | null>(null)
 
-  const handleSetupEncryption = async () => {
+  const handleCopyLink = (report: MerchantReport) => {
+    const url = report.ipfsUrl || `${IPFS_GATEWAY}/${report.cid}`
+    navigator.clipboard.writeText(url)
+    setCopiedCid(report.cid)
+    setTimeout(() => setCopiedCid(null), 2000)
+  }
+
+  const handleGenerate = async () => {
     if (!address) return
-    setSettingUpKey(true)
-    setSetupError(null)
+    setGenerating(true)
+    setGenerateError(null)
     try {
-      // Step 1: Derive key from wallet signature
-      const keyHex = await deriveReportKey(signMessageAsync, address)
-      // Step 2: Register key with relayer (handles auth internally)
-      await registerMerchantEncryptionKey(address, keyHex, signMessageAsync)
-      setSetupDone(true)
+      await generateMerchantReport(address, chainConfig.chain.id, signMessageAsync, undefined, uploadToIpfs)
       refetch()
     } catch (err) {
-      setSetupError(err instanceof Error ? err.message : 'Failed to set up encryption')
+      setGenerateError(err instanceof Error ? err.message : 'Failed to generate report')
     } finally {
-      setSettingUpKey(false)
+      setGenerating(false)
     }
   }
 
-  const handleDecrypt = async (report: MerchantReport) => {
+  const handleView = async (report: MerchantReport) => {
     if (!address) return
-    setDecrypting(report.period)
-    setDecryptError(null)
-    setDecryptedReport(null)
+    setViewing(report.period)
+    setViewError(null)
+    setViewedReport(null)
     try {
-      // Step 1: Derive key
-      const keyHex = await deriveReportKey(signMessageAsync, address)
-      // Step 2: Fetch encrypted blob from IPFS
-      const res = await fetch(`${IPFS_GATEWAY}/${report.cid}`)
-      if (!res.ok) throw new Error('Failed to fetch report from IPFS')
-      const blob = await res.arrayBuffer()
-      // Step 3: Decrypt
-      const data = await decryptReport(blob, keyHex)
-      setDecryptedReport({ period: report.period, data: data as ReportData })
+      const data = await fetchMerchantReportData(address, chainConfig.chain.id, report.period, signMessageAsync)
+      setViewedReport({ period: report.period, data: data as ReportData })
     } catch (err) {
-      setDecryptError(err instanceof Error ? err.message : 'Failed to decrypt report')
+      setViewError(err instanceof Error ? err.message : 'Failed to fetch report')
     } finally {
-      setDecrypting(null)
+      setViewing(null)
     }
   }
 
-  // Show setup card if no reports and no loading error (likely no key registered)
-  const showSetup = !isLoading && reports.length === 0 && !setupDone
+  const handleDownloadCsv = async (report: MerchantReport) => {
+    if (!address) return
+    setDownloading(report.period)
+    setDownloadError(null)
+    try {
+      await downloadMerchantReportCsv(address, chainConfig.chain.id, report.period, signMessageAsync)
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Failed to download CSV')
+    } finally {
+      setDownloading(null)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -90,14 +100,38 @@ export function MerchantReportsPage() {
         <div>
           <h2 className="text-lg font-semibold">Monthly Reports</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Encrypted business intelligence stored on Filecoin
+            Transparent reports for your community, optionally archived on Filecoin
           </p>
         </div>
-        {reports.length > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {reports.length} report{reports.length !== 1 ? 's' : ''}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {reports.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {reports.length} report{reports.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={uploadToIpfs}
+              onChange={(e) => setUploadToIpfs(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-border accent-primary"
+            />
+            Archive on Filecoin
+          </label>
+          <Button
+            size="sm"
+            className="h-7 text-xs gap-1"
+            onClick={handleGenerate}
+            disabled={generating}
+          >
+            {generating ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Plus className="h-3 w-3" />
+            )}
+            Generate Report
+          </Button>
+        </div>
       </div>
 
       {/* Loading */}
@@ -119,49 +153,35 @@ export function MerchantReportsPage() {
         </Card>
       )}
 
-      {/* Setup Encryption Card */}
-      {showSetup && (
+      {/* Generate error */}
+      {generateError && (
         <Card>
-          <CardContent className="py-10 flex flex-col items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <Lock className="h-6 w-6 text-primary" />
-            </div>
-            <div className="text-center space-y-1">
-              <h3 className="text-sm font-semibold">Set Up Encrypted Reports</h3>
-              <p className="text-xs text-muted-foreground max-w-md">
-                Sign a message with your wallet to derive an encryption key. Monthly reports will be encrypted
-                with this key and stored on Filecoin. Only you can decrypt them.
-              </p>
-            </div>
-            {setupError && (
-              <p className="text-xs text-destructive">{setupError}</p>
-            )}
-            <Button onClick={handleSetupEncryption} disabled={settingUpKey} size="sm">
-              {settingUpKey ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Setting up...
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="h-4 w-4 mr-2" />
-                  Set Up Encryption Key
-                </>
-              )}
-            </Button>
+          <CardContent className="py-4 text-center">
+            <p className="text-sm text-destructive">{generateError}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Setup success */}
-      {setupDone && reports.length === 0 && (
+      {/* Download error */}
+      {downloadError && (
         <Card>
-          <CardContent className="py-8 flex flex-col items-center gap-3">
-            <ShieldCheck className="h-8 w-8 text-green-500" />
+          <CardContent className="py-4 text-center">
+            <p className="text-sm text-destructive">{downloadError}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !error && reports.length === 0 && (
+        <Card>
+          <CardContent className="py-10 flex flex-col items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <FileText className="h-6 w-6 text-primary" />
+            </div>
             <div className="text-center space-y-1">
-              <h3 className="text-sm font-semibold">Encryption Key Registered</h3>
-              <p className="text-xs text-muted-foreground">
-                Your reports will be generated at the end of each month and will appear here.
+              <h3 className="text-sm font-semibold">No reports yet</h3>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Generate your first transparency report. Share it with your community to show where funds are going.
               </p>
             </div>
           </CardContent>
@@ -191,15 +211,19 @@ export function MerchantReportsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      <a
-                        href={`${IPFS_GATEWAY}/${report.cid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-primary hover:underline font-mono"
-                      >
-                        {report.cid.slice(0, 12)}...
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                      {report.cid ? (
+                        <a
+                          href={report.ipfsUrl || `${IPFS_GATEWAY}/${report.cid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline font-mono"
+                        >
+                          {report.cid.slice(0, 12)}...
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">Local only</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(report.createdAt).toLocaleDateString('en-US', {
@@ -207,20 +231,51 @@ export function MerchantReportsPage() {
                       })}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => handleDecrypt(report)}
-                        disabled={decrypting === report.period}
-                      >
-                        {decrypting === report.period ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Eye className="h-3 w-3" />
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => handleView(report)}
+                          disabled={viewing === report.period}
+                        >
+                          {viewing === report.period ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Eye className="h-3 w-3" />
+                          )}
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => handleDownloadCsv(report)}
+                          disabled={downloading === report.period}
+                        >
+                          {downloading === report.period ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          CSV
+                        </Button>
+                        {report.cid && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => handleCopyLink(report)}
+                          >
+                            {copiedCid === report.cid ? (
+                              <Check className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <Share2 className="h-3 w-3" />
+                            )}
+                            {copiedCid === report.cid ? 'Copied' : 'Share'}
+                          </Button>
                         )}
-                        Decrypt & View
-                      </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -230,28 +285,28 @@ export function MerchantReportsPage() {
         </Card>
       )}
 
-      {/* Decrypt error */}
-      {decryptError && (
+      {/* View error */}
+      {viewError && (
         <Card>
           <CardContent className="py-4 text-center">
-            <p className="text-sm text-destructive">{decryptError}</p>
+            <p className="text-sm text-destructive">{viewError}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Decrypted report view */}
-      {decryptedReport && (
+      {/* Report detail view */}
+      {viewedReport && (
         <Card>
           <CardContent className="py-5 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">
-                {formatPeriod(decryptedReport.period)} Report
+                {formatPeriod(viewedReport.period)} Report
               </h3>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs"
-                onClick={() => setDecryptedReport(null)}
+                onClick={() => setViewedReport(null)}
               >
                 Close
               </Button>
@@ -263,15 +318,15 @@ export function MerchantReportsPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Total Revenue</p>
-                  <p className="text-sm font-semibold tabular-nums">${formatAmount(decryptedReport.data.revenue.totalRevenue)}</p>
+                  <p className="text-sm font-semibold tabular-nums">${formatAmount(viewedReport.data.revenue.totalRevenue)}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Protocol Fees</p>
-                  <p className="text-sm font-semibold tabular-nums">${formatAmount(decryptedReport.data.revenue.protocolFees)}</p>
+                  <p className="text-sm font-semibold tabular-nums">${formatAmount(viewedReport.data.revenue.protocolFees)}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Net Revenue</p>
-                  <p className="text-sm font-semibold tabular-nums text-green-600">${formatAmount(decryptedReport.data.revenue.netRevenue)}</p>
+                  <p className="text-sm font-semibold tabular-nums text-green-600">${formatAmount(viewedReport.data.revenue.netRevenue)}</p>
                 </div>
               </div>
             </div>
@@ -282,19 +337,19 @@ export function MerchantReportsPage() {
               <div className="grid grid-cols-4 gap-3">
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="text-sm font-semibold tabular-nums">{decryptedReport.data.charges.total}</p>
+                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.charges.total}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Successful</p>
-                  <p className="text-sm font-semibold tabular-nums text-green-600">{decryptedReport.data.charges.successful}</p>
+                  <p className="text-sm font-semibold tabular-nums text-green-600">{viewedReport.data.charges.successful}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Failed</p>
-                  <p className="text-sm font-semibold tabular-nums text-red-500">{decryptedReport.data.charges.failed}</p>
+                  <p className="text-sm font-semibold tabular-nums text-red-500">{viewedReport.data.charges.failed}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Failure Rate</p>
-                  <p className="text-sm font-semibold tabular-nums">{(decryptedReport.data.charges.failureRate * 100).toFixed(1)}%</p>
+                  <p className="text-sm font-semibold tabular-nums">{(viewedReport.data.charges.failureRate * 100).toFixed(1)}%</p>
                 </div>
               </div>
             </div>
@@ -305,29 +360,29 @@ export function MerchantReportsPage() {
               <div className="grid grid-cols-5 gap-3">
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Active</p>
-                  <p className="text-sm font-semibold tabular-nums">{decryptedReport.data.subscribers.active}</p>
+                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.subscribers.active}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">New</p>
-                  <p className="text-sm font-semibold tabular-nums text-green-600">{decryptedReport.data.subscribers.new}</p>
+                  <p className="text-sm font-semibold tabular-nums text-green-600">{viewedReport.data.subscribers.new}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Cancelled</p>
-                  <p className="text-sm font-semibold tabular-nums">{decryptedReport.data.subscribers.cancelled}</p>
+                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.subscribers.cancelled}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Failed Cancel</p>
-                  <p className="text-sm font-semibold tabular-nums">{decryptedReport.data.subscribers.cancelledByFailure}</p>
+                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.subscribers.cancelledByFailure}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Churn Rate</p>
-                  <p className="text-sm font-semibold tabular-nums">{(decryptedReport.data.subscribers.churnRate * 100).toFixed(1)}%</p>
+                  <p className="text-sm font-semibold tabular-nums">{(viewedReport.data.subscribers.churnRate * 100).toFixed(1)}%</p>
                 </div>
               </div>
             </div>
 
             {/* Top Plans */}
-            {decryptedReport.data.topPlans.length > 0 && (
+            {viewedReport.data.topPlans.length > 0 && (
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Top Plans</h4>
                 <div className="rounded-lg border overflow-hidden">
@@ -340,7 +395,7 @@ export function MerchantReportsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {decryptedReport.data.topPlans.map((plan, i) => (
+                      {viewedReport.data.topPlans.map((plan, i) => (
                         <tr key={i} className="border-b last:border-0">
                           <td className="px-3 py-2 font-mono">{plan.planId || 'N/A'}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{plan.subscribers}</td>
@@ -354,9 +409,9 @@ export function MerchantReportsPage() {
             )}
 
             {/* Receipts count */}
-            {decryptedReport.data.chargeReceipts.length > 0 && (
+            {viewedReport.data.chargeReceipts.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                {decryptedReport.data.chargeReceipts.length} charge receipt CID{decryptedReport.data.chargeReceipts.length !== 1 ? 's' : ''} included in this report
+                {viewedReport.data.chargeReceipts.length} charge receipt CID{viewedReport.data.chargeReceipts.length !== 1 ? 's' : ''} included in this report
               </p>
             )}
           </CardContent>

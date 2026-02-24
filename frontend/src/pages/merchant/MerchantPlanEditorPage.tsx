@@ -127,7 +127,8 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
       },
       merchant: {
         name: merchantName.trim(),
-        ...(logoUrl.trim() && { logo: logoUrl.trim() }),
+        // Always store bare filename — strip any absolute URL prefix from the relayer/Supabase
+        ...(logoUrl.trim() && { logo: logoUrl.trim().split('/').pop() }),
         ...(website.trim() && { website: website.trim() }),
         ...(supportEmail.trim() && { supportEmail: supportEmail.trim() }),
       },

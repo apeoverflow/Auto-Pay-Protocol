@@ -12,7 +12,8 @@ interface MerchantOverviewPageProps {
 }
 
 function formatUSD(amount: string | number) {
-  const val = typeof amount === 'string' ? parseFloat(amount) : amount
+  const raw = typeof amount === 'string' ? parseFloat(amount) : amount
+  const val = raw / 1e6
   return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
