@@ -58,40 +58,38 @@ export const MAX_RETRIES = 3
 // Chain configs
 // ---------------------------------------------------------------------------
 
+// --- AUTO-GENERATED CHAIN CONFIG (start) ---
+// Do not edit manually - run 'make sync' in contracts/ to regenerate
+
 export interface ChainConfig {
   name: string
   chainId: number
-  cctpDomain: number
   usdc: string
   explorer: string
+  checkoutBaseUrl: string
 }
 
 export const chains: Record<string, ChainConfig> = {
-  polygonAmoy: {
-    name: 'Polygon Amoy',
-    chainId: 80002,
-    cctpDomain: 7,
-    usdc: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
-    explorer: 'https://amoy.polygonscan.com',
+  flowEvm: {
+    name: 'Flow EVM',
+    chainId: 747,
+    usdc: '0xF1815bd50389c46847f0Bda824eC8da914045D14',
+    explorer: 'https://evm.flowscan.io',
+    checkoutBaseUrl: 'https://flow.autopayprotocol.com',
   },
-  arbitrumSepolia: {
-    name: 'Arbitrum Sepolia',
-    chainId: 421614,
-    cctpDomain: 3,
-    usdc: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
-    explorer: 'https://sepolia.arbiscan.io',
-  },
-  arcTestnet: {
-    name: 'Arc Testnet',
-    chainId: 1868,
-    cctpDomain: 26,
-    usdc: '0x3600000000000000000000000000000000000000',
-    explorer: 'https://explorer-testnet.arc.gel.network',
-  },
+  base: {
+    name: 'Base',
+    chainId: 8453,
+    usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    explorer: 'https://basescan.org',
+    checkoutBaseUrl: 'https://autopayprotocol.com',
+  }
 }
 
 /** Default checkout base URL */
-export const DEFAULT_CHECKOUT_BASE_URL = 'https://autopayprotocol.com'
+export const DEFAULT_CHECKOUT_BASE_URL = 'https://flow.autopayprotocol.com'
+
+// --- AUTO-GENERATED CHAIN CONFIG (end) ---
 
 /** Default IPFS gateway for resolving CIDs */
 export const DEFAULT_IPFS_GATEWAY = 'https://w3s.link'

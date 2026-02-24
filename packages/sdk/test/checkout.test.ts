@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createCheckoutUrl, createCheckoutUrlFromPlan, resolvePlan, parseSuccessRedirect, resolveInterval } from '../src/checkout'
 import { AutoPayCheckoutError } from '../src/errors'
+import { DEFAULT_CHECKOUT_BASE_URL } from '../src/constants'
 
 describe('resolveInterval', () => {
   it('resolves preset strings to seconds', () => {
@@ -35,7 +36,7 @@ describe('createCheckoutUrl', () => {
     const url = createCheckoutUrl(validOptions)
     const parsed = new URL(url)
 
-    expect(parsed.origin).toBe('https://autopayprotocol.com')
+    expect(parsed.origin).toBe(DEFAULT_CHECKOUT_BASE_URL)
     expect(parsed.pathname).toBe('/checkout')
     expect(parsed.searchParams.get('merchant')).toBe(validOptions.merchant)
     expect(parsed.searchParams.get('amount')).toBe('9.99')

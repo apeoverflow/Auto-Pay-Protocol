@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { intervals, PROTOCOL_FEE_BPS, USDC_DECIMALS, MIN_INTERVAL, MAX_INTERVAL, chains } from '../src/constants'
+import { intervals, PROTOCOL_FEE_BPS, USDC_DECIMALS, MIN_INTERVAL, MAX_INTERVAL, chains, DEFAULT_CHECKOUT_BASE_URL } from '../src/constants'
 
 describe('intervals', () => {
   it('has correct preset values', () => {
@@ -36,18 +36,19 @@ describe('protocol constants', () => {
 })
 
 describe('chains', () => {
-  it('has polygon amoy config', () => {
-    expect(chains.polygonAmoy.chainId).toBe(80002)
-    expect(chains.polygonAmoy.cctpDomain).toBe(7)
+  it('has flow evm config', () => {
+    expect(chains.flowEvm.chainId).toBe(747)
+    expect(chains.flowEvm.checkoutBaseUrl).toBe('https://flow.autopayprotocol.com')
+    expect(chains.flowEvm.usdc).toBe('0xF1815bd50389c46847f0Bda824eC8da914045D14')
   })
 
-  it('has arbitrum sepolia config', () => {
-    expect(chains.arbitrumSepolia.chainId).toBe(421614)
-    expect(chains.arbitrumSepolia.cctpDomain).toBe(3)
+  it('has base config', () => {
+    expect(chains.base.chainId).toBe(8453)
+    expect(chains.base.checkoutBaseUrl).toBe('https://autopayprotocol.com')
+    expect(chains.base.usdc).toBe('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')
   })
 
-  it('has arc testnet config', () => {
-    expect(chains.arcTestnet.chainId).toBe(1868)
-    expect(chains.arcTestnet.cctpDomain).toBe(26)
+  it('has default checkout base URL', () => {
+    expect(DEFAULT_CHECKOUT_BASE_URL).toBeTruthy()
   })
 })
