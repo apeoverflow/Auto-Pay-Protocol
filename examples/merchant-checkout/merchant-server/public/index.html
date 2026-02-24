@@ -319,7 +319,7 @@
           if (ipfsMetadataUrl) {
             checkoutParams.set('ipfs_metadata_url', ipfsMetadataUrl)
           }
-          const checkoutLink = `${config.checkoutUrl}/?${checkoutParams.toString()}`
+          const checkoutLink = `${config.checkoutUrl}?${checkoutParams.toString()}`
 
           const card = document.createElement('div')
           card.className = `plan${hasBadge ? ' featured' : ''}`
