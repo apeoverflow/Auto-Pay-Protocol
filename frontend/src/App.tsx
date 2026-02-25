@@ -71,15 +71,17 @@ function App() {
 
   // Navigate to / when user disconnects (except on fullscreen flows like checkout)
   const wasLoggedIn = useRef(isLoggedIn)
+  const routeRef = useRef(route)
+  routeRef.current = route
   useEffect(() => {
-    if (wasLoggedIn.current && !isLoggedIn && getRouteLayout(route) !== 'fullscreen') {
+    if (wasLoggedIn.current && !isLoggedIn && getRouteLayout(routeRef.current) !== 'fullscreen') {
       navigate('/')
       setDisplayedRoute('/')
       setPhase('idle')
       pendingRoute.current = null
     }
     wasLoggedIn.current = isLoggedIn
-  }, [isLoggedIn, navigate, route])
+  }, [isLoggedIn, navigate])
 
   // Redirect logged-in users from / to /dashboard
   const effectiveRoute = route === '/' && isLoggedIn ? '/dashboard' : route

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { parseUnits } from 'viem'
+import { useDisconnect } from 'wagmi'
 import { useCheckoutParams, useAuth, useWallet, useCreatePolicy } from '../hooks'
 import { USDC_DECIMALS } from '../config'
 import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
@@ -22,7 +23,8 @@ type Step = 'loading' | 'error' | 'plan_summary' | 'subscriber_info' | 'auth' | 
 
 export function CheckoutPage() {
   const { params, error: paramError } = useCheckoutParams()
-  const { isLoggedIn, logout, username } = useAuth()
+  const { isLoggedIn, username } = useAuth()
+  const { disconnect } = useDisconnect()
   const { address, isWalletSetup, isLoading: walletLoading, balance } = useWallet()
   const { createPolicy, policyId, hash, status, error: policyError, isLoading: policyLoading } = useCreatePolicy()
   const [metadata, setMetadata] = React.useState<CheckoutMetadata | null>(null)
@@ -204,7 +206,7 @@ export function CheckoutPage() {
               </span>
               {isLoggedIn && (
                 <button
-                  onClick={logout}
+                  onClick={() => disconnect()}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
                   title={username ? `Signed in as ${username}` : 'Sign out'}
                 >
