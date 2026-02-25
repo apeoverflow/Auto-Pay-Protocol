@@ -27,10 +27,15 @@ function formatUSD(amount: string) {
 
 export function MerchantSubscribersPage() {
   const [planFilter, setPlanFilter] = React.useState<string | undefined>(undefined)
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'active' | 'cancelled'>('all')
   const { subscribers, total, isLoading, error, page, setPage, refetch } = useMerchantSubscribers(planFilter)
   const { plans } = useMerchantPlans('active')
   const [copiedAddr, setCopiedAddr] = React.useState<string | null>(null)
   const [expandedRow, setExpandedRow] = React.useState<string | null>(null)
+
+  const filteredSubscribers = statusFilter === 'all'
+    ? subscribers
+    : subscribers.filter((s) => statusFilter === 'active' ? s.active : !s.active)
 
   const handleCopyAddress = async (addr: string) => {
     await navigator.clipboard.writeText(addr)
@@ -39,17 +44,17 @@ export function MerchantSubscribersPage() {
   }
 
   const handleExportCsv = () => {
-    if (subscribers.length === 0) return
+    if (filteredSubscribers.length === 0) return
 
     // Collect all unique form data keys
     const allKeys = new Set<string>()
-    for (const sub of subscribers) {
+    for (const sub of filteredSubscribers) {
       for (const key of Object.keys(sub.formData)) allKeys.add(key)
     }
     const formKeys = Array.from(allKeys).sort()
 
     const headers = ['Wallet', 'Plan', ...formKeys, 'Amount (USDC)', 'Interval', 'Status', 'Subscribed']
-    const rows = subscribers.map((sub) => [
+    const rows = filteredSubscribers.map((sub) => [
       sub.payer,
       sub.planId || '-',
       ...formKeys.map((k) => sub.formData[k] || ''),
@@ -89,13 +94,23 @@ export function MerchantSubscribersPage() {
               <option key={p.id} value={p.id}>{p.planName || p.id}</option>
             ))}
           </select>
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'cancelled')}
+            className="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
         </div>
 
         <Button
           variant="outline"
           size="sm"
           className="gap-1.5"
-          disabled={subscribers.length === 0}
+          disabled={filteredSubscribers.length === 0}
           onClick={handleExportCsv}
         >
           <Download className="h-3.5 w-3.5" />
@@ -123,18 +138,18 @@ export function MerchantSubscribersPage() {
       )}
 
       {/* Empty */}
-      {!isLoading && !error && subscribers.length === 0 && (
+      {!isLoading && !error && filteredSubscribers.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
             <p className="text-sm text-muted-foreground">
-              No subscribers yet
+              {statusFilter !== 'all' || planFilter ? 'No matching subscribers' : 'No subscribers yet'}
             </p>
           </CardContent>
         </Card>
       )}
 
       {/* Table */}
-      {!isLoading && !error && subscribers.length > 0 && (
+      {!isLoading && !error && filteredSubscribers.length > 0 && (
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -149,7 +164,7 @@ export function MerchantSubscribersPage() {
                 </tr>
               </thead>
               <tbody>
-                {subscribers.map((sub) => {
+                {filteredSubscribers.map((sub) => {
                   const formEntries = Object.entries(sub.formData)
                   const isExpanded = expandedRow === sub.policyId
                   return (

@@ -25,6 +25,7 @@ import {
   ChevronUp,
   RotateCw,
 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog'
 import { useChain } from '../../hooks/useChain'
 import {
   getCustomRelayerConfig,
@@ -441,26 +442,28 @@ export function MerchantSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl flex flex-col gap-4">
+    <div className="mx-auto max-w-5xl flex flex-col gap-4">
       {/* Tabbed Card */}
       <Card>
         <Tabs defaultValue="api" className="w-full">
-          <div className="px-4 pt-4">
-            <TabsList>
-              <TabsTrigger value="api" className="gap-1.5">
-                <Code2 className="h-3.5 w-3.5" />
-                API Reference
+          <div className="px-4 pt-4 overflow-x-auto">
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="api" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <Code2 className="h-3.5 w-3.5 hidden sm:block" />
+                <span className="sm:hidden">API</span>
+                <span className="hidden sm:inline">API Reference</span>
               </TabsTrigger>
-              <TabsTrigger value="keys" className="gap-1.5" onClick={loadKeys}>
-                <KeyRound className="h-3.5 w-3.5" />
+              <TabsTrigger value="keys" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3" onClick={loadKeys}>
+                <KeyRound className="h-3.5 w-3.5 hidden sm:block" />
                 API Keys
               </TabsTrigger>
-              <TabsTrigger value="relayer" className="gap-1.5">
-                <Server className="h-3.5 w-3.5" />
-                Custom Relayer
+              <TabsTrigger value="relayer" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <Server className="h-3.5 w-3.5 hidden sm:block" />
+                <span className="sm:hidden">Relayer</span>
+                <span className="hidden sm:inline">Custom Relayer</span>
               </TabsTrigger>
-              <TabsTrigger value="webhooks" className="gap-1.5" onClick={() => { if (!webhookTabLoaded) { setWebhookTabLoaded(true); loadWebhookConfig() } }}>
-                <Bell className="h-3.5 w-3.5" />
+              <TabsTrigger value="webhooks" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3" onClick={() => { if (!webhookTabLoaded) { setWebhookTabLoaded(true); loadWebhookConfig() } }}>
+                <Bell className="h-3.5 w-3.5 hidden sm:block" />
                 Webhooks
               </TabsTrigger>
             </TabsList>
@@ -506,20 +509,20 @@ export function MerchantSettingsPage() {
                     const isSimOpen = simulatorIdx === i
                     return (
                       <div key={i}>
-                        <div className="flex items-center gap-2 px-2.5 py-[7px] hover:bg-muted/30 transition-colors group/row">
+                        <div className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/30 transition-colors group/row">
                           <span
-                            className={`inline-flex items-center rounded border px-1 py-px text-[9px] font-semibold leading-tight flex-shrink-0 w-[3.25rem] justify-center ${METHOD_COLORS[ep.method]}`}
+                            className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-tight flex-shrink-0 w-14 justify-center ${METHOD_COLORS[ep.method]}`}
                           >
                             {ep.method}
                           </span>
-                          <span className="text-[11px] font-medium text-foreground whitespace-nowrap">{ep.title}</span>
+                          <span className="text-xs font-medium text-foreground whitespace-nowrap">{ep.title}</span>
                           <div className="relative group/tip flex-shrink-0">
-                            <Info className="h-3 w-3 text-muted-foreground/30 hover:text-muted-foreground cursor-help transition-colors" />
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 rounded-lg border border-border bg-popover px-2.5 py-2 text-[11px] leading-relaxed text-popover-foreground shadow-md opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-50">
+                            <Info className="h-3.5 w-3.5 text-muted-foreground/30 hover:text-muted-foreground cursor-help transition-colors" />
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-lg border border-border bg-popover px-3 py-2.5 text-xs leading-relaxed text-popover-foreground shadow-md opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-50">
                               {ep.info}
                             </div>
                           </div>
-                          <code className="flex-1 text-[10px] font-mono text-muted-foreground/50 truncate">
+                          <code className="flex-1 text-[11px] font-mono text-muted-foreground/50 truncate">
                             {shortPath.split(/(:[a-zA-Z_]+)/).map((part, j) =>
                               part.startsWith(':') ? (
                                 <span key={j} className="text-foreground/70 font-semibold">{part}</span>
@@ -529,21 +532,21 @@ export function MerchantSettingsPage() {
                             )}
                           </code>
                           {ep.auth === 'key' ? (
-                            <span className="inline-flex items-center rounded border border-violet-500/20 bg-violet-500/10 text-violet-700 px-1 py-px text-[9px] font-semibold leading-tight flex-shrink-0">
+                            <span className="inline-flex items-center rounded border border-violet-500/20 bg-violet-500/10 text-violet-700 px-1.5 py-0.5 text-[10px] font-semibold leading-tight flex-shrink-0">
                               API Key
                             </span>
                           ) : ep.auth === 'signature' ? (
-                            <span className="inline-flex items-center rounded border border-amber-500/20 bg-amber-500/10 text-amber-700 px-1 py-px text-[9px] font-semibold leading-tight flex-shrink-0">
+                            <span className="inline-flex items-center rounded border border-amber-500/20 bg-amber-500/10 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold leading-tight flex-shrink-0">
                               Signature
                             </span>
                           ) : (
-                            <span className="inline-flex items-center rounded border border-border bg-muted/30 text-muted-foreground px-1 py-px text-[9px] font-semibold leading-tight flex-shrink-0">
+                            <span className="inline-flex items-center rounded border border-border bg-muted/30 text-muted-foreground px-1.5 py-0.5 text-[10px] font-semibold leading-tight flex-shrink-0">
                               Public
                             </span>
                           )}
                           {isSimulatable && (
                             <button
-                              className={`flex-shrink-0 inline-flex items-center justify-center h-5 px-1.5 rounded text-[9px] font-semibold transition-colors ${
+                              className={`flex-shrink-0 inline-flex items-center justify-center h-6 px-2 rounded text-[10px] font-semibold transition-colors ${
                                 isSimOpen
                                   ? 'bg-blue-500/15 text-blue-700 border border-blue-500/30'
                                   : 'hover:bg-muted/60 text-muted-foreground/40 group-hover/row:text-muted-foreground border border-transparent'
@@ -552,189 +555,252 @@ export function MerchantSettingsPage() {
                               disabled={!address || !effectiveRelayerUrl}
                               title="Try this endpoint"
                             >
-                              <Play className="h-2.5 w-2.5 mr-0.5" />
+                              <Play className="h-3 w-3 mr-0.5" />
                               Try
                             </button>
                           )}
                           <button
-                            className="flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded hover:bg-muted/60 transition-colors text-muted-foreground/30 group-hover/row:text-muted-foreground disabled:opacity-40"
+                            className="flex-shrink-0 inline-flex items-center justify-center h-6 w-6 rounded hover:bg-muted/60 transition-colors text-muted-foreground/30 group-hover/row:text-muted-foreground disabled:opacity-40"
                             onClick={() => handleCopyRow(i)}
                             disabled={!address || !effectiveRelayerUrl}
                             title="Copy full URL"
                           >
                             {copiedRowIdx === i ? (
-                              <Check className="h-3 w-3 text-emerald-500" />
+                              <Check className="h-3.5 w-3.5 text-emerald-500" />
                             ) : (
-                              <Copy className="h-3 w-3" />
+                              <Copy className="h-3.5 w-3.5" />
                             )}
                           </button>
                         </div>
 
-                        {/* Simulator Panel */}
-                        {isSimOpen && (
-                          <div className="border-t border-border/20 bg-muted/20 px-3 py-3 space-y-3">
-                            {/* Parameter inputs */}
-                            <div className="flex flex-wrap items-end gap-2">
-                              {/* Period input for report endpoints */}
-                              {(i === 4 || i === 5) && (
-                                <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] font-medium text-muted-foreground">Period *</label>
-                                  <input
-                                    type="text"
-                                    placeholder="2026-02"
-                                    value={simulatorParams.period}
-                                    onChange={(e) => setSimulatorParams((p) => ({ ...p, period: e.target.value }))}
-                                    className="h-7 w-24 rounded border border-border bg-background px-2 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                  />
-                                </div>
-                              )}
-                              {/* Plan ID for subscribers */}
-                              {i === 0 && (
-                                <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] font-medium text-muted-foreground">plan_id</label>
-                                  <input
-                                    type="text"
-                                    placeholder="optional"
-                                    value={simulatorParams.planId}
-                                    onChange={(e) => setSimulatorParams((p) => ({ ...p, planId: e.target.value }))}
-                                    className="h-7 w-28 rounded border border-border bg-background px-2 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                  />
-                                </div>
-                              )}
-                              {/* Page/limit for paginated endpoints */}
-                              {(i === 0 || i === 1) && (
-                                <>
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-medium text-muted-foreground">page</label>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      placeholder="1"
-                                      value={simulatorParams.page}
-                                      onChange={(e) => setSimulatorParams((p) => ({ ...p, page: e.target.value }))}
-                                      className="h-7 w-14 rounded border border-border bg-background px-2 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-medium text-muted-foreground">limit <span className="text-muted-foreground/50 font-normal">max 100</span></label>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      max="100"
-                                      placeholder="50"
-                                      value={simulatorParams.limit}
-                                      onChange={(e) => setSimulatorParams((p) => ({ ...p, limit: e.target.value }))}
-                                      className="h-7 w-14 rounded border border-border bg-background px-2 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                    />
-                                  </div>
-                                </>
-                              )}
-                              <Button
-                                size="sm"
-                                className="h-7 text-[11px] gap-1.5 px-3"
-                                onClick={() => handleTryEndpoint(i)}
-                                disabled={simulatorResult.loading || !address}
-                              >
-                                {simulatorResult.loading ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Play className="h-3 w-3" />
-                                )}
-                                {simulatorResult.loading ? 'Running...' : 'Send Request'}
-                              </Button>
-                            </div>
-
-                            {/* Pagination hint */}
-                            {(i === 0 || i === 1) && !simulatorResult.loading && simulatorResult.status === null && (
-                              <p className="text-[10px] text-muted-foreground/60">
-                                Default: 50 results per page. Max: 100. Response includes <code className="bg-muted/50 px-0.5 rounded">total</code> for pagination.
-                              </p>
-                            )}
-
-                            {/* Loading hint */}
-                            {simulatorResult.loading && ep.auth === 'key' && (
-                              <p className="text-[10px] text-muted-foreground">
-                                Creating temp API key, fetching data, then revoking key... (2 wallet signatures)
-                              </p>
-                            )}
-
-                            {/* Error */}
-                            {simulatorResult.error && (
-                              <div className="rounded border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
-                                {simulatorResult.error}
-                              </div>
-                            )}
-
-                            {/* Response */}
-                            {simulatorResult.status !== null && (
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold ${
-                                      simulatorResult.status >= 200 && simulatorResult.status < 300
-                                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
-                                        : simulatorResult.status >= 400
-                                        ? 'border-red-500/30 bg-red-500/10 text-red-700'
-                                        : 'border-amber-500/30 bg-amber-500/10 text-amber-700'
-                                    }`}
-                                  >
-                                    {simulatorResult.status}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {simulatorResult.status >= 200 && simulatorResult.status < 300 ? 'OK' : 'Error'}
-                                  </span>
-                                </div>
-                                {simulatorResult.csvBlob ? (
-                                  <button
-                                    onClick={handleDownloadCsv}
-                                    className="inline-flex items-center gap-1.5 rounded border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-[11px] font-medium text-blue-700 hover:bg-blue-500/20 transition-colors"
-                                  >
-                                    <Download className="h-3 w-3" />
-                                    Download CSV
-                                  </button>
-                                ) : simulatorResult.body !== null ? (
-                                  <pre className="max-h-64 overflow-auto rounded border border-border/50 bg-background p-3 text-[10px] font-mono leading-relaxed text-foreground">
-                                    {simulatorResult.body}
-                                  </pre>
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     )
                   })}
                 </div>
               </div>
 
+              {/* API Simulator Modal */}
+              <Dialog open={simulatorIdx !== null} onOpenChange={(open) => { if (!open) setSimulatorIdx(null) }}>
+                <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
+                  {simulatorIdx !== null && (() => {
+                    const ep = ENDPOINTS[simulatorIdx]
+                    const fullPath = ep.path
+                      .replace(/:address/g, address || ':address')
+                      .replace(/:chainId/g, String(chainConfig.chain.id))
+                    const hasParams = simulatorIdx === 0 || simulatorIdx === 1 || simulatorIdx === 4 || simulatorIdx === 5
+                    return (
+                      <>
+                        {/* Header */}
+                        <div className="border-b border-border/50 bg-muted/30 px-5 pt-5 pb-4">
+                          <DialogHeader className="gap-2.5">
+                            <DialogTitle className="flex items-center gap-2.5 text-sm font-semibold">
+                              <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold leading-tight tracking-wide ${METHOD_COLORS[ep.method]}`}>
+                                {ep.method}
+                              </span>
+                              {ep.title}
+                            </DialogTitle>
+                            <DialogDescription asChild>
+                              <code className="block rounded-lg bg-background/80 border border-border/40 px-3 py-2 text-[11px] font-mono text-muted-foreground break-all leading-relaxed">
+                                {fullPath}
+                              </code>
+                            </DialogDescription>
+                          </DialogHeader>
+                        </div>
+
+                        {/* Body */}
+                        <div className="px-5 py-4 space-y-4">
+                          {/* Parameter inputs */}
+                          {hasParams && (
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Parameters</p>
+                              <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-3">
+                                {(simulatorIdx === 4 || simulatorIdx === 5) && (
+                                  <div className="flex flex-col gap-1.5 col-span-2">
+                                    <label className="text-[11px] font-medium text-foreground/70">Period <span className="text-destructive">*</span></label>
+                                    <input
+                                      type="text"
+                                      placeholder="2026-02"
+                                      value={simulatorParams.period}
+                                      onChange={(e) => setSimulatorParams((p) => ({ ...p, period: e.target.value }))}
+                                      className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                                    />
+                                  </div>
+                                )}
+                                {simulatorIdx === 0 && (
+                                  <div className="flex flex-col gap-1.5 col-span-2">
+                                    <label className="text-[11px] font-medium text-foreground/70">plan_id</label>
+                                    <input
+                                      type="text"
+                                      placeholder="optional"
+                                      value={simulatorParams.planId}
+                                      onChange={(e) => setSimulatorParams((p) => ({ ...p, planId: e.target.value }))}
+                                      className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                                    />
+                                  </div>
+                                )}
+                                {(simulatorIdx === 0 || simulatorIdx === 1) && (
+                                  <>
+                                    <div className="flex flex-col gap-1.5">
+                                      <label className="text-[11px] font-medium text-foreground/70">page</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        placeholder="1"
+                                        value={simulatorParams.page}
+                                        onChange={(e) => setSimulatorParams((p) => ({ ...p, page: e.target.value }))}
+                                        className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                      <label className="text-[11px] font-medium text-foreground/70">limit <span className="text-muted-foreground/40 font-normal">(max 100)</span></label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        placeholder="50"
+                                        value={simulatorParams.limit}
+                                        onChange={(e) => setSimulatorParams((p) => ({ ...p, limit: e.target.value }))}
+                                        className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
+                                      />
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Loading hint */}
+                          {simulatorResult.loading && ep.auth === 'key' && (
+                            <div className="flex items-center gap-2 rounded-lg bg-blue-500/5 border border-blue-500/10 px-3 py-2.5">
+                              <Loader2 className="h-3 w-3 animate-spin text-blue-600 flex-shrink-0" />
+                              <p className="text-[11px] text-blue-700/80">
+                                Creating temp API key, fetching data, then revoking key... (2 wallet signatures)
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Error */}
+                          {simulatorResult.error && (
+                            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+                              <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0 mt-0.5" />
+                              <p className="text-[11px] text-destructive">{simulatorResult.error}</p>
+                            </div>
+                          )}
+
+                          {/* Response */}
+                          {simulatorResult.status !== null && (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Response</p>
+                                <span
+                                  className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                                    simulatorResult.status >= 200 && simulatorResult.status < 300
+                                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+                                      : simulatorResult.status >= 400
+                                      ? 'border-red-500/30 bg-red-500/10 text-red-700'
+                                      : 'border-amber-500/30 bg-amber-500/10 text-amber-700'
+                                  }`}
+                                >
+                                  {simulatorResult.status}
+                                  <span className="font-medium opacity-70">
+                                    {simulatorResult.status >= 200 && simulatorResult.status < 300 ? 'OK' : 'Error'}
+                                  </span>
+                                </span>
+                              </div>
+                              {simulatorResult.csvBlob ? (
+                                <button
+                                  onClick={handleDownloadCsv}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-xs font-medium text-blue-700 hover:bg-blue-500/20 transition-colors"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  Download CSV
+                                </button>
+                              ) : simulatorResult.body !== null ? (
+                                <pre className="max-h-80 overflow-auto rounded-lg border border-border/50 bg-muted/30 p-3 text-[10px] font-mono leading-relaxed text-foreground">
+                                  {simulatorResult.body}
+                                </pre>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="border-t border-border/50 bg-muted/20 px-5 py-3 flex items-center justify-between">
+                          {(simulatorIdx === 0 || simulatorIdx === 1) && !simulatorResult.loading && simulatorResult.status === null && (
+                            <p className="text-[10px] text-muted-foreground/60">
+                              Default: 50 per page. Max: 100.
+                            </p>
+                          )}
+                          <div /> {/* spacer when no hint */}
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs gap-1.5 px-4"
+                            onClick={() => handleTryEndpoint(simulatorIdx)}
+                            disabled={simulatorResult.loading || !address}
+                          >
+                            {simulatorResult.loading ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Play className="h-3 w-3" />
+                            )}
+                            {simulatorResult.loading ? 'Running...' : 'Send Request'}
+                          </Button>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </DialogContent>
+              </Dialog>
+
             </div>
 
               {/* Right sidebar — Reference Notes */}
-              <div className="w-48 flex-shrink-0 hidden lg:flex flex-col gap-4 border-l border-border/30 pl-4 self-start sticky top-4">
+              <div className="w-60 flex-shrink-0 hidden lg:flex flex-col gap-3 self-start sticky top-4">
                 {/* Auth */}
-                <div className="space-y-3">
-                  <p className="text-[10px] font-semibold text-foreground/50 uppercase tracking-[0.15em]">Auth</p>
-                  <div className="space-y-2.5">
-                    <div className="space-y-1">
-                      <span className="inline-flex items-center rounded border border-violet-500/20 bg-violet-500/10 text-violet-700 px-1.5 py-0.5 text-[9px] font-semibold leading-tight">API Key</span>
-                      <p className="text-[11px] text-muted-foreground leading-snug">Via <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-API-Key</code> header</p>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1 w-1 rounded-full bg-foreground/25" />
+                    <p className="text-[11px] font-semibold text-foreground/50 uppercase tracking-[0.12em]">Authentication</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <span className="inline-flex items-center rounded border border-violet-500/20 bg-violet-500/10 text-violet-700 px-1.5 py-0.5 text-[10px] font-semibold leading-tight shrink-0 mt-0.5">API Key</span>
+                      <p className="text-xs text-muted-foreground leading-snug">Via <code className="text-[11px] bg-background px-1 py-px rounded font-mono border border-border/40">X-API-Key</code> header</p>
                     </div>
-                    <div className="space-y-1">
-                      <span className="inline-flex items-center rounded border border-amber-500/20 bg-amber-500/10 text-amber-700 px-1.5 py-0.5 text-[9px] font-semibold leading-tight">Signature</span>
-                      <p className="text-[11px] text-muted-foreground leading-snug">EIP-191 via <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-Address</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-Signature</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-Nonce</code></p>
+                    <div className="flex items-start gap-2.5">
+                      <span className="inline-flex items-center rounded border border-amber-500/20 bg-amber-500/10 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold leading-tight shrink-0 mt-0.5">Signature</span>
+                      <div className="text-xs text-muted-foreground leading-snug">
+                        <p>EIP-191 wallet signature</p>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">X-Address</code>
+                          <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">X-Signature</code>
+                          <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">X-Nonce</code>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="border-t border-border/20" />
-
                 {/* Pagination */}
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-foreground/50 uppercase tracking-[0.15em]">Pagination</p>
-                  <div className="text-[11px] text-muted-foreground leading-snug space-y-1.5">
-                    <p><code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">page</code> &amp; <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">limit</code> params</p>
-                    <p className="text-muted-foreground/60">Default 50 &middot; Max 100</p>
-                    <p>Returns <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">total</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">page</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">limit</code></p>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1 w-1 rounded-full bg-foreground/25" />
+                    <p className="text-[11px] font-semibold text-foreground/50 uppercase tracking-[0.12em]">Pagination</p>
+                  </div>
+                  <div className="text-xs text-muted-foreground leading-snug space-y-2">
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">page</code>
+                      <span className="text-muted-foreground/40">&</span>
+                      <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">limit</code>
+                      <span>params</span>
+                    </div>
+                    <p className="text-muted-foreground/50">Default 50 · Max 100</p>
+                    <div className="flex flex-wrap gap-1 items-center pt-0.5">
+                      <span className="text-muted-foreground/50">Returns</span>
+                      <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">total</code>
+                      <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">page</code>
+                      <code className="text-[11px] bg-background px-1 py-0.5 rounded font-mono border border-border/40">limit</code>
+                    </div>
                   </div>
                 </div>
               </div>

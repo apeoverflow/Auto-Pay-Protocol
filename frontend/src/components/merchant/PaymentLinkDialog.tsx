@@ -45,6 +45,7 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
     return initial
   })
   const [copied, setCopied] = React.useState(false)
+  const [copiedBadge, setCopiedBadge] = React.useState(false)
 
   const cycleField = (key: FieldKey) => {
     setFields((prev) => {
@@ -95,6 +96,14 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
     await navigator.clipboard.writeText(checkoutUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const badgeMarkdown = `[![Sponsor with AutoPay](https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA4LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=)](${checkoutUrl})`
+
+  const handleCopyBadge = async () => {
+    await navigator.clipboard.writeText(badgeMarkdown)
+    setCopiedBadge(true)
+    setTimeout(() => setCopiedBadge(false), 2000)
   }
 
   return (
@@ -154,6 +163,43 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
               {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? 'Copied' : 'Copy'}
             </Button>
+          </div>
+        </div>
+
+        {/* GitHub Badge */}
+        <div className="mt-4">
+          <p className="text-xs font-medium text-muted-foreground mb-2">GitHub Sponsor Badge</p>
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+            {/* Preview */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-medium">Preview</span>
+              <img
+                src={`https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA0LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=`}
+                alt="Sponsor with AutoPay"
+                className="h-7"
+              />
+            </div>
+            {/* Markdown snippet */}
+            <div className="flex gap-2">
+              <input
+                readOnly
+                value={badgeMarkdown}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[10px] font-mono text-foreground truncate"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 shrink-0"
+                onClick={handleCopyBadge}
+              >
+                {copiedBadge ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedBadge ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60">
+              Paste into your README.md — links to your checkout page.
+            </p>
           </div>
         </div>
       </DialogContent>

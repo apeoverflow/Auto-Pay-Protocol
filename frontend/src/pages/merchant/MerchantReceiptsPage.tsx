@@ -90,36 +90,28 @@ export function MerchantReceiptsPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Charge Receipts</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Successful charges
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {selected.size > 0 && (
-            <Button
-              size="sm"
-              className="h-7 text-xs gap-1.5"
-              disabled={uploading}
-              onClick={handleUpload}
-            >
-              {uploading ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Upload className="h-3 w-3" />
-              )}
-              Upload to IPFS ({selected.size})
-            </Button>
-          )}
-          {total > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {total} charge{total !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-3">
+        {selected.size > 0 && (
+          <Button
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            disabled={uploading}
+            onClick={handleUpload}
+          >
+            {uploading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Upload className="h-3 w-3" />
+            )}
+            Upload to IPFS ({selected.size})
+          </Button>
+        )}
+        {total > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {total} charge{total !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       {/* Upload error */}
