@@ -3,8 +3,10 @@ import { runMigrations } from './db/migrations/index.js'
 import { closeDb } from './db/index.js'
 import { startIndexerLoop } from './indexer/index.js'
 import { startExecutorLoop } from './executor/index.js'
+import { startReceiptRetryLoop } from './executor/receipt-retry.js'
 import { startWebhookSenderLoop } from './webhooks/index.js'
 import { createApiServer, startApiServer, stopApiServer } from './api/index.js'
+import { isStorachaEnabled } from './lib/storacha.js'
 import { createLogger } from './utils/logger.js'
 import { privateKeyToAccount } from 'viem/accounts'
 
@@ -22,6 +24,11 @@ export async function startRelayer() {
   // Warn if auth is disabled
   if (process.env.AUTH_ENABLED !== 'true') {
     logger.warn('⚠️  AUTH_ENABLED is not set to "true" — all plan write endpoints are OPEN without authentication. Set AUTH_ENABLED=true in production.')
+  }
+
+  // Warn if Storacha (IPFS) is not configured — receipt uploads will be skipped
+  if (!isStorachaEnabled()) {
+    logger.warn('STORACHA_PRINCIPAL_KEY and/or STORACHA_DELEGATION_PROOF not set — charge receipt IPFS uploads are DISABLED. Receipts will not be archived to IPFS/Filecoin.')
   }
 
   // Log merchant filter status
@@ -72,7 +79,10 @@ export async function startRelayer() {
   // Start webhook sender loop
   const webhookPromise = startWebhookSenderLoop(config, abortController.signal)
 
-  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise])
+  // Start receipt upload retry loop (retries failed/pending IPFS uploads)
+  const receiptRetryPromise = startReceiptRetryLoop(config, abortController.signal)
+
+  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise, receiptRetryPromise])
 
   // Handle shutdown signals
   const shutdown = async () => {

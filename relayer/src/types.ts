@@ -87,6 +87,10 @@ export interface ChargeRow {
   error_message: string | null
   attempt_count: number
   receipt_cid: string | null
+  receipt_upload_status: 'skipped' | 'pending' | 'uploaded' | 'failed'
+  receipt_upload_error: string | null
+  receipt_retry_count: number
+  receipt_last_retry_at: Date | null
   created_at: Date
   completed_at: Date | null
 }

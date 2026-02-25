@@ -2,9 +2,9 @@ import type { RelayerConfig, ChainConfig, WebhookPayload } from '../types.js'
 import { chargePolicy, cancelFailedPolicyOnChain } from './charge.js'
 import { shouldRetry, isRetryableError, logRetryDecision, getNextRetryDelay } from './retry.js'
 import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures, markPolicyCancelledByFailure, markPolicyCompleted, pushNextChargeAt } from '../db/policies.js'
-import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt, deleteChargeRecord, setChargeReceiptCid } from '../db/charges.js'
+import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt, deleteChargeRecord, markReceiptUploadPending } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
-import { buildReceipt, uploadChargeReceipt, isStorachaEnabled } from '../reports/receipt.js'
+import { isStorachaEnabled } from '../reports/receipt.js'
 import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('executor')
@@ -97,12 +97,9 @@ async function processChainCharges(
         chargeId
       )
 
-      // Fire-and-forget: upload charge receipt to IPFS
+      // Queue receipt for IPFS upload — the receipt retry loop handles the actual upload
       if (isStorachaEnabled()) {
-        const receipt = buildReceipt(policy, result, chainConfig)
-        uploadChargeReceipt(receipt)
-          .then((cid) => setChargeReceiptCid(config.databaseUrl, chargeId, cid))
-          .catch((err) => logger.warn({ chargeId, err }, 'Failed to upload charge receipt to IPFS'))
+        await markReceiptUploadPending(config.databaseUrl, chargeId)
       }
 
       succeeded++
