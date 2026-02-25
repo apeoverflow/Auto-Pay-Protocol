@@ -12,8 +12,7 @@
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | HTTP server port | `3002` |
-| `CHAIN` | Chain preset: `base`, `flowEvm`, or `baseSepolia`. Sets RPC_URL, POLICY_MANAGER, and CHECKOUT_URL automatically. | `base` |
-| `CHECKOUT_URL` | AutoPay checkout page URL (overrides `CHAIN` preset) | Derived from `CHAIN` |
+| `CHAIN` | Chain preset: `base`, `flowEvm`, or `baseSepolia`. Sets RPC_URL, POLICY_MANAGER, and checkout domain automatically. | `base` |
 | `RELAYER_URL` | Relayer API URL (for plan metadata) | `http://localhost:3420` |
 | `WEBHOOK_SECRET` | Shared secret for verifying relayer webhooks | `test-secret-123` |
 | `RPC_URL` | RPC URL for on-chain verification (overrides `CHAIN` preset) | Derived from `CHAIN` |

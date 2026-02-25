@@ -8,8 +8,8 @@ import { createClient } from '@supabase/supabase-js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // ── Chain presets ──
-// Set CHAIN=flowEvm or CHAIN=base to switch everything at once.
-// Individual env vars (RPC_URL, POLICY_MANAGER, CHECKOUT_URL) override the preset.
+// Set CHAIN=base, CHAIN=flowEvm, or CHAIN=baseSepolia to switch everything at once.
+// Individual env vars (RPC_URL, POLICY_MANAGER) override the preset.
 const CHAIN_PRESETS = {
   flowEvm: {
     rpcUrl: 'https://mainnet.evm.nodes.onflow.org',
@@ -34,7 +34,7 @@ const preset = CHAIN_PRESETS[CHAIN] || CHAIN_PRESETS.base
 // ── Configuration ──
 const PORT = process.env.PORT || 3002
 const MERCHANT_ADDRESS = process.env.MERCHANT_ADDRESS || '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B'
-const CHECKOUT_URL = (process.env.CHECKOUT_URL || preset.checkoutUrl).trim()
+const CHECKOUT_URL = preset.checkoutUrl
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
 const RELAYER_URL = (process.env.RELAYER_URL || 'http://localhost:3420').trim()
 const RPC_URL = (process.env.RPC_URL || preset.rpcUrl).trim()
