@@ -655,6 +655,85 @@ export async function deletePlan(
   }
 }
 
+// --- Webhook config ---
+
+export interface WebhookConfig {
+  webhookUrl: string | null
+  hasSecret: boolean
+}
+
+export interface WebhookSetupResponse {
+  webhookUrl: string
+  webhookSecret: string
+  isNew: boolean
+}
+
+export async function getWebhookConfig(
+  address: string,
+  signMessage: SignMessageFn,
+): Promise<WebhookConfig> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/webhook`, { headers })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to get webhook config')
+  }
+  return (await res.json()) as WebhookConfig
+}
+
+export async function setWebhookUrl(
+  address: string,
+  webhookUrl: string,
+  signMessage: SignMessageFn,
+): Promise<WebhookSetupResponse> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/webhook`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify({ webhookUrl }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to set webhook URL')
+  }
+  return (await res.json()) as WebhookSetupResponse
+}
+
+export async function deleteWebhook(
+  address: string,
+  signMessage: SignMessageFn,
+): Promise<void> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/webhook`, {
+    method: 'DELETE',
+    headers,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to delete webhook')
+  }
+}
+
+export async function rotateWebhookSecret(
+  address: string,
+  signMessage: SignMessageFn,
+): Promise<{ webhookSecret: string }> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/webhook/rotate-secret`, {
+    method: 'POST',
+    headers,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to rotate webhook secret')
+  }
+  return (await res.json()) as { webhookSecret: string }
+}
+
 // --- Merchant API Keys ---
 
 export interface MerchantApiKey {

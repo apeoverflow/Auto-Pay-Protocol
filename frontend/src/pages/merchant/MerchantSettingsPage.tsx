@@ -9,7 +9,6 @@ import {
   Copy,
   Check,
   Server,
-  Wallet,
   Code2,
   Bell,
   Info,
@@ -22,6 +21,9 @@ import {
   EyeOff,
   Play,
   Download,
+  ChevronDown,
+  ChevronUp,
+  RotateCw,
 } from 'lucide-react'
 import { useChain } from '../../hooks/useChain'
 import {
@@ -31,7 +33,12 @@ import {
   createMerchantApiKey,
   listMerchantApiKeys,
   revokeMerchantApiKey,
+  getWebhookConfig,
+  setWebhookUrl,
+  deleteWebhook,
+  rotateWebhookSecret,
   type MerchantApiKey,
+  type WebhookConfig,
 } from '../../lib/relayer'
 
 const RELAYER_URL = import.meta.env.VITE_RELAYER_URL || ''
@@ -63,10 +70,6 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: 'bg-red-500/10 text-red-700 border-red-500/20',
 }
 
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`
-}
-
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -75,7 +78,6 @@ export function MerchantSettingsPage() {
   const { address } = useWallet()
   const { chainConfig } = useChain()
   const { signMessageAsync } = useSignMessage()
-  const [copiedAddress, setCopiedAddress] = React.useState(false)
   const [copiedEndpoint, setCopiedEndpoint] = React.useState(false)
   const [copiedRowIdx, setCopiedRowIdx] = React.useState<number | null>(null)
 
@@ -95,6 +97,98 @@ export function MerchantSettingsPage() {
   const [copiedKey, setCopiedKey] = React.useState(false)
   const [showNewKey, setShowNewKey] = React.useState(true)
   const [revokingId, setRevokingId] = React.useState<number | null>(null)
+
+  // Webhook state
+  const [webhookConfig, setWebhookConfigState] = React.useState<WebhookConfig | null>(null)
+  const [webhookLoading, setWebhookLoading] = React.useState(false)
+  const [webhookError, setWebhookError] = React.useState<string | null>(null)
+  const [webhookUrlInput, setWebhookUrlInput] = React.useState('')
+  const [webhookSaving, setWebhookSaving] = React.useState(false)
+  const [webhookEditing, setWebhookEditing] = React.useState(false)
+  const [shownSecret, setShownSecret] = React.useState<string | null>(null)
+  const [copiedSecret, setCopiedSecret] = React.useState(false)
+  const [rotatingSecret, setRotatingSecret] = React.useState(false)
+  const [confirmRotate, setConfirmRotate] = React.useState(false)
+  const [confirmRemove, setConfirmRemove] = React.useState(false)
+  const [removingWebhook, setRemovingWebhook] = React.useState(false)
+  const [showPayloadExample, setShowPayloadExample] = React.useState(false)
+  const [webhookTabLoaded, setWebhookTabLoaded] = React.useState(false)
+
+  // Load webhook config when tab is activated
+  const loadWebhookConfig = React.useCallback(async () => {
+    if (!address) return
+    setWebhookLoading(true)
+    setWebhookError(null)
+    try {
+      const config = await getWebhookConfig(address, signMessageAsync)
+      setWebhookConfigState(config)
+      if (config.webhookUrl) {
+        setWebhookUrlInput(config.webhookUrl)
+      }
+    } catch (err) {
+      setWebhookError(err instanceof Error ? err.message : 'Failed to load webhook config')
+    } finally {
+      setWebhookLoading(false)
+    }
+  }, [address, signMessageAsync])
+
+  const handleSaveWebhook = React.useCallback(async () => {
+    if (!address || !webhookUrlInput.trim()) return
+    setWebhookSaving(true)
+    setWebhookError(null)
+    setShownSecret(null)
+    try {
+      const result = await setWebhookUrl(address, webhookUrlInput.trim(), signMessageAsync)
+      setWebhookConfigState({ webhookUrl: result.webhookUrl, hasSecret: true })
+      setWebhookEditing(false)
+      if (result.isNew && result.webhookSecret) {
+        setShownSecret(result.webhookSecret)
+      }
+    } catch (err) {
+      setWebhookError(err instanceof Error ? err.message : 'Failed to save webhook')
+    } finally {
+      setWebhookSaving(false)
+    }
+  }, [address, webhookUrlInput, signMessageAsync])
+
+  const handleRemoveWebhook = React.useCallback(async () => {
+    if (!address) return
+    setRemovingWebhook(true)
+    setWebhookError(null)
+    try {
+      await deleteWebhook(address, signMessageAsync)
+      setWebhookConfigState({ webhookUrl: null, hasSecret: false })
+      setWebhookUrlInput('')
+      setShownSecret(null)
+      setWebhookEditing(false)
+      setConfirmRemove(false)
+    } catch (err) {
+      setWebhookError(err instanceof Error ? err.message : 'Failed to remove webhook')
+    } finally {
+      setRemovingWebhook(false)
+    }
+  }, [address, signMessageAsync])
+
+  const handleRotateSecret = React.useCallback(async () => {
+    if (!address) return
+    setRotatingSecret(true)
+    setWebhookError(null)
+    try {
+      const result = await rotateWebhookSecret(address, signMessageAsync)
+      setShownSecret(result.webhookSecret)
+      setConfirmRotate(false)
+    } catch (err) {
+      setWebhookError(err instanceof Error ? err.message : 'Failed to rotate secret')
+    } finally {
+      setRotatingSecret(false)
+    }
+  }, [address, signMessageAsync])
+
+  const copySecret = React.useCallback((secret: string) => {
+    navigator.clipboard.writeText(secret)
+    setCopiedSecret(true)
+    setTimeout(() => setCopiedSecret(false), 2000)
+  }, [])
 
   // Load saved config on mount
   React.useEffect(() => {
@@ -348,38 +442,6 @@ export function MerchantSettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl flex flex-col gap-4">
-      {/* Merchant Identity Banner */}
-      <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/30 px-4 py-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/15 to-purple-500/10">
-          <Wallet className="h-4 w-4 text-violet-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground mb-0.5">Merchant Address</p>
-          <code className="text-sm font-mono font-medium text-foreground">
-            {address ? truncateAddress(address) : '—'}
-          </code>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          onClick={() => address && handleCopy(address, setCopiedAddress)}
-          disabled={!address}
-        >
-          {copiedAddress ? (
-            <>
-              <Check className="h-3 w-3 text-emerald-500" />
-              Copied
-            </>
-          ) : (
-            <>
-              <Copy className="h-3 w-3" />
-              Copy
-            </>
-          )}
-        </Button>
-      </div>
-
       {/* Tabbed Card */}
       <Card>
         <Tabs defaultValue="api" className="w-full">
@@ -397,7 +459,7 @@ export function MerchantSettingsPage() {
                 <Server className="h-3.5 w-3.5" />
                 Custom Relayer
               </TabsTrigger>
-              <TabsTrigger value="webhooks" className="gap-1.5">
+              <TabsTrigger value="webhooks" className="gap-1.5" onClick={() => { if (!webhookTabLoaded) { setWebhookTabLoaded(true); loadWebhookConfig() } }}>
                 <Bell className="h-3.5 w-3.5" />
                 Webhooks
               </TabsTrigger>
@@ -406,7 +468,9 @@ export function MerchantSettingsPage() {
 
           {/* API Reference Tab */}
           <TabsContent value="api">
-            <CardContent className="p-5 space-y-5">
+            <CardContent className="p-5">
+            <div className="flex gap-5">
+            <div className="flex-1 min-w-0 space-y-5">
               {/* Plans Endpoint */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Plans Endpoint</label>
@@ -643,40 +707,38 @@ export function MerchantSettingsPage() {
                 </div>
               </div>
 
-              {/* Reference Notes */}
-              <div className="text-xs text-muted-foreground space-y-3">
+            </div>
+
+              {/* Right sidebar — Reference Notes */}
+              <div className="w-48 flex-shrink-0 hidden lg:flex flex-col gap-4 border-l border-border/30 pl-4 self-start sticky top-4">
                 {/* Auth */}
-                <div className="space-y-1.5">
-                  <p className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Authentication</p>
-                  <p>
-                    <span className="inline-flex items-center rounded-md border border-violet-500/20 bg-violet-500/10 text-violet-700 px-1.5 py-0.5 text-[10px] font-semibold mr-1">API Key</span>
-                    endpoints accept per-merchant API keys via{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">X-API-Key: sk_live_...</code> header.
-                    Create keys in the API Keys tab.
-                  </p>
-                  <p>
-                    <span className="inline-flex items-center rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-700 px-1.5 py-0.5 text-[10px] font-semibold mr-1">Signature</span>
-                    endpoints require EIP-191 wallet signature via{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">X-Address</code>,{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">X-Signature</code>,{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">X-Nonce</code> headers.
-                  </p>
+                <div className="space-y-3">
+                  <p className="text-[10px] font-semibold text-foreground/50 uppercase tracking-[0.15em]">Auth</p>
+                  <div className="space-y-2.5">
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center rounded border border-violet-500/20 bg-violet-500/10 text-violet-700 px-1.5 py-0.5 text-[9px] font-semibold leading-tight">API Key</span>
+                      <p className="text-[11px] text-muted-foreground leading-snug">Via <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-API-Key</code> header</p>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center rounded border border-amber-500/20 bg-amber-500/10 text-amber-700 px-1.5 py-0.5 text-[9px] font-semibold leading-tight">Signature</span>
+                      <p className="text-[11px] text-muted-foreground leading-snug">EIP-191 via <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-Address</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-Signature</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">X-Nonce</code></p>
+                    </div>
+                  </div>
                 </div>
 
+                <div className="border-t border-border/20" />
+
                 {/* Pagination */}
-                <div className="space-y-1.5">
-                  <p className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">Pagination</p>
-                  <p>
-                    <strong className="text-foreground/80">Subscribers</strong> and <strong className="text-foreground/80">Charges</strong> support pagination via{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">page</code> and{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">limit</code> query params.
-                    Defaults: page 1, limit 50. Maximum limit: <strong className="text-foreground/80">100</strong> per page.
-                    The response includes <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">total</code>,{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">page</code>, and{' '}
-                    <code className="text-[11px] bg-muted/50 px-1 py-0.5 rounded">limit</code> fields for cursor navigation.
-                  </p>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-foreground/50 uppercase tracking-[0.15em]">Pagination</p>
+                  <div className="text-[11px] text-muted-foreground leading-snug space-y-1.5">
+                    <p><code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">page</code> &amp; <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">limit</code> params</p>
+                    <p className="text-muted-foreground/60">Default 50 &middot; Max 100</p>
+                    <p>Returns <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">total</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">page</code> <code className="text-[10px] bg-muted/70 px-1 py-px rounded font-mono">limit</code></p>
+                  </div>
                 </div>
               </div>
+            </div>
             </CardContent>
           </TabsContent>
 
@@ -876,16 +938,165 @@ export function MerchantSettingsPage() {
 
           {/* Webhooks Tab */}
           <TabsContent value="webhooks">
-            <CardContent className="p-5">
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/50 mb-3">
-                  <Bell className="h-4.5 w-4.5 text-muted-foreground" />
+            <CardContent className="p-5 space-y-6">
+              {/* Section 1: Available Events */}
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-3">Available Events</h3>
+                <div className="space-y-1.5">
+                  {([
+                    ['charge.succeeded', 'Payment collected successfully'],
+                    ['charge.failed', 'Payment attempt failed (balance/allowance)'],
+                    ['policy.created', 'New subscription created'],
+                    ['policy.revoked', 'Subscriber cancelled'],
+                    ['policy.cancelled_by_failure', 'Auto-cancelled after 3 consecutive failures'],
+                    ['policy.completed', 'Spending cap reached, policy complete'],
+                  ] as const).map(([event, desc]) => (
+                    <div key={event} className="flex items-start gap-2 text-xs">
+                      <code className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded shrink-0">{event}</code>
+                      <span className="text-muted-foreground">{desc}</span>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-sm font-medium text-foreground mb-1">Coming Soon</p>
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  Webhook management will be available here. Currently, webhooks can be configured
-                  via the relayer's environment variables.
-                </p>
+              </div>
+
+              <div className="border-t" />
+
+              {/* Section 2: Webhook URL Configuration */}
+              <div>
+                <h3 className="text-sm font-medium text-foreground mb-3">Webhook URL</h3>
+
+                {webhookError && (
+                  <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 px-3 py-2 rounded mb-3">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    {webhookError}
+                  </div>
+                )}
+
+                {webhookLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-4">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading webhook configuration...
+                  </div>
+                ) : webhookConfig?.webhookUrl && !webhookEditing ? (
+                  /* Configured state */
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate">{webhookConfig.webhookUrl}</code>
+                      <Button variant="outline" size="sm" onClick={() => { setWebhookEditing(true); setWebhookUrlInput(webhookConfig.webhookUrl || '') }}>
+                        Edit
+                      </Button>
+                      {confirmRemove ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button variant="destructive" size="sm" onClick={handleRemoveWebhook} disabled={removingWebhook}>
+                            {removingWebhook ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Confirm'}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setConfirmRemove(false)}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => setConfirmRemove(true)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Input state (no webhook or editing) */
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="https://your-server.com/webhooks/autopay"
+                      value={webhookUrlInput}
+                      onChange={(e) => setWebhookUrlInput(e.target.value)}
+                      className="text-xs font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">Must use HTTPS (or http://localhost for development)</p>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleSaveWebhook} disabled={webhookSaving || !webhookUrlInput.trim()}>
+                        {webhookSaving ? (
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Saving...</>
+                        ) : 'Save'}
+                      </Button>
+                      {webhookEditing && (
+                        <Button variant="outline" size="sm" onClick={() => { setWebhookEditing(false); setWebhookUrlInput(webhookConfig?.webhookUrl || '') }}>
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Shown secret (after first save or rotate) */}
+              {shownSecret && (
+                <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <p className="text-xs font-medium text-amber-600">Save this secret — it won't be shown again</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 break-all select-all">{shownSecret}</code>
+                    <Button variant="outline" size="sm" onClick={() => copySecret(shownSecret)}>
+                      {copiedSecret ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 3: Signing Secret */}
+              {webhookConfig?.webhookUrl && webhookConfig.hasSecret && (
+                <>
+                  <div className="border-t" />
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground mb-3">Signing Secret</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Check className="h-3.5 w-3.5 text-green-500" />
+                        Secret configured
+                      </div>
+                      {confirmRotate ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">Generate new secret?</span>
+                          <Button variant="destructive" size="sm" onClick={handleRotateSecret} disabled={rotatingSecret}>
+                            {rotatingSecret ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Confirm'}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setConfirmRotate(false)}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => setConfirmRotate(true)}>
+                          <RotateCw className="h-3.5 w-3.5 mr-1.5" />
+                          Rotate Secret
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Payload Example (collapsible) */}
+              <div className="border-t" />
+              <div>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
+                  onClick={() => setShowPayloadExample(!showPayloadExample)}
+                >
+                  {showPayloadExample ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  Example Payload
+                </button>
+                {showPayloadExample && (
+                  <pre className="mt-3 text-[11px] font-mono bg-muted p-3 rounded-lg overflow-x-auto whitespace-pre">{`{
+  "event": "charge.succeeded",
+  "timestamp": "2026-02-25T12:00:00.000Z",
+  "data": {
+    "policyId": "0xabc123...",
+    "chainId": 747,
+    "payer": "0x1234...abcd",
+    "merchant": "0x5678...ef01",
+    "amount": "15.00",
+    "protocolFee": "0.375",
+    "txHash": "0xdef456..."
+  }
+}`}</pre>
+                )}
               </div>
             </CardContent>
           </TabsContent>

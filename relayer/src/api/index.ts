@@ -14,6 +14,8 @@ import { isStorachaEnabled, ipfsGatewayUrl } from '../lib/storacha.js'
 import { generateAndUploadReport, generateAndSaveReport } from '../reports/upload.js'
 import { buildReceipt, uploadChargeReceipt } from '../reports/receipt.js'
 import { handleNonceRequest, authenticateMerchant, destroyAuthStore } from './auth.js'
+import { getMerchant, clearMerchantWebhook, updateMerchantWebhook } from '../db/merchants.js'
+import { generateWebhookSecret } from '../webhooks/signer.js'
 import { SlidingWindowRateLimiter, type RateLimitResult } from './rate-limit.js'
 import { getLogoStorage } from '../lib/logo-storage.js'
 import sharp from 'sharp'
@@ -406,6 +408,8 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantReportCsv: '/merchants/:address/reports/:period/csv?chain_id=N',
             subscribers: 'POST /subscribers',
             merchantSubscribers: '/merchants/:address/subscribers?chain_id=...',
+            merchantWebhook: '/merchants/:address/webhook',
+            merchantWebhookRotate: 'POST /merchants/:address/webhook/rotate-secret',
             merchantApiKeys: '/merchants/:address/api-keys',
             merchantApiKeyCreate: 'POST /merchants/:address/api-keys',
             merchantApiKeyRevoke: 'DELETE /merchants/:address/api-keys/:id',
@@ -855,6 +859,105 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
       }
 
       // Merchant API keys: create, list, revoke
+      // Merchant webhook: rotate secret
+      const webhookRotateMatch = path.match(/^\/merchants\/([^/]+)\/webhook\/rotate-secret$/)
+      if (webhookRotateMatch && req.method === 'POST') {
+        const address = webhookRotateMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+        const newSecret = generateWebhookSecret()
+        const merchant = await getMerchant(config.databaseUrl, address)
+        if (!merchant?.webhook_url) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'No webhook configured. Set a webhook URL first.' }))
+          return
+        }
+        await updateMerchantWebhook(config.databaseUrl, address, merchant.webhook_url, newSecret)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ webhookSecret: newSecret }))
+        return
+      }
+
+      // Merchant webhook: get, set, delete
+      const webhookMatch = path.match(/^\/merchants\/([^/]+)\/webhook$/)
+      if (webhookMatch) {
+        const address = webhookMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+
+        if (req.method === 'GET') {
+          const merchant = await getMerchant(config.databaseUrl, address)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({
+            webhookUrl: merchant?.webhook_url ?? null,
+            hasSecret: !!(merchant?.webhook_secret),
+          }))
+          return
+        }
+
+        if (req.method === 'PUT') {
+          const body = await parseBody(req)
+          const webhookUrl = typeof body.webhookUrl === 'string' ? body.webhookUrl.trim() : ''
+          if (!webhookUrl) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'webhookUrl is required' }))
+            return
+          }
+          // Validate URL format: https required, or http://localhost for dev
+          try {
+            const parsed = new URL(webhookUrl)
+            const isLocalDev = parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')
+            if (parsed.protocol !== 'https:' && !isLocalDev) {
+              res.writeHead(400, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'webhookUrl must use HTTPS (or http://localhost for development)' }))
+              return
+            }
+          } catch {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'webhookUrl must be a valid URL' }))
+            return
+          }
+
+          const existing = await getMerchant(config.databaseUrl, address)
+          const isNew = !existing?.webhook_secret
+          const secret = isNew ? generateWebhookSecret() : existing!.webhook_secret!
+          await updateMerchantWebhook(config.databaseUrl, address, webhookUrl, secret)
+
+          const response: Record<string, unknown> = { webhookUrl, isNew }
+          if (isNew) {
+            response.webhookSecret = secret
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(response))
+          return
+        }
+
+        if (req.method === 'DELETE') {
+          await clearMerchantWebhook(config.databaseUrl, address)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ ok: true }))
+          return
+        }
+      }
+
       const merchantApiKeysMatch = path.match(/^\/merchants\/([^/]+)\/api-keys$/)
       if (merchantApiKeysMatch) {
         const address = merchantApiKeysMatch[1]

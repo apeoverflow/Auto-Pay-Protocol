@@ -62,6 +62,39 @@ export async function getMerchantWebhookConfig(
   }
 }
 
+export async function clearMerchantWebhook(
+  databaseUrl: string,
+  address: string
+): Promise<void> {
+  const db = getDb(databaseUrl)
+
+  await db`
+    UPDATE merchants
+    SET webhook_url = NULL, webhook_secret = NULL
+    WHERE address = ${address.toLowerCase()}
+  `
+
+  logger.debug({ address }, 'Cleared merchant webhook')
+}
+
+export async function updateMerchantWebhook(
+  databaseUrl: string,
+  address: string,
+  webhookUrl: string,
+  webhookSecret: string
+): Promise<void> {
+  const db = getDb(databaseUrl)
+
+  await db`
+    INSERT INTO merchants (address, webhook_url, webhook_secret)
+    VALUES (${address.toLowerCase()}, ${webhookUrl}, ${webhookSecret})
+    ON CONFLICT (address) DO UPDATE
+    SET webhook_url = ${webhookUrl}, webhook_secret = ${webhookSecret}
+  `
+
+  logger.debug({ address }, 'Updated merchant webhook')
+}
+
 export async function listMerchants(
   databaseUrl: string
 ): Promise<MerchantRow[]> {
