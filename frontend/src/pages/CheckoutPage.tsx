@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { parseUnits } from 'viem'
-import { useCheckoutParams, useAuth, useWallet, useCreatePolicy, useChain } from '../hooks'
+import { useCheckoutParams, useAuth, useWallet, useCreatePolicy } from '../hooks'
 import { USDC_DECIMALS } from '../config'
 import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
 import type { CheckoutMetadata } from '../types/checkout'
@@ -23,19 +23,12 @@ export function CheckoutPage() {
   const { isLoggedIn, logout, username } = useAuth()
   const { isWalletSetup, isLoading: walletLoading, balance } = useWallet()
   const { createPolicy, policyId, hash, status, error: policyError, isLoading: policyLoading } = useCreatePolicy()
-  const { setChainKey } = useChain()
-
   const [metadata, setMetadata] = React.useState<CheckoutMetadata | null>(null)
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [step, setStep] = React.useState<Step>('loading')
   const [reviewedPlan, setReviewedPlan] = React.useState(false)
   // User-editable spending cap — defaults to URL param value, adjustable in ConfirmStep
   const [userSpendingCap, setUserSpendingCap] = React.useState<string | undefined>(params?.spendingCap)
-
-  // Ensure Flow EVM is selected for checkout
-  React.useEffect(() => {
-    setChainKey('flowEvm')
-  }, [setChainKey])
 
   // Estimated gas fee in USDC (Arc native currency is USDC; paymaster covers it but we show for transparency)
   const GAS_ESTIMATE_USDC = 0.01

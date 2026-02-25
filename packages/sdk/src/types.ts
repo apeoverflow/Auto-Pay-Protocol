@@ -21,7 +21,13 @@ export interface CheckoutOptions {
   spendingCap?: number
   /** Optional IPFS metadata URL — used as fallback if metadataUrl is unreachable */
   ipfsMetadataUrl?: string
-  /** Optional base URL override (default: https://autopayprotocol.com) */
+  /**
+   * Consolidation chain to target. Determines which subdomain the checkout URL points to.
+   * Defaults to 'base' (autopayprotocol.com).
+   * @example 'flowEvm' → flow.autopayprotocol.com, 'base' → autopayprotocol.com
+   */
+  chain?: import('./constants').ChainKey
+  /** Optional base URL override — takes precedence over `chain` if both are set */
   baseUrl?: string
 }
 
@@ -177,7 +183,13 @@ export interface PlanCheckoutOptions {
   cancelUrl: string
   /** Optional spending cap override (defaults to plan's billing.cap) */
   spendingCap?: number
-  /** Optional checkout app base URL override */
+  /**
+   * Consolidation chain to target. Determines which subdomain the checkout URL points to.
+   * Defaults to 'base' (autopayprotocol.com).
+   * @example 'flowEvm' → flow.autopayprotocol.com, 'base' → autopayprotocol.com
+   */
+  chain?: import('./constants').ChainKey
+  /** Optional checkout app base URL override — takes precedence over `chain` if both are set */
   baseUrl?: string
   /** Optional API key for self-hosted relayers that lock down reads */
   apiKey?: string

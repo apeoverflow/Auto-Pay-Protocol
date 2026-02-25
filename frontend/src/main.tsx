@@ -10,7 +10,10 @@ import { AuthProvider } from './contexts/AuthContext'
 import { WalletProvider } from './contexts/WalletContext'
 import { MerchantModeProvider } from './contexts/MerchantModeContext'
 import { wagmiConfig } from './config/wagmi'
+import { CHAIN_CONFIGS, DEFAULT_CHAIN } from './config/chains'
 import App from './App'
+
+const initialChain = CHAIN_CONFIGS[DEFAULT_CHAIN].chain
 
 const queryClient = new QueryClient()
 
@@ -18,7 +21,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme({ accentColor: '#0052FF', borderRadius: 'large' })}>
+        <RainbowKitProvider initialChain={initialChain} theme={darkTheme({ accentColor: '#0052FF', borderRadius: 'large' })}>
           <ChainProvider>
             <AuthProvider>
               <WalletProvider>

@@ -69,7 +69,9 @@ export interface ChainConfig {
   checkoutBaseUrl: string
 }
 
-export const chains: Record<string, ChainConfig> = {
+export type ChainKey = 'flowEvm' | 'base' | 'baseSepolia'
+
+export const chains: Record<ChainKey, ChainConfig> = {
   flowEvm: {
     name: 'Flow EVM',
     chainId: 747,
@@ -83,11 +85,21 @@ export const chains: Record<string, ChainConfig> = {
     usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     explorer: 'https://basescan.org',
     checkoutBaseUrl: 'https://autopayprotocol.com',
+  },
+  baseSepolia: {
+    name: 'Base Sepolia',
+    chainId: 84532,
+    usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    explorer: 'https://sepolia.basescan.org',
+    checkoutBaseUrl: 'https://staging.autopayprotocol.com',
   }
 }
 
-/** Default checkout base URL */
-export const DEFAULT_CHECKOUT_BASE_URL = 'https://flow.autopayprotocol.com'
+/** Default chain — Base (autopayprotocol.com, no subdomain) */
+export const DEFAULT_CHAIN: ChainKey = 'base'
+
+/** Default checkout base URL (Base) */
+export const DEFAULT_CHECKOUT_BASE_URL = 'https://autopayprotocol.com'
 
 // --- AUTO-GENERATED CHAIN CONFIG (end) ---
 

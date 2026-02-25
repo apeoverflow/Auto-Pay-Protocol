@@ -53,10 +53,10 @@ const url = createCheckoutUrl({
 
 ### Targeting a chain
 
-AutoPay runs on multiple chains. Each chain has its own checkout deployment:
+AutoPay runs on multiple chains. Use the `chain` option to target a specific one:
 
 ```ts
-import { createCheckoutUrl, chains } from '@autopayprotocol/sdk'
+import { createCheckoutUrl } from '@autopayprotocol/sdk'
 
 // Base (default) — autopayprotocol.com
 const baseUrl = createCheckoutUrl({ ... })
@@ -64,16 +64,23 @@ const baseUrl = createCheckoutUrl({ ... })
 // Flow EVM — flow.autopayprotocol.com
 const flowUrl = createCheckoutUrl({
   ...options,
-  baseUrl: chains.flowEvm.checkoutBaseUrl,
+  chain: 'flowEvm',
+})
+
+// Base Sepolia (testnet) — staging.autopayprotocol.com
+const testUrl = createCheckoutUrl({
+  ...options,
+  chain: 'baseSepolia',
 })
 ```
 
 Available chains:
 
-| Chain | ID | Checkout URL |
-|-------|-----|-------------|
-| Base | 8453 | `https://autopayprotocol.com` |
-| Flow EVM | 747 | `https://flow.autopayprotocol.com` |
+| Chain | ID | `chain` value | Checkout URL |
+|-------|-----|--------------|-------------|
+| Base | 8453 | `'base'` (default) | `https://autopayprotocol.com` |
+| Flow EVM | 747 | `'flowEvm'` | `https://flow.autopayprotocol.com` |
+| Base Sepolia | 84532 | `'baseSepolia'` | `https://staging.autopayprotocol.com` |
 
 ### Intervals
 
@@ -239,10 +246,12 @@ intervals.monthly    // 2592000 (seconds)
 intervals.weekly     // 604800
 intervals.custom(3, 'months') // 7776000
 
-chains.base.chainId         // 8453
-chains.base.checkoutBaseUrl  // "https://autopayprotocol.com"
-chains.flowEvm.chainId      // 747
-chains.flowEvm.checkoutBaseUrl // "https://flow.autopayprotocol.com"
+chains.base.chainId              // 8453
+chains.base.checkoutBaseUrl      // "https://autopayprotocol.com"
+chains.flowEvm.chainId           // 747
+chains.flowEvm.checkoutBaseUrl   // "https://flow.autopayprotocol.com"
+chains.baseSepolia.chainId       // 84532
+chains.baseSepolia.checkoutBaseUrl // "https://staging.autopayprotocol.com"
 
 PROTOCOL_FEE_BPS   // 250 (2.5%)
 USDC_DECIMALS      // 6

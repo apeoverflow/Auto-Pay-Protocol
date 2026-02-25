@@ -23,6 +23,15 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { USDC_DECIMALS } from '../config'
+import { DEFAULT_CHAIN, type ChainKey } from '../config/chains'
+
+// Checkout base URLs per chain (mirrors SDK chains[].checkoutBaseUrl from chains.json).
+// Keep in sync when adding new chains — see contracts/chains.json as the source of truth.
+const CHECKOUT_BASE_URLS: Record<ChainKey, string> = {
+  base: 'https://autopayprotocol.com',
+  flowEvm: 'https://flow.autopayprotocol.com',
+  baseSepolia: 'https://staging.autopayprotocol.com',
+}
 import { parseContractError } from '../types/policy'
 import { ToastContainer, useToast } from '../components/ui/toast'
 import { JsonHighlight } from '../components/ui/json-highlight'
@@ -192,7 +201,8 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
   const checkoutUrl = React.useMemo(() => {
     if (!merchant) return ''
     try {
-      const url = new URL('/checkout', 'https://autopayprotocol.com')
+      const checkoutBaseUrl = CHECKOUT_BASE_URLS[DEFAULT_CHAIN] || 'https://autopayprotocol.com'
+      const url = new URL('/checkout', checkoutBaseUrl)
       url.searchParams.set('merchant', merchant)
       url.searchParams.set('amount', chargeAmount || '0')
       url.searchParams.set('interval', String(intervalSeconds))
@@ -230,6 +240,7 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
     lines.push(`  successUrl: 'https://yoursite.com/success',`)
     lines.push(`  cancelUrl: 'https://yoursite.com/cancel',`)
     if (spendingCap && spendingCap !== '0') lines.push(`  spendingCap: ${spendingCap},`)
+    if (DEFAULT_CHAIN !== 'base') lines.push(`  chain: '${DEFAULT_CHAIN}',`)
     lines.push(`})`)
     return lines.join('\n')
   }, [merchant, chargeAmount, intervalPreset, metadataUrl, spendingCap])

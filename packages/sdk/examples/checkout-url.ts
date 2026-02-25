@@ -9,7 +9,6 @@ import {
   intervals,
   parseUSDC,
   calculateFeeBreakdown,
-  chains,
 } from '@autopayprotocol/sdk'
 
 // --- Option A: Build a checkout URL directly ---
@@ -47,7 +46,7 @@ console.log()
 
 // --- Targeting a specific chain ---
 // By default, checkout URLs point to the Base deployment (autopayprotocol.com).
-// To target Flow EVM, pass the chain's checkoutBaseUrl:
+// Use the `chain` option to target a different chain:
 
 const flowUrl = createCheckoutUrl({
   merchant: '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B',
@@ -56,7 +55,7 @@ const flowUrl = createCheckoutUrl({
   metadataUrl: 'https://mysite.com/plans/basic.json',
   successUrl: 'https://mysite.com/success',
   cancelUrl: 'https://mysite.com/cancel',
-  baseUrl: chains.flowEvm.checkoutBaseUrl,
+  chain: 'flowEvm', // → flow.autopayprotocol.com
 })
 
 console.log('Flow EVM checkout URL:')

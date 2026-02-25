@@ -8,12 +8,9 @@ import {
   type ChainConfig,
 } from '../config/chains'
 
-const STORAGE_KEY = 'selectedChain'
-
 interface ChainContextValue {
   chainKey: ChainKey
   chainConfig: ChainConfig
-  setChainKey: (key: ChainKey) => void
   publicClient: PublicClient | null
   walletClient: UseWalletClientReturnType['data'] | undefined
   isReady: boolean
@@ -22,16 +19,11 @@ interface ChainContextValue {
 const ChainContext = React.createContext<ChainContextValue | null>(null)
 
 export function ChainProvider({ children }: { children: React.ReactNode }) {
-  const [chainKey, setChainKeyState] = React.useState<ChainKey>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && stored in CHAIN_CONFIGS) {
-      return stored as ChainKey
-    }
-    return DEFAULT_CHAIN
-  })
-
+  // Each deployment is pinned to one chain via VITE_DEFAULT_CHAIN.
+  // No localStorage override — subdomain deployments are authoritative.
+  const chainKey = DEFAULT_CHAIN
   const chainConfig = CHAIN_CONFIGS[chainKey]
-  const { data: walletClient } = useWalletClient()
+  const { data: walletClient } = useWalletClient({ chainId: chainConfig.chain.id })
 
   // Create a public client for reading chain data
   const publicClient = React.useMemo(() => {
@@ -42,23 +34,15 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
     })
   }, [chainKey])
 
-  const setChainKey = React.useCallback((key: ChainKey) => {
-    if (CHAIN_CONFIGS[key]) {
-      localStorage.setItem(STORAGE_KEY, key)
-      setChainKeyState(key)
-    }
-  }, [])
-
   const value = React.useMemo(
     () => ({
       chainKey,
       chainConfig,
-      setChainKey,
       publicClient,
       walletClient,
       isReady: !!publicClient,
     }),
-    [chainKey, chainConfig, setChainKey, publicClient, walletClient]
+    [chainKey, chainConfig, publicClient, walletClient]
   )
 
   return <ChainContext.Provider value={value}>{children}</ChainContext.Provider>

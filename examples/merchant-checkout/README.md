@@ -50,9 +50,30 @@ Opens at [http://localhost:3002](http://localhost:3002) — shows plan cards wit
 3. Walk through: register passkey → approve USDC → confirm subscription
 4. After success: auto-redirects to merchant's success page with `policy_id`
 
+## Chain Selection
+
+Set the `CHAIN` env var to target a specific consolidation chain:
+
+```bash
+# Default — Base mainnet
+CHAIN=base npm run dev
+
+# Flow EVM mainnet
+CHAIN=flowEvm npm run dev
+
+# Base Sepolia testnet
+CHAIN=baseSepolia npm run dev
+```
+
+| Value | Checkout Domain | Chain |
+|-------|----------------|-------|
+| `base` (default) | `autopayprotocol.com` | Base (8453) |
+| `flowEvm` | `flow.autopayprotocol.com` | Flow EVM (747) |
+| `baseSepolia` | `staging.autopayprotocol.com` | Base Sepolia (84532, testnet) |
+
 ## Checkout URL Format
 
-The merchant generates a URL with these query params:
+The merchant generates a URL with these query params. The domain varies by chain (see above):
 
 ```
 https://autopayprotocol.com/checkout?merchant=0x...&metadata_url=http://localhost:3002/metadata/pro-plan&success_url=http://localhost:3002/success&cancel_url=http://localhost:3002/cancel

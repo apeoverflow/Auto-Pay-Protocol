@@ -22,10 +22,10 @@ function loadRegistry() {
 
 function generate() {
   const registry = loadRegistry();
-  const enabledChains = Object.entries(registry).filter(([, c]) => c.enabled !== false);
+  const allChains = Object.entries(registry);
 
   // Validate required fields
-  for (const [key, chain] of enabledChains) {
+  for (const [key, chain] of allChains) {
     if (!chain.checkoutBaseUrl) {
       console.error(`Error: Chain '${key}' is missing required field: checkoutBaseUrl`);
       process.exit(1);
@@ -33,7 +33,7 @@ function generate() {
   }
 
   // Build the chain config entries
-  const chainEntries = enabledChains.map(([key, chain]) => {
+  const chainEntries = allChains.map(([key, chain]) => {
     return `  ${key}: {
     name: '${esc(chain.name)}',
     chainId: ${chain.chainId},
@@ -43,8 +43,8 @@ function generate() {
   }`;
   }).join(',\n');
 
-  // Find the default checkout URL (first chain's checkoutBaseUrl, or fallback)
-  const defaultCheckoutUrl = enabledChains[0]?.[1]?.checkoutBaseUrl || 'https://autopayprotocol.com';
+  // Build the ChainKey union type from all chain keys
+  const chainKeyUnion = allChains.map(([key]) => `'${key}'`).join(' | ');
 
   const generatedSection = `${START_MARKER}
 // Do not edit manually - run 'make sync' in contracts/ to regenerate
@@ -57,12 +57,17 @@ export interface ChainConfig {
   checkoutBaseUrl: string
 }
 
-export const chains: Record<string, ChainConfig> = {
+export type ChainKey = ${chainKeyUnion}
+
+export const chains: Record<ChainKey, ChainConfig> = {
 ${chainEntries}
 }
 
-/** Default checkout base URL */
-export const DEFAULT_CHECKOUT_BASE_URL = '${esc(defaultCheckoutUrl)}'
+/** Default chain — Base (autopayprotocol.com, no subdomain) */
+export const DEFAULT_CHAIN: ChainKey = 'base'
+
+/** Default checkout base URL (Base) */
+export const DEFAULT_CHECKOUT_BASE_URL = 'https://autopayprotocol.com'
 
 ${END_MARKER}`;
 

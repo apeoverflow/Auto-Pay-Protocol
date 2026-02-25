@@ -1,5 +1,5 @@
 import { AutoPayCheckoutError } from './errors'
-import { DEFAULT_CHECKOUT_BASE_URL, intervals as presetIntervals, MIN_INTERVAL, MAX_INTERVAL } from './constants'
+import { DEFAULT_CHECKOUT_BASE_URL, DEFAULT_CHAIN, chains, intervals as presetIntervals, MIN_INTERVAL, MAX_INTERVAL } from './constants'
 import type { CheckoutOptions, IntervalPreset, SuccessRedirect, PlanCheckoutOptions, ResolvedPlan, CheckoutMetadata } from './types'
 
 const INTERVAL_MAP: Record<IntervalPreset, number> = {
@@ -54,7 +54,7 @@ function isValidUrl(value: string): boolean {
  * ```
  */
 export function createCheckoutUrl(options: CheckoutOptions): string {
-  const { merchant, amount, interval, metadataUrl, successUrl, cancelUrl, spendingCap, ipfsMetadataUrl, baseUrl } = options
+  const { merchant, amount, interval, metadataUrl, successUrl, cancelUrl, spendingCap, ipfsMetadataUrl, chain, baseUrl } = options
 
   // Validate merchant address
   if (!merchant || !isValidAddress(merchant)) {
@@ -95,7 +95,9 @@ export function createCheckoutUrl(options: CheckoutOptions): string {
     }
   }
 
-  const base = baseUrl || DEFAULT_CHECKOUT_BASE_URL
+  // Priority: explicit baseUrl > chain config lookup > default (Base)
+  const resolvedChain = chain || DEFAULT_CHAIN
+  const base = baseUrl || chains[resolvedChain]?.checkoutBaseUrl || DEFAULT_CHECKOUT_BASE_URL
   const url = new URL('/checkout', base)
 
   url.searchParams.set('merchant', merchant)
@@ -265,7 +267,7 @@ export async function resolvePlan(options: PlanCheckoutOptions): Promise<Resolve
  * ```
  */
 export async function createCheckoutUrlFromPlan(options: PlanCheckoutOptions): Promise<string> {
-  const { successUrl, cancelUrl, spendingCap: capOverride, baseUrl } = options
+  const { successUrl, cancelUrl, spendingCap: capOverride, chain, baseUrl } = options
 
   const plan = await resolvePlan(options)
 
@@ -284,6 +286,7 @@ export async function createCheckoutUrlFromPlan(options: PlanCheckoutOptions): P
     cancelUrl,
     spendingCap: cap,
     ipfsMetadataUrl,
+    chain,
     baseUrl,
   })
 }

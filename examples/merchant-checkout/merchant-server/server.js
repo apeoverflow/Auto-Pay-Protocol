@@ -21,10 +21,15 @@ const CHAIN_PRESETS = {
     policyManager: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a',
     checkoutUrl: 'https://autopayprotocol.com/checkout',
   },
+  baseSepolia: {
+    rpcUrl: 'https://sepolia.base.org',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
+    checkoutUrl: 'https://staging.autopayprotocol.com/checkout',
+  },
 }
 
-const CHAIN = process.env.CHAIN || 'flowEvm'
-const preset = CHAIN_PRESETS[CHAIN] || CHAIN_PRESETS.flowEvm
+const CHAIN = process.env.CHAIN || 'base'
+const preset = CHAIN_PRESETS[CHAIN] || CHAIN_PRESETS.base
 
 // ── Configuration ──
 const PORT = process.env.PORT || 3002
