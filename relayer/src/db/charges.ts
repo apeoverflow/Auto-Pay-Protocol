@@ -145,97 +145,57 @@ export async function setChargeReceiptCid(
   databaseUrl: string,
   chargeId: number,
   cid: string
-) {
+): Promise<boolean> {
   const db = getDb(databaseUrl)
 
-  await db`
+  const result = await db`
     UPDATE charges
-    SET receipt_cid = ${cid},
-        receipt_upload_status = 'uploaded',
-        receipt_upload_error = NULL
-    WHERE id = ${chargeId}
+    SET receipt_cid = ${cid}
+    WHERE id = ${chargeId} AND receipt_cid IS NULL
+    RETURNING id
   `
 
-  logger.debug({ chargeId, cid }, 'Set charge receipt CID')
+  const updated = result.length > 0
+  logger.debug({ chargeId, cid, updated }, 'Set charge receipt CID')
+  return updated
 }
 
-export async function markReceiptUploadPending(
-  databaseUrl: string,
-  chargeId: number
-) {
-  const db = getDb(databaseUrl)
-
-  await db`
-    UPDATE charges
-    SET receipt_upload_status = 'pending',
-        receipt_upload_error = NULL
-    WHERE id = ${chargeId}
-      AND receipt_upload_status IN ('skipped', 'failed')
-  `
-}
-
-export async function markReceiptUploadFailed(
-  databaseUrl: string,
-  chargeId: number,
-  error: string
-) {
-  const db = getDb(databaseUrl)
-
-  await db`
-    UPDATE charges
-    SET receipt_upload_status = 'failed',
-        receipt_upload_error = ${error},
-        receipt_retry_count = receipt_retry_count + 1,
-        receipt_last_retry_at = NOW()
-    WHERE id = ${chargeId}
-  `
-
-  logger.debug({ chargeId, error }, 'Marked receipt upload as failed')
-}
-
-export interface ReceiptPendingRow {
+export interface ReceiptUploadChargeRow {
   id: number
   policy_id: string
   chain_id: number
   tx_hash: string
   amount: string
   protocol_fee: string | null
-  receipt_upload_error: string | null
-  receipt_retry_count: number
+  receipt_cid: string | null
   completed_at: Date | null
-  // Policy fields for receipt building
   payer: string
   merchant: string
   charge_amount: string
   metadata_url: string | null
 }
 
-// Max number of receipt upload attempts before giving up permanently
-const MAX_RECEIPT_RETRIES = 10
-
-export async function getChargesWithPendingReceipts(
+export async function getChargesByIdsForMerchant(
   databaseUrl: string,
-  limit = 20
-): Promise<ReceiptPendingRow[]> {
+  chargeIds: number[],
+  merchantAddress: string,
+  chainId: number
+): Promise<ReceiptUploadChargeRow[]> {
   const db = getDb(databaseUrl)
+  const addr = merchantAddress.toLowerCase()
 
-  // NOTE: Intentionally cross-chain — receipts are chain-agnostic (chainId is embedded in receipt content)
-  const rows = await db<ReceiptPendingRow[]>`
+  const rows = await db<ReceiptUploadChargeRow[]>`
     SELECT c.id, c.policy_id, c.chain_id, c.tx_hash, c.amount, c.protocol_fee,
-           c.receipt_upload_error, c.receipt_retry_count, c.completed_at,
+           c.receipt_cid, c.completed_at,
            p.payer, p.merchant, p.charge_amount, p.metadata_url
     FROM charges c
     JOIN policies p ON c.policy_id = p.id AND c.chain_id = p.chain_id
-    WHERE c.receipt_upload_status IN ('pending', 'failed')
+    WHERE c.id = ANY(${chargeIds})
+      AND c.chain_id = ${chainId}
+      AND p.merchant = ${addr}
       AND c.status = 'success'
       AND c.tx_hash IS NOT NULL
-      AND c.receipt_retry_count < ${MAX_RECEIPT_RETRIES}
-      AND (
-        c.receipt_last_retry_at IS NULL
-        OR c.receipt_last_retry_at < NOW() - INTERVAL '5 minutes' * POWER(2, LEAST(c.receipt_retry_count, 8))
-      )
-    ORDER BY c.created_at ASC
-    LIMIT ${limit}
+    ORDER BY c.id ASC
   `
 
   return rows
@@ -254,6 +214,32 @@ export interface MerchantChargeRow {
   status: string
   completed_at: Date | null
   created_at: Date
+}
+
+export async function getChargesByIdsForPayer(
+  databaseUrl: string,
+  chargeIds: number[],
+  payerAddress: string,
+  chainId: number
+): Promise<ReceiptUploadChargeRow[]> {
+  const db = getDb(databaseUrl)
+  const addr = payerAddress.toLowerCase()
+
+  const rows = await db<ReceiptUploadChargeRow[]>`
+    SELECT c.id, c.policy_id, c.chain_id, c.tx_hash, c.amount, c.protocol_fee,
+           c.receipt_cid, c.completed_at,
+           p.payer, p.merchant, p.charge_amount, p.metadata_url
+    FROM charges c
+    JOIN policies p ON c.policy_id = p.id AND c.chain_id = p.chain_id
+    WHERE c.id = ANY(${chargeIds})
+      AND c.chain_id = ${chainId}
+      AND p.payer = ${addr}
+      AND c.status = 'success'
+      AND c.tx_hash IS NOT NULL
+    ORDER BY c.id ASC
+  `
+
+  return rows
 }
 
 export async function getChargesByMerchant(

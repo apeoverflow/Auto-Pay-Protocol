@@ -3,7 +3,6 @@ import { runMigrations } from './db/migrations/index.js'
 import { closeDb } from './db/index.js'
 import { startIndexerLoop } from './indexer/index.js'
 import { startExecutorLoop } from './executor/index.js'
-import { startReceiptRetryLoop } from './executor/receipt-retry.js'
 import { startWebhookSenderLoop } from './webhooks/index.js'
 import { createApiServer, startApiServer, stopApiServer } from './api/index.js'
 import { isStorachaEnabled } from './lib/storacha.js'
@@ -23,7 +22,7 @@ export async function startRelayer() {
 
   // Warn if auth is disabled
   if (process.env.AUTH_ENABLED !== 'true') {
-    logger.warn('⚠️  AUTH_ENABLED is not set to "true" — all plan write endpoints are OPEN without authentication. Set AUTH_ENABLED=true in production.')
+    logger.warn('⚠️  AUTH_ENABLED is not set to "true" — all plan and receipt write endpoints are OPEN without authentication. Set AUTH_ENABLED=true in production.')
   }
 
   // Warn if Storacha (IPFS) is not configured — receipt uploads will be skipped
@@ -79,10 +78,7 @@ export async function startRelayer() {
   // Start webhook sender loop
   const webhookPromise = startWebhookSenderLoop(config, abortController.signal)
 
-  // Start receipt upload retry loop (retries failed/pending IPFS uploads)
-  const receiptRetryPromise = startReceiptRetryLoop(config, abortController.signal)
-
-  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise, receiptRetryPromise])
+  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise])
 
   // Handle shutdown signals
   const shutdown = async () => {

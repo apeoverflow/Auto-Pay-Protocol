@@ -1,5 +1,3 @@
-import type { PolicyRow, ChargeResult, ChainConfig } from '../types.js'
-import type { ReceiptPendingRow } from '../db/charges.js'
 import { uploadJSON, isStorachaEnabled } from '../lib/storacha.js'
 import { createLogger } from '../utils/logger.js'
 
@@ -30,59 +28,34 @@ function computeMerchantReceived(amount: string, protocolFee: string): string {
   }
 }
 
-export function buildReceipt(
-  policy: PolicyRow,
-  chargeResult: ChargeResult,
-  chainConfig: ChainConfig,
-  completedAt: Date,
-): ChargeReceipt {
-  if (!chargeResult.txHash) {
-    throw new Error(`Cannot build receipt: txHash missing for policy ${policy.id}`)
-  }
-
-  const amount = chargeResult.amount ?? policy.charge_amount
-  const protocolFee = chargeResult.protocolFee ?? '0'
-
-  return {
-    version: '1.0',
-    type: 'charge_receipt',
-    policyId: policy.id,
-    payer: policy.payer,
-    merchant: policy.merchant,
-    amount,
-    protocolFee,
-    merchantReceived: computeMerchantReceived(amount, protocolFee),
-    currency: 'USDC',
-    chainId: chainConfig.chainId,
-    txHash: chargeResult.txHash,
-    blockNumber: null,
-    timestamp: completedAt.toISOString(),
-    policyMetadata: policy.metadata_url,
-  }
+export interface BuildReceiptInput {
+  policyId: string
+  payer: string
+  merchant: string
+  amount: string
+  protocolFee: string
+  chainId: number
+  txHash: string
+  metadataUrl: string | null
+  timestamp?: string
 }
 
-/**
- * Build a receipt from a DB row (used by the retry loop).
- * Uses the same structure as buildReceipt to ensure consistency.
- */
-export function buildReceiptFromRow(row: ReceiptPendingRow): ChargeReceipt {
-  const protocolFee = row.protocol_fee ?? '0'
-
+export function buildReceipt(input: BuildReceiptInput): ChargeReceipt {
   return {
     version: '1.0',
     type: 'charge_receipt',
-    policyId: row.policy_id,
-    payer: row.payer,
-    merchant: row.merchant,
-    amount: row.amount,
-    protocolFee,
-    merchantReceived: computeMerchantReceived(row.amount, protocolFee),
+    policyId: input.policyId,
+    payer: input.payer,
+    merchant: input.merchant,
+    amount: input.amount,
+    protocolFee: input.protocolFee,
+    merchantReceived: computeMerchantReceived(input.amount, input.protocolFee),
     currency: 'USDC',
-    chainId: row.chain_id,
-    txHash: row.tx_hash,
+    chainId: input.chainId,
+    txHash: input.txHash,
     blockNumber: null,
-    timestamp: row.completed_at?.toISOString() ?? new Date().toISOString(),
-    policyMetadata: row.metadata_url,
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    policyMetadata: input.metadataUrl,
   }
 }
 

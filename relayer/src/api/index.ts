@@ -1,8 +1,9 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http'
 import { getDb, getStatus } from '../db/index.js'
-import { getChargesByMerchant } from '../db/charges.js'
+import { getChargesByMerchant, getChargesByIdsForMerchant, getChargesByIdsForPayer, setChargeReceiptCid } from '../db/charges.js'
 import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus, VALID_SUBSCRIBER_FIELDS } from '../db/metadata.js'
 import { insertSubscriberData, getSubscribersByMerchant } from '../db/subscribers.js'
+import { createApiKey, validateApiKey, listApiKeys, revokeApiKey } from '../db/api-keys.js'
 import { generateMonthlyReport, type MonthlyReport } from '../reports/generate.js'
 import { getReportsByMerchant, getReport, saveReport } from '../db/reports.js'
 import { randomUUID } from 'crypto'
@@ -11,6 +12,7 @@ import { createLogger } from '../utils/logger.js'
 import { uploadPlanToIPFS } from '../lib/ipfs-upload.js'
 import { isStorachaEnabled, ipfsGatewayUrl } from '../lib/storacha.js'
 import { generateAndUploadReport, generateAndSaveReport } from '../reports/upload.js'
+import { buildReceipt, uploadChargeReceipt } from '../reports/receipt.js'
 import { handleNonceRequest, authenticateMerchant, destroyAuthStore } from './auth.js'
 import { SlidingWindowRateLimiter, type RateLimitResult } from './rate-limit.js'
 import { getLogoStorage } from '../lib/logo-storage.js'
@@ -55,6 +57,34 @@ function buildLogoResolver(): ((filename: string) => string | null) {
 // Compute ipfsMetadataUrl from a plan's ipfs_cid
 function computeIpfsMetadataUrl(ipfsCid: string | null | undefined): string | null {
   return ipfsCid ? ipfsGatewayUrl(ipfsCid) : null
+}
+
+// Rate limiter for API key validation attempts (prevents DB hammering)
+const apiKeyRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 })
+
+// Authenticate by per-merchant API key (sk_live_...).
+// Returns the merchant address if valid and scoped to the given path address, null otherwise.
+// Returns 'rate_limited' if the caller is being rate-limited.
+async function authenticateByMerchantApiKey(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: RelayerConfig,
+  pathAddress: string
+): Promise<string | null | 'rate_limited'> {
+  const providedKey = req.headers['x-api-key'] as string | undefined
+  if (!providedKey || !providedKey.startsWith('sk_live_')) return null
+  // Rate-limit by IP before hitting the database
+  const ip = getClientIp(req)
+  const rateResult = apiKeyRateLimiter.check(ip)
+  if (!rateResult.allowed) {
+    sendRateLimited(res, rateResult)
+    return 'rate_limited'
+  }
+  const result = await validateApiKey(config.databaseUrl, providedKey)
+  if (!result) return null
+  // Key must be scoped to the merchant in the URL path
+  if (result.merchant !== pathAddress.toLowerCase()) return null
+  return result.merchant
 }
 
 // Parse URL path
@@ -376,6 +406,9 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantReportCsv: '/merchants/:address/reports/:period/csv?chain_id=N',
             subscribers: 'POST /subscribers',
             merchantSubscribers: '/merchants/:address/subscribers?chain_id=...',
+            merchantApiKeys: '/merchants/:address/api-keys',
+            merchantApiKeyCreate: 'POST /merchants/:address/api-keys',
+            merchantApiKeyRevoke: 'DELETE /merchants/:address/api-keys/:id',
           },
         }))
         return
@@ -416,14 +449,20 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        // Optional API key auth: if STATS_API_KEY is set, require it
-        const statsApiKey = process.env.STATS_API_KEY
-        if (statsApiKey) {
+        // Auth: per-merchant API key → global STATS_API_KEY → signature auth (if AUTH_ENABLED)
+        const merchantKeyAuth = await authenticateByMerchantApiKey(req, res, config, address)
+        if (merchantKeyAuth === 'rate_limited') return
+        if (!merchantKeyAuth) {
+          const statsApiKey = process.env.STATS_API_KEY
           const providedKey = req.headers['x-api-key'] as string | undefined
-          if (providedKey !== statsApiKey) {
-            res.writeHead(401, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({ error: 'Invalid or missing API key' }))
-            return
+          const hasValidGlobalKey = statsApiKey && providedKey === statsApiKey
+          if (!hasValidGlobalKey) {
+            if (AUTH_ENABLED) {
+              const rateResult = authRateLimiter.check(address.toLowerCase())
+              if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+              const verified = await authenticateMerchant(req, res, address)
+              if (!verified) return
+            }
           }
         }
         const chainId = params.get('chain_id')
@@ -449,6 +488,102 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         const page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1)
         const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50', 10) || 50))
         await handleMerchantCharges(config, address, parseInt(chainId, 10), page, limit, res)
+        return
+      }
+
+      // Merchant receipt upload (on-demand IPFS upload for charge receipts)
+      const merchantReceiptUploadMatch = path.match(/^\/merchants\/([^/]+)\/receipts\/upload$/)
+      if (merchantReceiptUploadMatch && req.method === 'POST') {
+        const address = merchantReceiptUploadMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+        if (!isStorachaEnabled()) {
+          res.writeHead(503, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'IPFS uploads are not configured. Set STORACHA_PRINCIPAL_KEY and STORACHA_DELEGATION_PROOF.' }))
+          return
+        }
+        const body = await parseBody(req)
+        const chargeIds = body.chargeIds as number[] | undefined
+        const chainId = body.chainId as number | undefined
+        if (!Array.isArray(chargeIds) || chargeIds.length === 0 || !chargeIds.every((id) => typeof id === 'number' && Number.isInteger(id) && id > 0 && id <= 2_147_483_647)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chargeIds must be a non-empty array of integers' }))
+          return
+        }
+        if (chargeIds.length > 25) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Maximum 25 charge IDs per request' }))
+          return
+        }
+        if (!chainId || typeof chainId !== 'number') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chainId is required and must be a number' }))
+          return
+        }
+        const enabledChains = getEnabledChains(config)
+        if (!enabledChains.some((c) => c.chainId === chainId)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: `chainId ${chainId} is not an enabled chain` }))
+          return
+        }
+        await handleReceiptUpload(config, address, chargeIds, chainId, res)
+        return
+      }
+
+      // Payer receipt upload (on-demand IPFS upload for charge receipts)
+      const payerReceiptUploadMatch = path.match(/^\/payers\/([^/]+)\/receipts\/upload$/)
+      if (payerReceiptUploadMatch && req.method === 'POST') {
+        const address = payerReceiptUploadMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid payer address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+        if (!isStorachaEnabled()) {
+          res.writeHead(503, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'IPFS uploads are not configured. Set STORACHA_PRINCIPAL_KEY and STORACHA_DELEGATION_PROOF.' }))
+          return
+        }
+        const body = await parseBody(req)
+        const chargeIds = body.chargeIds as number[] | undefined
+        const chainId = body.chainId as number | undefined
+        if (!Array.isArray(chargeIds) || chargeIds.length === 0 || !chargeIds.every((id) => typeof id === 'number' && Number.isInteger(id) && id > 0 && id <= 2_147_483_647)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chargeIds must be a non-empty array of integers' }))
+          return
+        }
+        if (chargeIds.length > 25) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Maximum 25 charge IDs per request' }))
+          return
+        }
+        if (!chainId || typeof chainId !== 'number') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chainId is required and must be a number' }))
+          return
+        }
+        const enabledChains = getEnabledChains(config)
+        if (!enabledChains.some((c) => c.chainId === chainId)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: `chainId ${chainId} is not an enabled chain` }))
+          return
+        }
+        await handlePayerReceiptUpload(config, address, chargeIds, chainId, res)
         return
       }
 
@@ -519,7 +654,10 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        if (AUTH_ENABLED) {
+        // Auth: per-merchant API key → signature auth
+        const reportKeyAuth = await authenticateByMerchantApiKey(req, res, config, address)
+        if (reportKeyAuth === 'rate_limited') return
+        if (!reportKeyAuth && AUTH_ENABLED) {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -563,7 +701,10 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        if (AUTH_ENABLED) {
+        // Auth: per-merchant API key → signature auth
+        const csvKeyAuth = await authenticateByMerchantApiKey(req, res, config, address)
+        if (csvKeyAuth === 'rate_limited') return
+        if (!csvKeyAuth && AUTH_ENABLED) {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -713,6 +854,68 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         }
       }
 
+      // Merchant API keys: create, list, revoke
+      const merchantApiKeysMatch = path.match(/^\/merchants\/([^/]+)\/api-keys$/)
+      if (merchantApiKeysMatch) {
+        const address = merchantApiKeysMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+
+        // All API key management requires signature auth
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+
+        if (req.method === 'POST') {
+          const body = await parseBody(req)
+          const label = typeof body.label === 'string' ? body.label.trim().slice(0, 100) : ''
+          const result = await createApiKey(config.databaseUrl, address, label)
+          res.writeHead(201, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(result))
+          return
+        }
+
+        if (req.method === 'GET') {
+          const keys = await listApiKeys(config.databaseUrl, address)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ keys }))
+          return
+        }
+      }
+
+      // Merchant API keys: revoke specific key
+      const merchantApiKeyRevokeMatch = path.match(/^\/merchants\/([^/]+)\/api-keys\/(\d+)$/)
+      if (merchantApiKeyRevokeMatch && req.method === 'DELETE') {
+        const address = merchantApiKeyRevokeMatch[1]
+        const keyId = parseInt(merchantApiKeyRevokeMatch[2], 10)
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          const rateResult = authRateLimiter.check(address.toLowerCase())
+          if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+          const verified = await authenticateMerchant(req, res, address)
+          if (!verified) return
+        }
+        const revoked = await revokeApiKey(config.databaseUrl, address, keyId)
+        if (!revoked) {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'API key not found or already revoked' }))
+          return
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ ok: true }))
+        return
+      }
+
       // Submit subscriber data (public, called by checkout after policy creation)
       if (path === '/subscribers' && req.method === 'POST') {
         // Rate-limit by IP first (before parsing body)
@@ -803,16 +1006,20 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        if (AUTH_ENABLED) {
-          // Check for API key first (non-interactive), fall back to signature auth
-          const statsApiKey = process.env.STATS_API_KEY
-          const providedKey = req.headers['x-api-key'] as string | undefined
-          const hasValidApiKey = statsApiKey && providedKey === statsApiKey
-          if (!hasValidApiKey) {
-            const rateResult = authRateLimiter.check(address.toLowerCase())
-            if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
-            const verified = await authenticateMerchant(req, res, address)
-            if (!verified) return
+        // Auth: per-merchant API key → global STATS_API_KEY → signature auth
+        const merchantKeyAuthSubs = await authenticateByMerchantApiKey(req, res, config, address)
+        if (merchantKeyAuthSubs === 'rate_limited') return
+        if (!merchantKeyAuthSubs) {
+          if (AUTH_ENABLED) {
+            const statsApiKey = process.env.STATS_API_KEY
+            const providedKey = req.headers['x-api-key'] as string | undefined
+            const hasValidApiKey = statsApiKey && providedKey === statsApiKey
+            if (!hasValidApiKey) {
+              const rateResult = authRateLimiter.check(address.toLowerCase())
+              if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+              const verified = await authenticateMerchant(req, res, address)
+              if (!verified) return
+            }
           }
         }
         const chainId = params.get('chain_id')
@@ -880,8 +1087,10 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
       res.end(JSON.stringify({ error: 'Not found' }))
     } catch (error) {
       logger.error({ error, path }, 'API error')
-      res.writeHead(500, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Internal server error' }))
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Internal server error' }))
+      }
     }
   })
 
@@ -1668,6 +1877,90 @@ async function handleMerchantCharges(
 
   res.writeHead(200, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify({ charges: response, total, page, limit }))
+}
+
+async function processReceiptUploads(
+  config: RelayerConfig,
+  charges: import('../db/charges.js').ReceiptUploadChargeRow[],
+  chargeIds: number[],
+  res: ServerResponse
+) {
+  // Build a set of found charge IDs for quick lookup
+  const foundIds = new Set(charges.map((c) => c.id))
+
+  // IDs that don't belong to this caller or aren't successful
+  const invalidIds = chargeIds.filter((id) => !foundIds.has(id))
+
+  // Split into already-uploaded (skip) and needs-upload
+  const skipped: number[] = []
+  const toUpload = charges.filter((c) => {
+    if (c.receipt_cid) {
+      skipped.push(c.id)
+      return false
+    }
+    return true
+  })
+
+  const uploaded: { chargeId: number; cid: string; ipfsUrl: string }[] = []
+  const failed: { chargeId: number; error: string }[] = []
+
+  for (const charge of toUpload) {
+    try {
+      const receipt = buildReceipt({
+        policyId: charge.policy_id,
+        payer: charge.payer,
+        merchant: charge.merchant,
+        amount: charge.amount,
+        protocolFee: charge.protocol_fee ?? '0',
+        chainId: charge.chain_id,
+        txHash: charge.tx_hash,
+        metadataUrl: charge.metadata_url,
+        timestamp: charge.completed_at?.toISOString(),
+      })
+      const cid = await uploadChargeReceipt(receipt)
+      await setChargeReceiptCid(config.databaseUrl, charge.id, cid)
+      uploaded.push({ chargeId: charge.id, cid, ipfsUrl: `https://w3s.link/ipfs/${cid}` })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      logger.warn({ chargeId: charge.id, err: message }, 'Receipt upload failed')
+      failed.push({ chargeId: charge.id, error: message })
+    }
+  }
+
+  res.writeHead(200, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ uploaded, skipped, failed, invalidIds }))
+}
+
+async function handleReceiptUpload(
+  config: RelayerConfig,
+  merchantAddress: string,
+  chargeIds: number[],
+  chainId: number,
+  res: ServerResponse
+) {
+  const charges = await getChargesByIdsForMerchant(
+    config.databaseUrl,
+    chargeIds,
+    merchantAddress,
+    chainId
+  )
+  await processReceiptUploads(config, charges, chargeIds, res)
+}
+
+async function handlePayerReceiptUpload(
+  config: RelayerConfig,
+  payerAddress: string,
+  chargeIds: number[],
+  chainId: number,
+  res: ServerResponse
+) {
+  const charges = await getChargesByIdsForPayer(
+    config.databaseUrl,
+    chargeIds,
+    payerAddress,
+    chainId
+  )
+  await processReceiptUploads(config, charges, chargeIds, res)
 }
 
 export function startApiServer(server: Server, port: number): Promise<void> {
