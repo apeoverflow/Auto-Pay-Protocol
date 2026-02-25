@@ -568,13 +568,13 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
       },
       table({ children }) {
         return (
-          <div className="my-4 overflow-x-auto rounded-lg border border-border/50">
+          <div className="my-4 overflow-x-auto rounded-lg border border-border/40 bg-background shadow-sm">
             <table className="w-full text-sm">{children}</table>
           </div>
         )
       },
       thead({ children }) {
-        return <thead className="bg-muted/50">{children}</thead>
+        return <thead className="bg-muted/30">{children}</thead>
       },
       th({ children }) {
         return (
