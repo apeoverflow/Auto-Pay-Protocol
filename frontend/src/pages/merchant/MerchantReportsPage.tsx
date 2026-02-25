@@ -6,7 +6,11 @@ import { useWallet } from '../../hooks/useWallet'
 import { useChain } from '../../hooks/useChain'
 import { fetchMerchantReportData, generateMerchantReport, downloadMerchantReportCsv } from '../../lib/relayer'
 import { useSignMessage } from 'wagmi'
-import { Loader2, ExternalLink, FileText, Eye, Plus, Download, Check, Share2 } from 'lucide-react'
+import {
+  Loader2, ExternalLink, FileText, Eye, Plus, Download, Check, Share2,
+  DollarSign, TrendingUp, Users, Zap, ArrowUpRight, ArrowDownRight, X,
+  BarChart3, ChevronRight,
+} from 'lucide-react'
 
 const IPFS_GATEWAY = 'https://w3s.link/ipfs'
 
@@ -27,6 +31,41 @@ interface ReportData {
   subscribers: { active: number; new: number; cancelled: number; cancelledByFailure: number; churnRate: number }
   topPlans: Array<{ planId: string | null; subscribers: number; revenue: string }>
   chargeReceipts: string[]
+}
+
+// --- Stat card component ---
+function Stat({ label, value, sub, tint, icon: Icon }: {
+  label: string
+  value: string | number
+  sub?: string
+  tint?: 'green' | 'red' | 'blue' | 'amber' | 'default'
+  icon?: React.ElementType
+}) {
+  const tintClasses: Record<string, string> = {
+    green: 'bg-emerald-500/8 border-emerald-500/20 dark:bg-emerald-500/10 dark:border-emerald-400/15',
+    red: 'bg-red-500/8 border-red-500/20 dark:bg-red-500/10 dark:border-red-400/15',
+    blue: 'bg-blue-500/8 border-blue-500/20 dark:bg-blue-500/10 dark:border-blue-400/15',
+    amber: 'bg-amber-500/8 border-amber-500/20 dark:bg-amber-500/10 dark:border-amber-400/15',
+    default: 'bg-muted/50 border-border/60',
+  }
+  const valueClasses: Record<string, string> = {
+    green: 'text-emerald-700 dark:text-emerald-400',
+    red: 'text-red-600 dark:text-red-400',
+    blue: 'text-blue-700 dark:text-blue-400',
+    amber: 'text-amber-700 dark:text-amber-400',
+    default: 'text-foreground',
+  }
+  const t = tint || 'default'
+  return (
+    <div className={`rounded-lg border p-3.5 transition-colors ${tintClasses[t]}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />}
+      </div>
+      <p className={`text-lg font-semibold tabular-nums leading-none ${valueClasses[t]}`}>{value}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mt-1">{sub}</p>}
+    </div>
+  )
 }
 
 export function MerchantReportsPage() {
@@ -174,13 +213,13 @@ export function MerchantReportsPage() {
       {/* Empty state */}
       {!isLoading && !error && reports.length === 0 && (
         <Card>
-          <CardContent className="py-10 flex flex-col items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <FileText className="h-6 w-6 text-primary" />
+          <CardContent className="py-14 flex flex-col items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/8 border border-primary/15">
+              <BarChart3 className="h-7 w-7 text-primary" />
             </div>
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-1.5">
               <h3 className="text-sm font-semibold">No reports yet</h3>
-              <p className="text-xs text-muted-foreground max-w-md">
+              <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
                 Generate your first transparency report. Share it with your community to show where funds are going.
               </p>
             </div>
@@ -194,43 +233,50 @@ export function MerchantReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/40">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Period</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">IPFS CID</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Generated</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Actions</th>
+                <tr className="border-b border-border/50">
+                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Period</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">IPFS CID</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Generated</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {reports.map((report) => (
-                  <tr key={report.period} className="border-b border-border/20 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 text-xs font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                        {formatPeriod(report.period)}
+                  <tr
+                    key={report.period}
+                    className="border-b border-border/20 last:border-0 hover:bg-muted/40 transition-colors group"
+                  >
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/8 border border-primary/15 shrink-0">
+                          <FileText className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <span className="text-xs font-medium">{formatPeriod(report.period)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs">
+                    <td className="px-4 py-3.5 text-xs">
                       {report.cid ? (
                         <a
                           href={report.ipfsUrl || `${IPFS_GATEWAY}/${report.cid}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline font-mono"
+                          className="inline-flex items-center gap-1.5 text-primary hover:underline font-mono text-[11px] bg-primary/5 border border-primary/10 rounded-md px-2 py-0.5"
                         >
-                          {report.cid.slice(0, 12)}...
-                          <ExternalLink className="h-3 w-3" />
+                          {report.cid.slice(0, 14)}...
+                          <ExternalLink className="h-2.5 w-2.5" />
                         </a>
                       ) : (
-                        <span className="text-muted-foreground">Local only</span>
+                        <span className="inline-flex items-center text-[11px] text-muted-foreground bg-muted/60 rounded-md px-2 py-0.5">
+                          Local only
+                        </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(report.createdAt).toLocaleDateString('en-US', {
                         month: 'short', day: 'numeric', year: 'numeric'
                       })}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           variant="outline"
@@ -268,7 +314,7 @@ export function MerchantReportsPage() {
                             onClick={() => handleCopyLink(report)}
                           >
                             {copiedCid === report.cid ? (
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-emerald-600" />
                             ) : (
                               <Share2 className="h-3 w-3" />
                             )}
@@ -294,128 +340,243 @@ export function MerchantReportsPage() {
         </Card>
       )}
 
-      {/* Report detail view */}
+      {/* ===== Report detail view ===== */}
       {viewedReport && (
-        <Card>
-          <CardContent className="py-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">
-                {formatPeriod(viewedReport.period)} Report
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setViewedReport(null)}
-              >
-                Close
-              </Button>
-            </div>
-
-            {/* Revenue */}
-            <div>
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Revenue</h4>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Total Revenue</p>
-                  <p className="text-sm font-semibold tabular-nums">${formatAmount(viewedReport.data.revenue.totalRevenue)}</p>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Protocol Fees</p>
-                  <p className="text-sm font-semibold tabular-nums">${formatAmount(viewedReport.data.revenue.protocolFees)}</p>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Net Revenue</p>
-                  <p className="text-sm font-semibold tabular-nums text-green-600">${formatAmount(viewedReport.data.revenue.netRevenue)}</p>
-                </div>
+        <div className="flex flex-col gap-4">
+          {/* Detail header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/15">
+                <BarChart3 className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold leading-none">
+                  {formatPeriod(viewedReport.period)}
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Monthly Report</p>
               </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => setViewedReport(null)}
+            >
+              <X className="h-3 w-3" />
+              Close
+            </Button>
+          </div>
 
+          {/* Hero: Net Revenue */}
+          <Card className="overflow-hidden">
+            <div className="relative">
+              {/* Subtle gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-blue-500/5 dark:from-emerald-500/8 dark:to-blue-500/8" />
+              <CardContent className="relative py-6">
+                <div className="grid grid-cols-3 gap-6 items-end">
+                  {/* Net Revenue - hero */}
+                  <div className="col-span-1">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/15">
+                        <DollarSign className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Net Revenue</p>
+                    </div>
+                    <p className="text-3xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400 tracking-tight">
+                      ${formatAmount(viewedReport.data.revenue.netRevenue)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1">After 2.5% protocol fee</p>
+                  </div>
+                  {/* Gross + Fees */}
+                  <div className="col-span-2 grid grid-cols-2 gap-4">
+                    <div className="rounded-lg border border-border/50 bg-card/80 p-3.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Gross Revenue</p>
+                        <TrendingUp className="h-3 w-3 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-base font-semibold tabular-nums">${formatAmount(viewedReport.data.revenue.totalRevenue)}</p>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-card/80 p-3.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Protocol Fees</p>
+                        <DollarSign className="h-3 w-3 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-base font-semibold tabular-nums text-muted-foreground">${formatAmount(viewedReport.data.revenue.protocolFees)}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+
+          {/* Charges + Subscribers side by side */}
+          <div className="grid grid-cols-2 gap-4">
             {/* Charges */}
-            <div>
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Charges</h4>
-              <div className="grid grid-cols-4 gap-3">
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.charges.total}</p>
+            <Card>
+              <CardContent className="py-5">
+                <div className="flex items-center gap-1.5 mb-4">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-500/15">
+                    <Zap className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Charges</p>
                 </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Successful</p>
-                  <p className="text-sm font-semibold tabular-nums text-green-600">{viewedReport.data.charges.successful}</p>
+
+                {/* Success rate bar */}
+                <div className="mb-4">
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <span className="text-2xl font-bold tabular-nums tracking-tight">
+                      {viewedReport.data.charges.total > 0
+                        ? ((1 - viewedReport.data.charges.failureRate) * 100).toFixed(1)
+                        : '0.0'}%
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">success rate</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500"
+                      style={{
+                        width: `${viewedReport.data.charges.total > 0
+                          ? (1 - viewedReport.data.charges.failureRate) * 100
+                          : 0}%`
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Failed</p>
-                  <p className="text-sm font-semibold tabular-nums text-red-500">{viewedReport.data.charges.failed}</p>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-md bg-muted/50 px-2.5 py-2 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
+                    <p className="text-sm font-semibold tabular-nums mt-0.5">{viewedReport.data.charges.total}</p>
+                  </div>
+                  <div className="rounded-md bg-emerald-500/8 px-2.5 py-2 text-center">
+                    <p className="text-[10px] text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-wide">Passed</p>
+                    <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 mt-0.5">{viewedReport.data.charges.successful}</p>
+                  </div>
+                  <div className="rounded-md bg-red-500/8 px-2.5 py-2 text-center">
+                    <p className="text-[10px] text-red-600/70 dark:text-red-400/70 uppercase tracking-wide">Failed</p>
+                    <p className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400 mt-0.5">{viewedReport.data.charges.failed}</p>
+                  </div>
                 </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Failure Rate</p>
-                  <p className="text-sm font-semibold tabular-nums">{(viewedReport.data.charges.failureRate * 100).toFixed(1)}%</p>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Subscribers */}
-            <div>
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Subscribers</h4>
-              <div className="grid grid-cols-5 gap-3">
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Active</p>
-                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.subscribers.active}</p>
+            <Card>
+              <CardContent className="py-5">
+                <div className="flex items-center gap-1.5 mb-4">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-violet-500/15">
+                    <Users className="h-3 w-3 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Subscribers</p>
                 </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">New</p>
-                  <p className="text-sm font-semibold tabular-nums text-green-600">{viewedReport.data.subscribers.new}</p>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Cancelled</p>
-                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.subscribers.cancelled}</p>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Failed Cancel</p>
-                  <p className="text-sm font-semibold tabular-nums">{viewedReport.data.subscribers.cancelledByFailure}</p>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Churn Rate</p>
-                  <p className="text-sm font-semibold tabular-nums">{(viewedReport.data.subscribers.churnRate * 100).toFixed(1)}%</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Top Plans */}
-            {viewedReport.data.topPlans.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Top Plans</h4>
-                <div className="rounded-lg border overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">Plan</th>
-                        <th className="text-right px-3 py-2 font-medium text-muted-foreground">Subscribers</th>
-                        <th className="text-right px-3 py-2 font-medium text-muted-foreground">Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {viewedReport.data.topPlans.map((plan, i) => (
-                        <tr key={i} className="border-b last:border-0">
-                          <td className="px-3 py-2 font-mono">{plan.planId || 'N/A'}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{plan.subscribers}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">${formatAmount(plan.revenue)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Active count hero */}
+                <div className="mb-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold tabular-nums tracking-tight">{viewedReport.data.subscribers.active}</span>
+                    <span className="text-[11px] text-muted-foreground">active</span>
+                  </div>
+                  {viewedReport.data.subscribers.churnRate > 0 && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+                      {(viewedReport.data.subscribers.churnRate * 100).toFixed(1)}% churn
+                    </p>
+                  )}
+                  {viewedReport.data.subscribers.churnRate === 0 && (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      0% churn
+                    </p>
+                  )}
                 </div>
-              </div>
-            )}
 
-            {/* Receipts count */}
-            {viewedReport.data.chargeReceipts.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {viewedReport.data.chargeReceipts.length} charge receipt CID{viewedReport.data.chargeReceipts.length !== 1 ? 's' : ''} included in this report
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 rounded-md bg-emerald-500/8 px-2.5 py-2">
+                    <ArrowUpRight className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-wide">New</p>
+                      <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{viewedReport.data.subscribers.new}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2">
+                    <ArrowDownRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Cancelled</p>
+                      <p className="text-sm font-semibold tabular-nums">{viewedReport.data.subscribers.cancelled}</p>
+                    </div>
+                  </div>
+                  {viewedReport.data.subscribers.cancelledByFailure > 0 && (
+                    <div className="col-span-2 flex items-center gap-2 rounded-md bg-red-500/8 px-2.5 py-2">
+                      <X className="h-3 w-3 text-red-600 dark:text-red-400 shrink-0" />
+                      <div>
+                        <p className="text-[10px] text-red-600/70 dark:text-red-400/70 uppercase tracking-wide">Failed Cancellations</p>
+                        <p className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">{viewedReport.data.subscribers.cancelledByFailure}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Plans */}
+          {viewedReport.data.topPlans.length > 0 && (
+            <Card>
+              <CardContent className="py-5">
+                <div className="flex items-center gap-1.5 mb-4">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/15">
+                    <BarChart3 className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Top Plans</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  {viewedReport.data.topPlans.map((plan, i) => {
+                    const maxRevenue = Math.max(...viewedReport.data.topPlans.map(p => Number(p.revenue)))
+                    const pct = maxRevenue > 0 ? (Number(plan.revenue) / maxRevenue) * 100 : 0
+                    return (
+                      <div key={i} className="group relative rounded-lg border border-border/40 hover:border-border/80 transition-colors overflow-hidden">
+                        {/* Revenue proportion bar */}
+                        <div
+                          className="absolute inset-y-0 left-0 bg-primary/5 dark:bg-primary/8 transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                        <div className="relative flex items-center justify-between px-3.5 py-2.5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-muted/80 text-[10px] font-bold text-muted-foreground tabular-nums">
+                              {i + 1}
+                            </div>
+                            <span className="text-xs font-mono font-medium">{plan.planId || 'Unknown'}</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Subs</p>
+                              <p className="text-xs font-semibold tabular-nums">{plan.subscribers}</p>
+                            </div>
+                            <div className="text-right min-w-[70px]">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Revenue</p>
+                              <p className="text-xs font-semibold tabular-nums">${formatAmount(plan.revenue)}</p>
+                            </div>
+                            <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Receipts footer */}
+          {viewedReport.data.chargeReceipts.length > 0 && (
+            <div className="flex items-center gap-2 px-1">
+              <div className="h-px flex-1 bg-border/40" />
+              <p className="text-[11px] text-muted-foreground shrink-0">
+                {viewedReport.data.chargeReceipts.length} charge receipt{viewedReport.data.chargeReceipts.length !== 1 ? 's' : ''} on Filecoin
               </p>
-            )}
-          </CardContent>
-        </Card>
+              <div className="h-px flex-1 bg-border/40" />
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { createPublicClient, http, type PublicClient } from 'viem'
-import { useWalletClient, type UseWalletClientReturnType } from 'wagmi'
+import { useWalletClient, type UseWalletClientReturnType, useAccount, useSwitchChain } from 'wagmi'
 import {
   CHAIN_CONFIGS,
   DEFAULT_CHAIN,
@@ -23,7 +23,17 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
   // No localStorage override — subdomain deployments are authoritative.
   const chainKey = DEFAULT_CHAIN
   const chainConfig = CHAIN_CONFIGS[chainKey]
-  const { data: walletClient } = useWalletClient({ chainId: chainConfig.chain.id })
+  const requiredChainId = chainConfig.chain.id
+  const { data: walletClient } = useWalletClient({ chainId: requiredChainId })
+  const { chainId: connectedChainId, isConnected } = useAccount()
+  const { switchChain } = useSwitchChain()
+
+  // Auto-switch wallet to the required chain when connected on the wrong one
+  React.useEffect(() => {
+    if (isConnected && connectedChainId && connectedChainId !== requiredChainId) {
+      switchChain?.({ chainId: requiredChainId })
+    }
+  }, [isConnected, connectedChainId, requiredChainId, switchChain])
 
   // Create a public client for reading chain data
   const publicClient = React.useMemo(() => {

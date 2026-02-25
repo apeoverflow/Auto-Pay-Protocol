@@ -1,3 +1,10 @@
+export type SubscriberFieldKey = 'email' | 'name' | 'discord' | 'telegram' | 'twitter' | 'mobile'
+
+export interface CheckoutField {
+  key: SubscriberFieldKey
+  required: boolean
+}
+
 export interface CheckoutParams {
   merchant: `0x${string}`
   metadataUrl: string
@@ -9,6 +16,8 @@ export interface CheckoutParams {
   spendingCap?: string // e.g. "119.88" — omit for unlimited (0 on-chain)
   /** IPFS metadata URL — fallback if metadataUrl (relayer) is unreachable */
   ipfsMetadataUrl?: string
+  /** Subscriber info fields to collect during checkout */
+  fields?: CheckoutField[]
 }
 
 /** Display-only metadata fetched from metadataUrl. Billing info comes from CheckoutParams. */

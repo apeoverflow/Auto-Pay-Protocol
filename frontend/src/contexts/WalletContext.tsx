@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { formatUnits, maxUint256 } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAccount, useSwitchChain } from 'wagmi'
 import { USDC_DECIMALS } from '../config'
 import { erc20Abi } from '../config/contracts'
 import { useChain } from './ChainContext'
@@ -20,8 +20,9 @@ interface WalletContextValue {
 const WalletContext = React.createContext<WalletContextValue | null>(null)
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const { address } = useAccount()
+  const { address, chainId: connectedChainId } = useAccount()
   const { publicClient, walletClient, chainConfig } = useChain()
+  const { switchChainAsync } = useSwitchChain()
   const [balance, setBalance] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
 
@@ -30,6 +31,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [isSettingUp, setIsSettingUp] = React.useState(false)
   const [setupStatus, setSetupStatus] = React.useState('')
   const [setupError, setSetupError] = React.useState<string | null>(null)
+
+  // Pending approval — set after a chain switch so we auto-continue when walletClient appears
+  const [pendingApproval, setPendingApproval] = React.useState(false)
 
   // Fetch balance
   const fetchBalance = React.useCallback(async () => {
@@ -71,15 +75,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, [publicClient, address, chainConfig.usdc, chainConfig.policyManager])
 
-  // Setup wallet: approve unlimited USDC to PolicyManager
-  const setupWallet = React.useCallback(async () => {
-    if (!walletClient || !address || !chainConfig.policyManager) {
-      throw new Error('Wallet not ready')
-    }
+  // Core approval logic — called when walletClient is available
+  const executeApproval = React.useCallback(async () => {
+    if (!walletClient || !publicClient || !address || !chainConfig.policyManager) return
 
-    setIsSettingUp(true)
     setSetupStatus('Approving USDC...')
-    setSetupError(null)
 
     try {
       const hash = await walletClient.writeContract({
@@ -90,10 +90,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       })
 
       setSetupStatus('Confirming...')
-
-      if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash })
-      }
+      await publicClient.waitForTransactionReceipt({ hash })
 
       setSetupStatus('Wallet ready!')
       setIsWalletSetup(true)
@@ -105,8 +102,49 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       throw err
     } finally {
       setIsSettingUp(false)
+      setPendingApproval(false)
     }
-  }, [walletClient, address, publicClient, chainConfig])
+  }, [walletClient, publicClient, address, chainConfig])
+
+  // When walletClient appears after a chain switch and we have a pending approval, continue
+  React.useEffect(() => {
+    if (pendingApproval && walletClient) {
+      executeApproval()
+    }
+  }, [pendingApproval, walletClient, executeApproval])
+
+  // Setup wallet: approve unlimited USDC to PolicyManager
+  const setupWallet = React.useCallback(async () => {
+    if (!address) {
+      throw new Error('Wallet not connected')
+    }
+    if (!chainConfig.policyManager) {
+      throw new Error('PolicyManager not deployed on this chain')
+    }
+
+    setIsSettingUp(true)
+    setSetupError(null)
+
+    // If wallet is on the wrong chain, trigger a switch first
+    const requiredChainId = chainConfig.chain.id
+    if (connectedChainId !== requiredChainId) {
+      try {
+        setSetupStatus(`Switching to ${chainConfig.name}...`)
+        await switchChainAsync({ chainId: requiredChainId })
+        // walletClient won't update until React re-renders, so flag it
+        setPendingApproval(true)
+        return
+      } catch {
+        setSetupError(`Please switch your wallet to ${chainConfig.name}`)
+        setSetupStatus('')
+        setIsSettingUp(false)
+        throw new Error(`Please switch your wallet to ${chainConfig.name}`)
+      }
+    }
+
+    // Already on the right chain — approve directly
+    await executeApproval()
+  }, [address, connectedChainId, chainConfig, switchChainAsync, executeApproval])
 
   // Fetch balance and check setup when address changes
   React.useEffect(() => {

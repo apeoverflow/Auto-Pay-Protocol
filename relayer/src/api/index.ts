@@ -1,7 +1,8 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http'
 import { getDb, getStatus } from '../db/index.js'
 import { getChargesByMerchant } from '../db/charges.js'
-import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus } from '../db/metadata.js'
+import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus, VALID_SUBSCRIBER_FIELDS } from '../db/metadata.js'
+import { insertSubscriberData, getSubscribersByMerchant } from '../db/subscribers.js'
 import { generateMonthlyReport, type MonthlyReport } from '../reports/generate.js'
 import { getReportsByMerchant, getReport, saveReport } from '../db/reports.js'
 import { randomUUID } from 'crypto'
@@ -216,6 +217,39 @@ function validateBillingPartial(billing: Record<string, unknown>): { valid: true
   return { valid: true }
 }
 
+// Validate checkout subscriber field configuration
+function validateCheckoutFields(checkout: Record<string, unknown>): { valid: true } | { valid: false; error: string } {
+  const { requiredFields, optionalFields } = checkout
+  if (requiredFields !== undefined) {
+    if (!Array.isArray(requiredFields)) {
+      return { valid: false, error: 'checkout.requiredFields must be an array' }
+    }
+    for (const f of requiredFields) {
+      if (!VALID_SUBSCRIBER_FIELDS.includes(f)) {
+        return { valid: false, error: `Invalid checkout field "${f}". Must be one of: ${VALID_SUBSCRIBER_FIELDS.join(', ')}` }
+      }
+    }
+  }
+  if (optionalFields !== undefined) {
+    if (!Array.isArray(optionalFields)) {
+      return { valid: false, error: 'checkout.optionalFields must be an array' }
+    }
+    for (const f of optionalFields) {
+      if (!VALID_SUBSCRIBER_FIELDS.includes(f)) {
+        return { valid: false, error: `Invalid checkout field "${f}". Must be one of: ${VALID_SUBSCRIBER_FIELDS.join(', ')}` }
+      }
+    }
+  }
+  // Check for overlap between required and optional
+  if (requiredFields && optionalFields) {
+    const overlap = (requiredFields as string[]).filter(f => (optionalFields as string[]).includes(f))
+    if (overlap.length > 0) {
+      return { valid: false, error: `Fields cannot appear in both requiredFields and optionalFields: ${overlap.join(', ')}` }
+    }
+  }
+  return { valid: true }
+}
+
 // Keys that must never be merged (prototype pollution prevention)
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
@@ -340,6 +374,8 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantReport: '/merchants/:address/reports/:period?chain_id=...',
             merchantReportGenerate: 'POST /merchants/:address/reports/generate',
             merchantReportCsv: '/merchants/:address/reports/:period/csv?chain_id=N',
+            subscribers: 'POST /subscribers',
+            merchantSubscribers: '/merchants/:address/subscribers?chain_id=...',
           },
         }))
         return
@@ -677,6 +713,142 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         }
       }
 
+      // Submit subscriber data (public, called by checkout after policy creation)
+      if (path === '/subscribers' && req.method === 'POST') {
+        // Rate-limit by IP first (before parsing body)
+        const clientIp = getClientIp(req)
+        const ipRateResult = authRateLimiter.check(clientIp)
+        if (!ipRateResult.allowed) { sendRateLimited(res, ipRateResult); return }
+
+        const body = await parseBody(req)
+        const { policyId, chainId, payer, merchant, planId, planMerchant, formData } = body as {
+          policyId?: string; chainId?: number; payer?: string; merchant?: string
+          planId?: string; planMerchant?: string; formData?: unknown
+        }
+
+        if (!policyId || typeof policyId !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'policyId is required' }))
+          return
+        }
+        if (!chainId || typeof chainId !== 'number') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chainId is required and must be a number' }))
+          return
+        }
+        if (!payer || typeof payer !== 'string' || !isValidAddress(payer)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'payer must be a valid address' }))
+          return
+        }
+        if (!merchant || typeof merchant !== 'string' || !isValidAddress(merchant)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'merchant must be a valid address' }))
+          return
+        }
+        if (!formData || typeof formData !== 'object' || Array.isArray(formData)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'formData must be an object' }))
+          return
+        }
+        // Validate formData keys are in the allowed set and values are strings
+        for (const [key, val] of Object.entries(formData as Record<string, unknown>)) {
+          if (!VALID_SUBSCRIBER_FIELDS.includes(key as never)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: `Unknown field "${key}". Allowed: ${VALID_SUBSCRIBER_FIELDS.join(', ')}` }))
+            return
+          }
+          if (typeof val !== 'string') {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: `formData.${key} must be a string` }))
+            return
+          }
+        }
+
+        // Also rate-limit by payer address
+        const rateResult = authRateLimiter.check(payer.toLowerCase())
+        if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+
+        // Verify policyId exists and payer/merchant match the policy record
+        const db = getDb(config.databaseUrl)
+        const policyRows = await db`
+          SELECT id FROM policies
+          WHERE id = ${policyId}
+            AND chain_id = ${chainId}
+            AND payer = ${payer.toLowerCase()}
+            AND merchant = ${merchant.toLowerCase()}
+        `
+        if (policyRows.length === 0) {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Policy not found or payer/merchant mismatch' }))
+          return
+        }
+
+        await insertSubscriberData(
+          config.databaseUrl, policyId, chainId, payer, merchant,
+          planId ?? null, planMerchant ?? null, formData as Record<string, string>
+        )
+
+        res.writeHead(201, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ ok: true }))
+        return
+      }
+
+      // Merchant subscribers list (auth-protected — uses signature or API key)
+      const merchantSubscribersMatch = path.match(/^\/merchants\/([^/]+)\/subscribers$/)
+      if (merchantSubscribersMatch && req.method === 'GET') {
+        const address = merchantSubscribersMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+        if (AUTH_ENABLED) {
+          // Check for API key first (non-interactive), fall back to signature auth
+          const statsApiKey = process.env.STATS_API_KEY
+          const providedKey = req.headers['x-api-key'] as string | undefined
+          const hasValidApiKey = statsApiKey && providedKey === statsApiKey
+          if (!hasValidApiKey) {
+            const rateResult = authRateLimiter.check(address.toLowerCase())
+            if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+            const verified = await authenticateMerchant(req, res, address)
+            if (!verified) return
+          }
+        }
+        const chainId = params.get('chain_id')
+        if (!chainId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
+          return
+        }
+        const planId = params.get('plan_id') || undefined
+        const page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1)
+        const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50', 10) || 50))
+
+        const { subscribers, total } = await getSubscribersByMerchant(
+          config.databaseUrl, address, parseInt(chainId, 10), planId, page, limit
+        )
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          subscribers: subscribers.map((s) => ({
+            policyId: s.policy_id,
+            chainId: s.chain_id,
+            payer: s.payer,
+            planId: s.plan_id,
+            formData: s.form_data,
+            active: s.active,
+            chargeAmount: s.charge_amount,
+            intervalSeconds: s.interval_seconds,
+            createdAt: s.created_at,
+          })),
+          total,
+          page,
+          limit,
+        }))
+        return
+      }
+
       // Upload logo
       if (path === '/logos' && req.method === 'POST') {
         if (AUTH_ENABLED) {
@@ -926,6 +1098,16 @@ async function handleCreatePlan(
     }
   }
 
+  // Validate checkout fields if present
+  if (metadata.checkout) {
+    const checkoutValidation = validateCheckoutFields(metadata.checkout)
+    if (!checkoutValidation.valid) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: checkoutValidation.error }))
+      return
+    }
+  }
+
   if (!metadata.version) {
     metadata.version = '1.0'
   }
@@ -1061,6 +1243,16 @@ async function handleUpdatePlan(
     }
     if (!metadata.billing.currency) {
       metadata.billing.currency = 'USDC'
+    }
+  }
+
+  // Validate checkout fields if present
+  if (metadata.checkout) {
+    const checkoutValidation = validateCheckoutFields(metadata.checkout)
+    if (!checkoutValidation.valid) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: checkoutValidation.error }))
+      return
     }
   }
 

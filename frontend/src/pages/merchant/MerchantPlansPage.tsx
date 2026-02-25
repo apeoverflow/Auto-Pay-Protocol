@@ -6,8 +6,9 @@ import { useMerchantPlans } from '../../hooks/useMerchantPlans'
 import { useWallet } from '../../hooks/useWallet'
 import { patchPlan, deletePlan } from '../../lib/relayer'
 import { useSignMessage } from 'wagmi'
-import { Plus, Loader2, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react'
+import { Plus, Loader2, Pencil, Archive, ArchiveRestore, Trash2, Link2 } from 'lucide-react'
 import type { NavItem } from '../../components/layout/Sidebar'
+import { PaymentLinkDialog } from '../../components/merchant/PaymentLinkDialog'
 
 type StatusFilter = 'all' | 'draft' | 'active' | 'archived'
 
@@ -28,6 +29,8 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
   const { signMessageAsync } = useSignMessage()
   const [actionLoading, setActionLoading] = React.useState<string | null>(null)
   const [actionError, setActionError] = React.useState<string | null>(null)
+  const [sharePlanId, setSharePlanId] = React.useState<string | null>(null)
+  const sharePlan = sharePlanId ? plans.find((p) => p.id === sharePlanId) : null
 
   const handleNavigateNew = () => {
     window.history.pushState(null, '', '/merchant/plans/new')
@@ -213,6 +216,18 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
                       variant="ghost"
                       size="sm"
                       className="h-7 text-xs gap-1"
+                      onClick={() => setSharePlanId(plan.id)}
+                    >
+                      <Link2 className="h-3 w-3" />
+                      Share Link
+                    </Button>
+                  )}
+
+                  {plan.status === 'active' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
                       disabled={actionLoading === plan.id}
                       onClick={() => handleArchive(plan.id)}
                     >
@@ -263,6 +278,15 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
             </Card>
           ))}
         </div>
+      )}
+      {/* Payment Link Dialog */}
+      {sharePlan && address && (
+        <PaymentLinkDialog
+          open={!!sharePlan}
+          onOpenChange={(open) => { if (!open) setSharePlanId(null) }}
+          plan={sharePlan}
+          merchantAddress={address}
+        />
       )}
     </div>
   )

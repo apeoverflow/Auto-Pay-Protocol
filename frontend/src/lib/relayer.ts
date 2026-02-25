@@ -14,6 +14,90 @@ function resolveRelayer(address: string): { baseUrl: string; apiKey: string } {
   return { baseUrl, apiKey: custom?.apiKey || '' }
 }
 
+// --- Subscriber data ---
+
+/**
+ * Submit subscriber form data after policy creation.
+ * Retries on 404 (policy not yet indexed by relayer) with exponential backoff.
+ */
+export async function submitSubscriberData(data: {
+  policyId: string
+  chainId: number
+  payer: string
+  merchant: string
+  planId?: string
+  planMerchant?: string
+  formData: Record<string, string>
+}): Promise<void> {
+  const { baseUrl } = resolveRelayer(data.merchant)
+  const maxAttempts = 5
+  const backoffMs = [2000, 4000, 8000, 16000, 30000]
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const res = await fetch(`${baseUrl}/subscribers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (res.ok) return
+
+    const err = await res.json().catch(() => ({}))
+    // Retry only on 404 (policy not indexed yet); other errors are permanent
+    if (res.status !== 404 || attempt === maxAttempts - 1) {
+      throw new Error((err as { error?: string }).error || 'Failed to submit subscriber data')
+    }
+    await new Promise((r) => setTimeout(r, backoffMs[attempt]))
+  }
+}
+
+// --- Subscriber list (auth-protected) ---
+
+export interface MerchantSubscriber {
+  policyId: string
+  chainId: number
+  payer: string
+  planId: string | null
+  formData: Record<string, string>
+  active: boolean
+  chargeAmount: string
+  intervalSeconds: number
+  createdAt: string
+}
+
+export interface MerchantSubscribersResponse {
+  subscribers: MerchantSubscriber[]
+  total: number
+  page: number
+  limit: number
+}
+
+export async function fetchMerchantSubscribers(
+  address: string,
+  chainId: number,
+  planId?: string,
+  page = 1,
+  limit = 50,
+): Promise<MerchantSubscribersResponse> {
+  const { baseUrl, apiKey } = resolveRelayer(address)
+
+  const headers: Record<string, string> = {}
+  if (apiKey) headers['X-API-Key'] = apiKey
+
+  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/subscribers`)
+  url.searchParams.set('chain_id', String(chainId))
+  if (planId) url.searchParams.set('plan_id', planId)
+  url.searchParams.set('page', String(page))
+  url.searchParams.set('limit', String(limit))
+
+  const res = await fetch(url.toString(), { headers })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to fetch subscribers')
+  }
+
+  return (await res.json()) as MerchantSubscribersResponse
+}
+
 // --- Custom relayer config (localStorage) ---
 
 export interface CustomRelayerConfig {

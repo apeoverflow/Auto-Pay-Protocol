@@ -3,6 +3,10 @@ import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('db:metadata')
 
+export type SubscriberField = 'email' | 'name' | 'discord' | 'telegram' | 'twitter' | 'mobile'
+
+export const VALID_SUBSCRIBER_FIELDS: SubscriberField[] = ['email', 'name', 'discord', 'telegram', 'twitter', 'mobile']
+
 export interface PlanMetadata {
   version: string
   plan: {
@@ -29,6 +33,10 @@ export interface PlanMetadata {
     color?: string
     badge?: string
     icon?: string
+  }
+  checkout?: {
+    requiredFields?: SubscriberField[]
+    optionalFields?: SubscriberField[]
   }
 }
 

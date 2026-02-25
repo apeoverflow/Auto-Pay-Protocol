@@ -1,5 +1,20 @@
 import * as React from 'react'
-import type { CheckoutParams } from '../types/checkout'
+import type { CheckoutParams, CheckoutField, SubscriberFieldKey } from '../types/checkout'
+
+const VALID_FIELD_KEYS: SubscriberFieldKey[] = ['email', 'name', 'discord', 'telegram', 'twitter', 'mobile']
+
+function parseFields(raw: string | null): CheckoutField[] | undefined {
+  if (!raw) return undefined
+  const fields: CheckoutField[] = []
+  for (const part of raw.split(',')) {
+    const trimmed = part.trim()
+    if (!trimmed) continue
+    const [key, flag] = trimmed.split(':')
+    if (!VALID_FIELD_KEYS.includes(key as SubscriberFieldKey)) continue
+    fields.push({ key: key as SubscriberFieldKey, required: flag === 'r' })
+  }
+  return fields.length > 0 ? fields : undefined
+}
 
 function isValidAddress(value: string): value is `0x${string}` {
   return /^0x[a-fA-F0-9]{40}$/.test(value)
@@ -31,6 +46,7 @@ export function useCheckoutParams(): UseCheckoutParamsReturn {
     const intervalStr = search.get('interval')
     const spendingCap = search.get('spending_cap') // optional
     const ipfsMetadataUrl = search.get('ipfs_metadata_url') // optional fallback
+    const fieldsRaw = search.get('fields') // optional: email:r,name:o,discord:r
 
     if (!merchant || !metadataUrl || !successUrl || !cancelUrl || !amount || !intervalStr) {
       return {
@@ -81,6 +97,7 @@ export function useCheckoutParams(): UseCheckoutParamsReturn {
         interval,
         spendingCap: spendingCap || undefined,
         ipfsMetadataUrl: ipfsMetadataUrl || undefined,
+        fields: parseFields(fieldsRaw),
       },
       error: null,
     }

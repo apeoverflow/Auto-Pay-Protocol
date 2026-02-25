@@ -14,21 +14,26 @@ import {
   ConfirmStep,
   ProcessingStep,
   SuccessStep,
+  SubscriberInfoStep,
 } from '../components/checkout'
+import { submitSubscriberData } from '../lib/relayer'
 
-type Step = 'loading' | 'error' | 'plan_summary' | 'auth' | 'wallet_setup' | 'fund_wallet' | 'confirm' | 'processing' | 'success'
+type Step = 'loading' | 'error' | 'plan_summary' | 'subscriber_info' | 'auth' | 'wallet_setup' | 'fund_wallet' | 'confirm' | 'processing' | 'success'
 
 export function CheckoutPage() {
   const { params, error: paramError } = useCheckoutParams()
   const { isLoggedIn, logout, username } = useAuth()
-  const { isWalletSetup, isLoading: walletLoading, balance } = useWallet()
+  const { address, isWalletSetup, isLoading: walletLoading, balance } = useWallet()
   const { createPolicy, policyId, hash, status, error: policyError, isLoading: policyLoading } = useCreatePolicy()
   const [metadata, setMetadata] = React.useState<CheckoutMetadata | null>(null)
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [step, setStep] = React.useState<Step>('loading')
   const [reviewedPlan, setReviewedPlan] = React.useState(false)
+  const [subscriberFormData, setSubscriberFormData] = React.useState<Record<string, string> | null>(null)
   // User-editable spending cap — defaults to URL param value, adjustable in ConfirmStep
   const [userSpendingCap, setUserSpendingCap] = React.useState<string | undefined>(params?.spendingCap)
+
+  const hasSubscriberFields = !!(params?.fields && params.fields.length > 0)
 
   // Estimated gas fee in USDC (Arc native currency is USDC; paymaster covers it but we show for transparency)
   const GAS_ESTIMATE_USDC = 0.01
@@ -102,6 +107,11 @@ export function CheckoutPage() {
       setStep('plan_summary')
       return
     }
+    // Show subscriber info form if fields are configured and not yet filled
+    if (hasSubscriberFields && !subscriberFormData) {
+      setStep('subscriber_info')
+      return
+    }
     if (!isLoggedIn) {
       setStep('auth')
       return
@@ -119,7 +129,7 @@ export function CheckoutPage() {
       return
     }
     setStep('confirm')
-  }, [paramError, fetchError, metadata, policyId, policyLoading, reviewedPlan, isLoggedIn, walletLoading, isWalletSetup, hasEnoughBalance])
+  }, [paramError, fetchError, metadata, policyId, policyLoading, reviewedPlan, hasSubscriberFields, subscriberFormData, isLoggedIn, walletLoading, isWalletSetup, hasEnoughBalance])
 
   const handleSubscribe = async () => {
     if (!metadata || !params) return
@@ -138,6 +148,35 @@ export function CheckoutPage() {
       // Error displayed via hook state
     }
   }
+
+  // Fire-and-forget: submit subscriber data after policy is created
+  React.useEffect(() => {
+    if (!policyId || !subscriberFormData || !params || !address) return
+    const chainId = CHAIN_CONFIGS[DEFAULT_CHAIN].chain.id
+    // Extract planId from metadataUrl if it follows the /metadata/:merchant/:planId pattern
+    let planId: string | undefined
+    let planMerchant: string | undefined
+    try {
+      const urlPath = new URL(params.metadataUrl).pathname
+      const segments = urlPath.split('/').filter(Boolean)
+      if (segments[0] === 'metadata' && segments.length >= 3) {
+        planMerchant = segments[1]
+        planId = segments[2]
+      }
+    } catch { /* ignore */ }
+
+    submitSubscriberData({
+      policyId,
+      chainId,
+      payer: address,
+      merchant: params.merchant,
+      planId,
+      planMerchant,
+      formData: subscriberFormData,
+    }).catch(() => {
+      // Subscriber data is fire-and-forget — don't block the user
+    })
+  }, [policyId, subscriberFormData, params, address])
 
   const handlePlanContinue = () => {
     setReviewedPlan(true)
@@ -185,6 +224,13 @@ export function CheckoutPage() {
               amount={amount}
               interval={interval}
               onContinue={handlePlanContinue}
+              cancelUrl={params.cancelUrl}
+            />
+          )}
+          {step === 'subscriber_info' && params?.fields && (
+            <SubscriberInfoStep
+              fields={params.fields}
+              onContinue={(formData) => setSubscriberFormData(formData)}
               cancelUrl={params.cancelUrl}
             />
           )}

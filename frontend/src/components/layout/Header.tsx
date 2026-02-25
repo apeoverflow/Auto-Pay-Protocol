@@ -22,6 +22,7 @@ const pageTitles: Record<NavItem, string> = {
   'merchant-plans': 'Plans',
   'merchant-receipts': 'Receipts',
   'merchant-reports': 'Reports',
+  'merchant-subscribers': 'Subscribers',
   'merchant-settings': 'Merchant Settings',
 }
 

@@ -21,6 +21,7 @@ import {
   MerchantPlanEditorPage,
   MerchantReceiptsPage,
   MerchantReportsPage,
+  MerchantSubscribersPage,
   MerchantSettingsPage,
 } from './pages/merchant'
 import { LoadingView } from './views'
@@ -68,17 +69,17 @@ function App() {
   const [displayedRoute, setDisplayedRoute] = useState<Route>(route)
   const pendingRoute = useRef<Route | null>(null)
 
-  // Navigate to / when user disconnects
+  // Navigate to / when user disconnects (except on fullscreen flows like checkout)
   const wasLoggedIn = useRef(isLoggedIn)
   useEffect(() => {
-    if (wasLoggedIn.current && !isLoggedIn) {
+    if (wasLoggedIn.current && !isLoggedIn && getRouteLayout(route) !== 'fullscreen') {
       navigate('/')
       setDisplayedRoute('/')
       setPhase('idle')
       pendingRoute.current = null
     }
     wasLoggedIn.current = isLoggedIn
-  }, [isLoggedIn, navigate])
+  }, [isLoggedIn, navigate, route])
 
   // Redirect logged-in users from / to /dashboard
   const effectiveRoute = route === '/' && isLoggedIn ? '/dashboard' : route
@@ -149,6 +150,9 @@ function App() {
 
   const activeRoute = phase === 'idle' ? (effectiveRoute as Route) : displayedRoute
 
+  // DEBUG: trace routing on disconnect
+  console.log('[App] render', { route, effectiveRoute, activeRoute, displayedRoute, phase, isLoggedIn, address: !!address })
+
   // Fullscreen: Docs
   if (activeRoute === '/docs') {
     return (
@@ -176,8 +180,8 @@ function App() {
     )
   }
 
-  // Auth screen (not connected)
-  if (activeRoute === '/' || !isLoggedIn) {
+  // Auth screen (not connected) — fullscreen routes handle their own auth
+  if (activeRoute === '/' || (!isLoggedIn && getRouteLayout(activeRoute) !== 'fullscreen')) {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div
@@ -224,6 +228,8 @@ function App() {
         return <MerchantPlanEditorPage navigate={navigate} />
       case '/merchant/plans/edit':
         return <MerchantPlanEditorPage navigate={navigate} />
+      case '/merchant/subscribers':
+        return <MerchantSubscribersPage />
       case '/merchant/receipts':
         return <MerchantReceiptsPage />
       case '/merchant/reports':
