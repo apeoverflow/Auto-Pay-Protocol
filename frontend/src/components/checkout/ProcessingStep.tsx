@@ -12,9 +12,6 @@ export function ProcessingStep({ status }: ProcessingStepProps) {
       </div>
       <h2 className="text-lg font-semibold mb-2">Processing payment</h2>
       <p className="text-sm text-muted-foreground text-center">{status}</p>
-      <p className="text-xs text-muted-foreground mt-4">
-        Please confirm the passkey prompt if shown
-      </p>
     </div>
   )
 }
