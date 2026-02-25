@@ -150,9 +150,6 @@ function App() {
 
   const activeRoute = phase === 'idle' ? (effectiveRoute as Route) : displayedRoute
 
-  // DEBUG: trace routing on disconnect
-  console.log('[App] render', { route, effectiveRoute, activeRoute, displayedRoute, phase, isLoggedIn, address: !!address })
-
   // Fullscreen: Docs
   if (activeRoute === '/docs') {
     return (
