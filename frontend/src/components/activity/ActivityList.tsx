@@ -5,6 +5,10 @@ import { useActivity, useMetadataBatch } from '../../hooks'
 import type { ActivityItem } from '../../types/subscriptions'
 import { Activity, Filter, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { Button } from '../ui/button'
+import { useAccount } from 'wagmi'
+import { useChain } from '../../contexts/ChainContext'
+import { useWalletClient } from 'wagmi'
+import { uploadPayerChargeReceipts } from '../../lib/relayer'
 
 interface ActivityListProps {
   showAll?: boolean
@@ -23,11 +27,33 @@ const filterLabels: Record<FilterType, string> = {
 const PAGE_SIZE = 8
 
 export function ActivityList({ showAll = false, limit = 5, compact = false }: ActivityListProps) {
-  const { activity, isLoading, error } = useActivity()
+  const { activity, isLoading, error, refetch } = useActivity()
+  const { address } = useAccount()
+  const { chainConfig } = useChain()
+  const { data: walletClient } = useWalletClient()
   const metadataUrls = React.useMemo(() => activity.map(a => a.metadataUrl || null), [activity])
   const metadataMap = useMetadataBatch(metadataUrls)
   const [filter, setFilter] = React.useState<FilterType>('all')
   const [page, setPage] = React.useState(0)
+  const [uploadingReceiptId, setUploadingReceiptId] = React.useState<number | null>(null)
+
+  const handleRequestReceipt = React.useCallback(async (chargeDbId: number) => {
+    if (!address || !walletClient) return
+    setUploadingReceiptId(chargeDbId)
+    try {
+      await uploadPayerChargeReceipts(
+        address,
+        [chargeDbId],
+        chainConfig.chain.id,
+        (args) => walletClient.signMessage({ message: args.message, account: address }),
+      )
+      await refetch()
+    } catch (err) {
+      console.error('Failed to upload receipt:', err)
+    } finally {
+      setUploadingReceiptId(null)
+    }
+  }, [address, walletClient, chainConfig.chain.id, refetch])
 
   // Reset page when filter changes
   React.useEffect(() => { setPage(0) }, [filter])
@@ -129,7 +155,12 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
         <CardContent className="divide-y divide-border/40 p-0">
           {displayedActivity.map(item => (
             <div key={item.id} className="px-4 md:px-5">
-              <ActivityItemRow item={item} metadata={item.metadataUrl ? metadataMap.get(item.metadataUrl) : undefined} />
+              <ActivityItemRow
+                item={item}
+                metadata={item.metadataUrl ? metadataMap.get(item.metadataUrl) : undefined}
+                onRequestReceipt={handleRequestReceipt}
+                uploadingReceiptId={uploadingReceiptId}
+              />
             </div>
           ))}
         </CardContent>

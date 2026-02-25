@@ -33,6 +33,8 @@ export interface ActivityItem {
   subscription?: Subscription
   txHash: `0x${string}`
   status: 'confirmed' | 'pending' | 'failed'
+  receiptCid?: string | null
+  chargeDbId?: number
 }
 
 // Helper to format USDC amounts

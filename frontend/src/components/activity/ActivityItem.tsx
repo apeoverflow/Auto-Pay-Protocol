@@ -9,12 +9,16 @@ import {
   XCircle,
   ArrowUpRight,
   ExternalLink,
+  FileText,
+  Loader2,
 } from 'lucide-react'
 
 interface ActivityItemProps {
   item: ActivityItemType
   compact?: boolean
   metadata?: PolicyMetadata | null
+  onRequestReceipt?: (chargeDbId: number) => void
+  uploadingReceiptId?: number | null
 }
 
 const typeConfig: Record<ActivityItemType['type'], {
@@ -55,7 +59,7 @@ const statusVariants: Record<ActivityItemType['status'], 'success' | 'warning' |
   failed: 'destructive',
 }
 
-export function ActivityItemRow({ item, compact = false, metadata }: ActivityItemProps) {
+export function ActivityItemRow({ item, compact = false, metadata, onRequestReceipt, uploadingReceiptId }: ActivityItemProps) {
   const { chainConfig } = useChain()
   const config = typeConfig[item.type]
   const merchantName = metadata?.merchant?.name || metadata?.plan?.name || item.merchant
@@ -152,6 +156,39 @@ export function ActivityItemRow({ item, compact = false, metadata }: ActivityIte
         <Badge variant={statusVariants[item.status]} className="capitalize font-medium text-[10px] sm:text-xs">
           {item.status}
         </Badge>
+
+        {item.type === 'charge' && item.status === 'confirmed' && (
+          item.receiptCid ? (
+            <a
+              href={`https://w3s.link/ipfs/${item.receiptCid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary/80 hover:text-primary hover:bg-primary/5 transition-colors"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>Receipt</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : item.chargeDbId && onRequestReceipt ? (
+            <button
+              onClick={() => onRequestReceipt(item.chargeDbId!)}
+              disabled={uploadingReceiptId === item.chargeDbId}
+              className="hidden sm:inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {uploadingReceiptId === item.chargeDbId ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>Receipt</span>
+                </>
+              )}
+            </button>
+          ) : null
+        )}
       </div>
     </div>
   )

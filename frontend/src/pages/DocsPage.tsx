@@ -51,16 +51,33 @@ function MermaidDiagram({ chart }: { chart: string }) {
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
+    let cancelled = false
     const id = `mermaid-${++mermaidCounter}`
+
+    // Create a temporary off-screen element for mermaid to render into
+    const tempEl = document.createElement('div')
+    tempEl.id = id
+    tempEl.style.position = 'absolute'
+    tempEl.style.left = '-9999px'
+    document.body.appendChild(tempEl)
+
     mermaid.render(id, chart).then(({ svg }) => {
-      if (containerRef.current) {
+      if (!cancelled && containerRef.current) {
         containerRef.current.innerHTML = svg
       }
-    }).catch(() => {
-      if (containerRef.current) {
+    }).catch((err) => {
+      console.error('Mermaid render error:', err, '\nChart:', chart.slice(0, 200))
+      if (!cancelled && containerRef.current) {
         containerRef.current.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;text-align:center;">Diagram could not be rendered</p>'
       }
+    }).finally(() => {
+      tempEl.remove()
     })
+
+    return () => {
+      cancelled = true
+      tempEl.remove()
+    }
   }, [chart])
 
   return (
@@ -699,8 +716,8 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
       </div>
 
       {/* Content area + TOC */}
-      <div className="flex min-h-0 flex-1">
-        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div ref={contentRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           {/* Mobile TOC */}
           {headings.length > 0 && (
             <div className="border-b border-border/50 px-4 py-2 md:hidden">
@@ -719,7 +736,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
               )}
             </div>
           )}
-          <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
+          <div className="px-6 py-8 md:px-16 lg:px-24 xl:px-32">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
               {currentDoc.content}
             </ReactMarkdown>
@@ -728,8 +745,8 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
 
         {/* Desktop TOC sidebar */}
         {headings.length > 0 && (
-          <div className="hidden w-fit min-w-[180px] flex-shrink-0 border-l border-border/50 lg:block">
-            <div className="sticky top-0 max-h-screen overflow-y-auto p-4">
+          <div className="hidden w-[220px] flex-shrink-0 overflow-hidden border-l border-border/50 xl:block">
+            <div className="sticky top-0 max-h-screen overflow-y-auto overflow-x-hidden p-3">
               <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 On this page
               </div>

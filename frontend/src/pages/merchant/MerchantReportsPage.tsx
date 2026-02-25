@@ -132,240 +132,33 @@ export function MerchantReportsPage() {
     }
   }
 
-  return (
-    <div className="flex flex-col gap-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Monthly Reports</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Transparent reports for your community, optionally archived on Filecoin
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {reports.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {reports.length} report{reports.length !== 1 ? 's' : ''}
-            </span>
-          )}
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={uploadToIpfs}
-              onChange={(e) => setUploadToIpfs(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-border accent-primary"
-            />
-            Archive on Filecoin
-          </label>
+  // When a report is being viewed, show the detail view as a page takeover
+  if (viewedReport) {
+    return (
+      <div className="flex flex-col gap-4">
+        {/* Detail header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/15">
+              <BarChart3 className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold leading-none">
+                {formatPeriod(viewedReport.period)}
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Monthly Report</p>
+            </div>
+          </div>
           <Button
+            variant="outline"
             size="sm"
             className="h-7 text-xs gap-1"
-            onClick={handleGenerate}
-            disabled={generating}
+            onClick={() => setViewedReport(null)}
           >
-            {generating ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Plus className="h-3 w-3" />
-            )}
-            Generate Report
+            <X className="h-3 w-3" />
+            Back to Reports
           </Button>
         </div>
-      </div>
-
-      {/* Loading */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      )}
-
-      {/* Error loading reports */}
-      {error && !isLoading && (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={refetch}>
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Generate error */}
-      {generateError && (
-        <Card>
-          <CardContent className="py-4 text-center">
-            <p className="text-sm text-destructive">{generateError}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Download error */}
-      {downloadError && (
-        <Card>
-          <CardContent className="py-4 text-center">
-            <p className="text-sm text-destructive">{downloadError}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && !error && reports.length === 0 && (
-        <Card>
-          <CardContent className="py-14 flex flex-col items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/8 border border-primary/15">
-              <BarChart3 className="h-7 w-7 text-primary" />
-            </div>
-            <div className="text-center space-y-1.5">
-              <h3 className="text-sm font-semibold">No reports yet</h3>
-              <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-                Generate your first transparency report. Share it with your community to show where funds are going.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Reports list */}
-      {!isLoading && reports.length > 0 && (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/50">
-                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Period</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">IPFS CID</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Generated</th>
-                  <th className="text-right px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report) => (
-                  <tr
-                    key={report.period}
-                    className="border-b border-border/20 last:border-0 hover:bg-muted/40 transition-colors group"
-                  >
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/8 border border-primary/15 shrink-0">
-                          <FileText className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <span className="text-xs font-medium">{formatPeriod(report.period)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-xs">
-                      {report.cid ? (
-                        <a
-                          href={report.ipfsUrl || `${IPFS_GATEWAY}/${report.cid}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-primary hover:underline font-mono text-[11px] bg-primary/5 border border-primary/10 rounded-md px-2 py-0.5"
-                        >
-                          {report.cid.slice(0, 14)}...
-                          <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
-                      ) : (
-                        <span className="inline-flex items-center text-[11px] text-muted-foreground bg-muted/60 rounded-md px-2 py-0.5">
-                          Local only
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(report.createdAt).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', year: 'numeric'
-                      })}
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1"
-                          onClick={() => handleView(report)}
-                          disabled={viewing === report.period}
-                        >
-                          {viewing === report.period ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Eye className="h-3 w-3" />
-                          )}
-                          View
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1"
-                          onClick={() => handleDownloadCsv(report)}
-                          disabled={downloading === report.period}
-                        >
-                          {downloading === report.period ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Download className="h-3 w-3" />
-                          )}
-                          CSV
-                        </Button>
-                        {report.cid && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs gap-1"
-                            onClick={() => handleCopyLink(report)}
-                          >
-                            {copiedCid === report.cid ? (
-                              <Check className="h-3 w-3 text-emerald-600" />
-                            ) : (
-                              <Share2 className="h-3 w-3" />
-                            )}
-                            {copiedCid === report.cid ? 'Copied' : 'Share'}
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
-      {/* View error */}
-      {viewError && (
-        <Card>
-          <CardContent className="py-4 text-center">
-            <p className="text-sm text-destructive">{viewError}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ===== Report detail view ===== */}
-      {viewedReport && (
-        <div className="flex flex-col gap-4">
-          {/* Detail header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/15">
-                <BarChart3 className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold leading-none">
-                  {formatPeriod(viewedReport.period)}
-                </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Monthly Report</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1"
-              onClick={() => setViewedReport(null)}
-            >
-              <X className="h-3 w-3" />
-              Close
-            </Button>
-          </div>
 
           {/* Hero: Net Revenue */}
           <Card className="overflow-hidden">
@@ -577,6 +370,216 @@ export function MerchantReportsPage() {
             </div>
           )}
         </div>
+    )
+  }
+
+  // Default: reports list view
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Monthly Reports</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Transparent reports for your community, optionally archived on Filecoin
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {reports.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {reports.length} report{reports.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={uploadToIpfs}
+              onChange={(e) => setUploadToIpfs(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-border accent-primary"
+            />
+            Archive on Filecoin
+          </label>
+          <Button
+            size="sm"
+            className="h-7 text-xs gap-1"
+            onClick={handleGenerate}
+            disabled={generating}
+          >
+            {generating ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Plus className="h-3 w-3" />
+            )}
+            Generate Report
+          </Button>
+        </div>
+      </div>
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Error loading reports */}
+      {error && !isLoading && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={refetch}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Generate error */}
+      {generateError && (
+        <Card>
+          <CardContent className="py-4 text-center">
+            <p className="text-sm text-destructive">{generateError}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Download error */}
+      {downloadError && (
+        <Card>
+          <CardContent className="py-4 text-center">
+            <p className="text-sm text-destructive">{downloadError}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* View error */}
+      {viewError && (
+        <Card>
+          <CardContent className="py-4 text-center">
+            <p className="text-sm text-destructive">{viewError}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !error && reports.length === 0 && (
+        <Card>
+          <CardContent className="py-14 flex flex-col items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/8 border border-primary/15">
+              <BarChart3 className="h-7 w-7 text-primary" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h3 className="text-sm font-semibold">No reports yet</h3>
+              <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                Generate your first transparency report. Share it with your community to show where funds are going.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reports list */}
+      {!isLoading && reports.length > 0 && (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Period</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">IPFS CID</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Generated</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((report) => (
+                  <tr
+                    key={report.period}
+                    className="border-b border-border/20 last:border-0 hover:bg-muted/40 transition-colors group"
+                  >
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/8 border border-primary/15 shrink-0">
+                          <FileText className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <span className="text-xs font-medium">{formatPeriod(report.period)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-xs">
+                      {report.cid ? (
+                        <a
+                          href={report.ipfsUrl || `${IPFS_GATEWAY}/${report.cid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-primary hover:underline font-mono text-[11px] bg-primary/5 border border-primary/10 rounded-md px-2 py-0.5"
+                        >
+                          {report.cid.slice(0, 14)}...
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center text-[11px] text-muted-foreground bg-muted/60 rounded-md px-2 py-0.5">
+                          Local only
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(report.createdAt).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric'
+                      })}
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => handleView(report)}
+                          disabled={viewing === report.period}
+                        >
+                          {viewing === report.period ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Eye className="h-3 w-3" />
+                          )}
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => handleDownloadCsv(report)}
+                          disabled={downloading === report.period}
+                        >
+                          {downloading === report.period ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          CSV
+                        </Button>
+                        {report.cid && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => handleCopyLink(report)}
+                          >
+                            {copiedCid === report.cid ? (
+                              <Check className="h-3 w-3 text-emerald-600" />
+                            ) : (
+                              <Share2 className="h-3 w-3" />
+                            )}
+                            {copiedCid === report.cid ? 'Copied' : 'Share'}
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   )

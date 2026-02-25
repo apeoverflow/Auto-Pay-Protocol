@@ -43,6 +43,7 @@ export interface DbCharge {
   status: 'pending' | 'success' | 'failed'
   amount: string
   protocol_fee: string | null
+  receipt_cid: string | null
   error_message: string | null
   attempt_count: number
   created_at: string

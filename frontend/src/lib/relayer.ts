@@ -237,6 +237,82 @@ export async function fetchMerchantCharges(
   return data as MerchantChargesResponse
 }
 
+// --- Receipt upload ---
+
+export interface UploadReceiptsResponse {
+  uploaded: { chargeId: number; cid: string; ipfsUrl: string }[]
+  skipped: number[]
+  failed: { chargeId: number; error: string }[]
+  invalidIds: number[]
+}
+
+export async function uploadChargeReceipts(
+  address: string,
+  chargeIds: number[],
+  chainId: number,
+  signMessage: SignMessageFn,
+): Promise<UploadReceiptsResponse> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/receipts/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify({ chargeIds, chainId }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to upload receipts')
+  }
+  return (await res.json()) as UploadReceiptsResponse
+}
+
+// --- Payer receipt upload ---
+
+export async function uploadPayerChargeReceipts(
+  address: string,
+  chargeIds: number[],
+  chainId: number,
+  signMessage: SignMessageFn,
+): Promise<UploadReceiptsResponse> {
+  const baseUrl = RELAYER_URL
+  if (!baseUrl) {
+    throw new Error('No relayer URL configured. Set VITE_RELAYER_URL.')
+  }
+
+  // Inline auth against the same baseUrl (payers always use the canonical relayer,
+  // not a merchant-custom one, so we avoid resolveRelayer here)
+  const nonceRes = await fetch(`${baseUrl}/auth/nonce?address=${encodeURIComponent(address)}`)
+  if (!nonceRes.ok) {
+    const err = await nonceRes.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to get nonce')
+  }
+  const { nonce, message } = (await nonceRes.json()) as { nonce: string; message: string }
+
+  const expectedPrefix = `AutoPay Authentication\nNonce: ${nonce}\n`
+  if (typeof message !== 'string' || !message.startsWith(expectedPrefix)) {
+    throw new Error('Relayer returned unexpected auth message format. Signing aborted for safety.')
+  }
+
+  const signature = await signMessage({ message })
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Address': address,
+    'X-Signature': signature,
+    'X-Nonce': nonce,
+  }
+
+  const res = await fetch(`${baseUrl}/payers/${encodeURIComponent(address)}/receipts/upload`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ chargeIds, chainId }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to upload receipts')
+  }
+  return (await res.json()) as UploadReceiptsResponse
+}
+
 // --- Merchant reports ---
 
 export interface MerchantReport {
@@ -576,5 +652,76 @@ export async function deletePlan(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error((err as { error?: string }).error || 'Failed to delete plan')
+  }
+}
+
+// --- Merchant API Keys ---
+
+export interface MerchantApiKey {
+  id: number
+  keyPrefix: string
+  label: string
+  createdAt: string
+  lastUsedAt: string | null
+}
+
+export interface CreateApiKeyResponse {
+  key: string
+  id: number
+  keyPrefix: string
+  label: string
+  createdAt: string
+}
+
+export async function createMerchantApiKey(
+  address: string,
+  label: string,
+  signMessage: SignMessageFn,
+): Promise<CreateApiKeyResponse> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/api-keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify({ label }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to create API key')
+  }
+  return (await res.json()) as CreateApiKeyResponse
+}
+
+export async function listMerchantApiKeys(
+  address: string,
+  signMessage: SignMessageFn,
+): Promise<MerchantApiKey[]> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/api-keys`, {
+    headers,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to list API keys')
+  }
+  const data = (await res.json()) as { keys: MerchantApiKey[] }
+  return data.keys
+}
+
+export async function revokeMerchantApiKey(
+  address: string,
+  keyId: number,
+  signMessage: SignMessageFn,
+): Promise<void> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/api-keys/${keyId}`, {
+    method: 'DELETE',
+    headers,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to revoke API key')
   }
 }

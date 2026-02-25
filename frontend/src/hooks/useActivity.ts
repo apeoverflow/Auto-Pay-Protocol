@@ -73,6 +73,8 @@ function dbToActivityItems(
       metadataUrl: policy?.metadata_url || undefined,
       txHash: (charge.tx_hash || '0x') as `0x${string}`,
       status: charge.status === 'success' ? 'confirmed' : 'failed',
+      receiptCid: charge.receipt_cid || null,
+      chargeDbId: charge.id,
     })
   }
 

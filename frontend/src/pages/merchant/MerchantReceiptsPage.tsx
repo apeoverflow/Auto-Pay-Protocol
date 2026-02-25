@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { Card, CardContent } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { useMerchantCharges } from '../../hooks/useMerchantCharges'
 import { useChain } from '../../hooks/useChain'
-import { Loader2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useWallet } from '../../hooks/useWallet'
+import { uploadChargeReceipts } from '../../lib/relayer'
+import { Loader2, ExternalLink, ChevronLeft, ChevronRight, Upload } from 'lucide-react'
+import { useSignMessage } from 'wagmi'
 
 const IPFS_GATEWAY = 'https://w3s.link/ipfs'
 const PAGE_SIZE = 20
@@ -32,10 +36,57 @@ function formatDate(dateStr: string | null): string {
 export function MerchantReceiptsPage() {
   const { charges, total, page, isLoading, error, setPage, refetch } = useMerchantCharges(PAGE_SIZE)
   const { chainConfig } = useChain()
+  const { address } = useWallet()
+  const { signMessageAsync } = useSignMessage()
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const explorerTxUrl = (txHash: string) =>
     `${chainConfig.explorer}/tx/${txHash}`
+
+  // Charges without a receipt CID that can be selected for upload
+  const uploadable = charges.filter((c) => !c.receiptCid && c.txHash)
+  const allSelected = uploadable.length > 0 && uploadable.every((c) => selected.has(c.id))
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(uploadable.map((c) => c.id)))
+    }
+  }
+
+  async function handleUpload() {
+    if (!address || selected.size === 0) return
+    setUploading(true)
+    setUploadError(null)
+    try {
+      await uploadChargeReceipts(
+        address,
+        Array.from(selected),
+        chainConfig.chain.id,
+        signMessageAsync,
+      )
+      setSelected(new Set())
+      refetch()
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -44,15 +95,39 @@ export function MerchantReceiptsPage() {
         <div>
           <h2 className="text-lg font-semibold">Charge Receipts</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Successful charges with IPFS receipts
+            Successful charges
           </p>
         </div>
-        {total > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {total} charge{total !== 1 ? 's' : ''}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {selected.size > 0 && (
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              disabled={uploading}
+              onClick={handleUpload}
+            >
+              {uploading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Upload className="h-3 w-3" />
+              )}
+              Upload to IPFS ({selected.size})
+            </Button>
+          )}
+          {total > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {total} charge{total !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Upload error */}
+      {uploadError && (
+        <div className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+          {uploadError}
+        </div>
+      )}
 
       {/* Loading */}
       {isLoading && (
@@ -91,6 +166,16 @@ export function MerchantReceiptsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/40">
+                  <th className="px-4 py-3 w-8">
+                    {uploadable.length > 0 && (
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        className="rounded border-border"
+                      />
+                    )}
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Date</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Subscriber</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Amount</th>
@@ -100,52 +185,65 @@ export function MerchantReceiptsPage() {
                 </tr>
               </thead>
               <tbody>
-                {charges.map((charge) => (
-                  <tr key={charge.id} className="border-b border-border/20 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 text-xs whitespace-nowrap">
-                      {formatDate(charge.completedAt)}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
-                      {truncateAddress(charge.payer)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-right tabular-nums font-medium">
-                      ${formatAmount(charge.amount)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-right tabular-nums text-muted-foreground">
-                      {charge.protocolFee ? `$${formatAmount(charge.protocolFee)}` : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      {charge.txHash ? (
-                        <a
-                          href={explorerTxUrl(charge.txHash)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline font-mono"
-                        >
-                          {truncateAddress(charge.txHash)}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      {charge.receiptCid ? (
-                        <a
-                          href={`${IPFS_GATEWAY}/${charge.receiptCid}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline"
-                        >
-                          View on IPFS
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">Pending</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {charges.map((charge) => {
+                  const canSelect = !charge.receiptCid && !!charge.txHash
+                  return (
+                    <tr key={charge.id} className="border-b border-border/20 hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 w-8">
+                        {canSelect ? (
+                          <input
+                            type="checkbox"
+                            checked={selected.has(charge.id)}
+                            onChange={() => toggleSelect(charge.id)}
+                            className="rounded border-border"
+                          />
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        {formatDate(charge.completedAt)}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs">
+                        {truncateAddress(charge.payer)}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right tabular-nums font-medium">
+                        ${formatAmount(charge.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-right tabular-nums text-muted-foreground">
+                        {charge.protocolFee ? `$${formatAmount(charge.protocolFee)}` : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {charge.txHash ? (
+                          <a
+                            href={explorerTxUrl(charge.txHash)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline font-mono"
+                          >
+                            {truncateAddress(charge.txHash)}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {charge.receiptCid ? (
+                          <a
+                            href={`${IPFS_GATEWAY}/${charge.receiptCid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            View on IPFS
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
