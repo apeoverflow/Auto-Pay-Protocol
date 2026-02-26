@@ -50,6 +50,81 @@ export async function submitSubscriberData(data: {
   }
 }
 
+// --- Checkout links ---
+
+export interface CheckoutLinkData {
+  merchant: string
+  metadataUrl: string
+  amount: string | number
+  interval: number
+  spendingCap?: string | number
+  ipfsMetadataUrl?: string | null
+  successUrl?: string | null
+  cancelUrl?: string | null
+  fields?: string
+}
+
+export async function resolveCheckoutLink(shortId: string): Promise<CheckoutLinkData> {
+  const baseUrl = RELAYER_URL
+  if (!baseUrl) {
+    throw new Error('No relayer URL configured. Set VITE_RELAYER_URL.')
+  }
+  return resolveCheckoutLinkFromUrl(baseUrl, shortId)
+}
+
+export async function resolveCheckoutLinkFromUrl(relayerBaseUrl: string, shortId: string): Promise<CheckoutLinkData> {
+  // Validate the relayer URL to prevent SSRF / phishing via ?relayer= param
+  try {
+    const parsed = new URL(relayerBaseUrl)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new Error('Invalid relayer URL protocol')
+    }
+  } catch {
+    throw new Error('Invalid relayer URL')
+  }
+
+  const res = await fetch(`${relayerBaseUrl}/checkout-links/${encodeURIComponent(shortId)}`)
+  if (res.status === 404) {
+    throw new Error('Checkout link not found')
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to resolve checkout link')
+  }
+  return (await res.json()) as CheckoutLinkData
+}
+
+export interface CreateCheckoutLinkResponse {
+  shortId: string
+  isCustomRelayer: boolean
+  relayerBaseUrl: string
+}
+
+export async function createCheckoutLink(
+  address: string,
+  body: { planId: string; successUrl?: string; cancelUrl?: string; fields?: string; slug?: string },
+  signMessage: SignMessageFn,
+): Promise<CreateCheckoutLinkResponse> {
+  const { baseUrl } = resolveRelayer(address)
+  const isCustomRelayer = !!getCustomRelayerConfig(address)
+  const headers = await getAuthHeaders(address, signMessage)
+  const res = await fetch(`${baseUrl}/merchants/${encodeURIComponent(address)}/checkout-links`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to create checkout link')
+  }
+  const data = (await res.json()) as { shortId: string }
+  return {
+    shortId: data.shortId,
+    isCustomRelayer,
+    relayerBaseUrl: baseUrl,
+  }
+}
+
 // --- Subscriber list (auth-protected) ---
 
 export interface MerchantSubscriber {

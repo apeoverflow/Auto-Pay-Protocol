@@ -168,8 +168,8 @@ function App() {
     )
   }
 
-  // Fullscreen: Checkout
-  if (activeRoute === '/checkout') {
+  // Fullscreen: Checkout (both /checkout and /pay/:shortId)
+  if (activeRoute === '/checkout' || activeRoute === '/pay') {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div className="route-layer">

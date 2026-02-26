@@ -2,6 +2,7 @@ import * as React from 'react'
 import { parseUnits } from 'viem'
 import { useDisconnect } from 'wagmi'
 import { useCheckoutParams, useAuth, useWallet, useCreatePolicy } from '../hooks'
+import { useShortCheckout } from '../hooks/useShortCheckout'
 import { USDC_DECIMALS } from '../config'
 import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
 import type { CheckoutMetadata } from '../types/checkout'
@@ -22,7 +23,14 @@ import { submitSubscriberData } from '../lib/relayer'
 type Step = 'loading' | 'error' | 'plan_summary' | 'subscriber_info' | 'auth' | 'wallet_setup' | 'fund_wallet' | 'confirm' | 'processing' | 'success'
 
 export function CheckoutPage() {
-  const { params, error: paramError } = useCheckoutParams()
+  const isShortLink = window.location.pathname.startsWith('/pay/')
+  const shortCheckout = useShortCheckout()
+  const queryCheckout = useCheckoutParams()
+
+  const params = isShortLink ? shortCheckout.params : queryCheckout.params
+  const paramError = isShortLink
+    ? (shortCheckout.isLoading ? null : shortCheckout.error)
+    : queryCheckout.error
   const { isLoggedIn, username } = useAuth()
   const { disconnect } = useDisconnect()
   const { address, isWalletSetup, isLoading: walletLoading, balance } = useWallet()
@@ -215,6 +223,13 @@ export function CheckoutPage() {
               )}
             </div>
           </div>
+
+          {/* Custom relayer warning */}
+          {isShortLink && shortCheckout.isCustomRelayer && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-600 mb-4">
+              This checkout is served by a third-party relayer. Verify the merchant and amount before proceeding.
+            </div>
+          )}
 
           {/* Step content */}
           {step === 'loading' && <LoadingStep />}

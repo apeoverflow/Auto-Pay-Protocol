@@ -286,6 +286,7 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
           onOpenChange={(open) => { if (!open) setSharePlanId(null) }}
           plan={sharePlan}
           merchantAddress={address}
+          signMessage={signMessageAsync}
         />
       )}
     </div>

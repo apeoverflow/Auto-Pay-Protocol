@@ -4,6 +4,7 @@ import { getChargesByMerchant, getChargesByIdsForMerchant, getChargesByIdsForPay
 import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus, VALID_SUBSCRIBER_FIELDS } from '../db/metadata.js'
 import { insertSubscriberData, getSubscribersByMerchant } from '../db/subscribers.js'
 import { createApiKey, validateApiKey, listApiKeys, revokeApiKey } from '../db/api-keys.js'
+import { generateShortId, createCheckoutLink, getCheckoutLink, getCheckoutLinksByPlan, deleteCheckoutLink, type CheckoutLinkRow } from '../db/checkout-links.js'
 import { generateMonthlyReport, type MonthlyReport } from '../reports/generate.js'
 import { getReportsByMerchant, getReport, saveReport } from '../db/reports.js'
 import { randomUUID } from 'crypto'
@@ -25,6 +26,7 @@ const logger = createLogger('api')
 const AUTH_ENABLED = process.env.AUTH_ENABLED === 'true'
 const nonceRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 10 })
 const authRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
+const checkoutLinkRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
 
 // Valid image content types for logo uploads
 // SVG intentionally excluded — serving SVGs as image/svg+xml is an XSS vector
@@ -413,6 +415,10 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantApiKeys: '/merchants/:address/api-keys',
             merchantApiKeyCreate: 'POST /merchants/:address/api-keys',
             merchantApiKeyRevoke: 'DELETE /merchants/:address/api-keys/:id',
+            checkoutLinkResolve: '/checkout-links/:shortId',
+            merchantCheckoutLinks: '/merchants/:address/checkout-links',
+            merchantCheckoutLinkCreate: 'POST /merchants/:address/checkout-links',
+            merchantCheckoutLinkDelete: 'DELETE /merchants/:address/checkout-links/:shortId',
           },
         }))
         return
@@ -1182,6 +1188,229 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
       const logoMatch = path.match(/^\/logos\/([^/]+)$/)
       if (logoMatch && req.method === 'GET') {
         await handleLogo(logoMatch[1], res)
+        return
+      }
+
+      // Public: resolve checkout link
+      const checkoutLinkResolveMatch = path.match(/^\/checkout-links\/([^/]+)$/)
+      if (checkoutLinkResolveMatch && req.method === 'GET') {
+        // Rate limit public resolve endpoint (separate from auth nonce limiter)
+        const resolveIp = getClientIp(req)
+        const resolveRateResult = checkoutLinkRateLimiter.check(resolveIp)
+        if (!resolveRateResult.allowed) {
+          sendRateLimited(res, resolveRateResult)
+          return
+        }
+        const shortId = checkoutLinkResolveMatch[1]
+        // Validate shortId format (only characters from our alphabet, reasonable length)
+        // Max 48 to accommodate slug prefix (24) + dash + random (8) with margin
+        if (!/^[A-Za-z0-9_-]{1,48}$/.test(shortId)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Checkout link not found' }))
+          return
+        }
+        const link = await getCheckoutLink(config.databaseUrl, shortId)
+        if (!link) {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Checkout link not found' }))
+          return
+        }
+        // Join with plan_metadata to get full plan data
+        const plan = await getPlanMetadata(config.databaseUrl, link.plan_id, link.merchant_address)
+        if (!plan || plan.status !== 'active') {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Plan not found or not active' }))
+          return
+        }
+
+        // Use configured base URL (avoids relying on spoofable request headers)
+        const relayerBaseUrl = process.env.RELAYER_BASE_URL
+          || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`
+        const metadataUrl = `${relayerBaseUrl}/metadata/${link.merchant_address}/${link.plan_id}`
+        const intervalSeconds = plan.metadata?.billing?.interval
+          ? (({ seconds: 1, minutes: 60, daily: 86400, weekly: 604800, biweekly: 1209600, monthly: 2592000, quarterly: 7776000, yearly: 31536000 } as Record<string, number>)[plan.metadata.billing.interval] ?? 2592000)
+          : 2592000
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          merchant: link.merchant_address,
+          metadataUrl,
+          amount: plan.metadata?.billing?.amount ?? plan.amount ?? '0',
+          interval: intervalSeconds,
+          spendingCap: plan.metadata?.billing?.cap ?? plan.spending_cap ?? undefined,
+          ipfsMetadataUrl: computeIpfsMetadataUrl(plan.ipfs_cid),
+          successUrl: link.success_url ?? undefined,
+          cancelUrl: link.cancel_url ?? undefined,
+          fields: link.fields ?? undefined,
+        }))
+        return
+      }
+
+      // Merchant checkout links: create / list
+      const merchantCheckoutLinksMatch = path.match(/^\/merchants\/(0x[a-fA-F0-9]{40})\/checkout-links$/)
+      if (merchantCheckoutLinksMatch && req.method === 'POST') {
+        const address = merchantCheckoutLinksMatch[1]
+        // Auth: per-merchant API key → signature auth
+        const keyAuth = await authenticateByMerchantApiKey(req, res, config, address)
+        if (keyAuth === 'rate_limited') return
+        if (!keyAuth) {
+          if (AUTH_ENABLED) {
+            const rateResult = authRateLimiter.check(address.toLowerCase())
+            if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+            const verified = await authenticateMerchant(req, res, address)
+            if (!verified) return
+          }
+        }
+        const body = await parseBody(req)
+        const planId = body.planId as string | undefined
+        if (!planId || typeof planId !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'planId is required' }))
+          return
+        }
+        // Validate plan exists and is active
+        const plan = await getPlanMetadata(config.databaseUrl, planId, address)
+        if (!plan || plan.status !== 'active') {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Plan not found or not active' }))
+          return
+        }
+        const successUrl = typeof body.successUrl === 'string' ? body.successUrl : undefined
+        const cancelUrl = typeof body.cancelUrl === 'string' ? body.cancelUrl : undefined
+        // Validate redirect URLs to prevent open redirects
+        for (const [label, url] of [['successUrl', successUrl], ['cancelUrl', cancelUrl]] as const) {
+          if (url) {
+            try {
+              const parsed = new URL(url)
+              if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+                res.writeHead(400, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: `${label} must use http or https protocol` }))
+                return
+              }
+            } catch {
+              res.writeHead(400, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: `${label} is not a valid URL` }))
+              return
+            }
+          }
+        }
+        const fields = typeof body.fields === 'string' ? body.fields : undefined
+        // Validate fields length
+        if (fields && fields.length > 256) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'fields value too long (max 256 characters)' }))
+          return
+        }
+        // Enforce per-merchant link limit to prevent unbounded growth
+        const db = getDb(config.databaseUrl)
+        const [{ count: linkCount }] = await db<[{ count: number }]>`SELECT COUNT(*)::int AS count FROM checkout_links WHERE merchant_address = ${address.toLowerCase()}`
+        if (linkCount >= 500) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Maximum checkout links reached (500). Delete unused links first.' }))
+          return
+        }
+        // Optional base slug for the short ID (e.g. "autopay" → "autopay-xK9mZaBc")
+        const slug = typeof body.slug === 'string' ? body.slug.trim() : undefined
+        if (slug) {
+          if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,23}$/.test(slug)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Base slug must be 1-24 alphanumeric characters (plus - and _), starting with a letter or number' }))
+            return
+          }
+        }
+
+        // Generate short ID with atomic insert + collision retry (up to 3 attempts)
+        // On each collision, grow the random suffix by 1 char for more entropy
+        const baseRandomLength = 8
+        let shortId: string | null = null
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const randomPart = generateShortId(baseRandomLength + attempt)
+          const candidate = slug ? `${slug}-${randomPart}` : randomPart
+          try {
+            await createCheckoutLink(config.databaseUrl, candidate, planId, address, { successUrl, cancelUrl, fields })
+            shortId = candidate
+            break
+          } catch (err: unknown) {
+            // Retry on unique constraint violation (PK collision), rethrow others
+            const pgErr = err as { code?: string }
+            if (pgErr.code !== '23505') throw err
+            logger.warn({ candidate, attempt, suffixLength: baseRandomLength + attempt }, 'Short ID collision, retrying with longer suffix')
+          }
+        }
+        if (!shortId) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Failed to generate unique short ID' }))
+          return
+        }
+        res.writeHead(201, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ shortId, planId, merchantAddress: address.toLowerCase(), successUrl, cancelUrl, fields }))
+        return
+      }
+
+      // Merchant checkout links: list
+      if (merchantCheckoutLinksMatch && req.method === 'GET') {
+        const address = merchantCheckoutLinksMatch[1]
+        // Auth: per-merchant API key → signature auth
+        const keyAuth = await authenticateByMerchantApiKey(req, res, config, address)
+        if (keyAuth === 'rate_limited') return
+        if (!keyAuth) {
+          if (AUTH_ENABLED) {
+            const rateResult = authRateLimiter.check(address.toLowerCase())
+            if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+            const verified = await authenticateMerchant(req, res, address)
+            if (!verified) return
+          }
+        }
+        const planId = params.get('plan_id')
+        let links: CheckoutLinkRow[]
+        if (planId) {
+          links = await getCheckoutLinksByPlan(config.databaseUrl, planId, address)
+        } else {
+          const listDb = getDb(config.databaseUrl)
+          links = (await listDb`SELECT * FROM checkout_links WHERE merchant_address = ${address.toLowerCase()} ORDER BY created_at DESC LIMIT 500`) as unknown as CheckoutLinkRow[]
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(links.map((l) => ({
+          shortId: l.short_id,
+          planId: l.plan_id,
+          merchantAddress: l.merchant_address,
+          successUrl: l.success_url,
+          cancelUrl: l.cancel_url,
+          fields: l.fields,
+          createdAt: l.created_at,
+        }))))
+        return
+      }
+
+      // Merchant checkout links: delete
+      const merchantCheckoutLinkDeleteMatch = path.match(/^\/merchants\/(0x[a-fA-F0-9]{40})\/checkout-links\/([^/]+)$/)
+      if (merchantCheckoutLinkDeleteMatch && req.method === 'DELETE') {
+        const address = merchantCheckoutLinkDeleteMatch[1]
+        const shortId = merchantCheckoutLinkDeleteMatch[2]
+        // Auth: per-merchant API key → signature auth
+        const keyAuth = await authenticateByMerchantApiKey(req, res, config, address)
+        if (keyAuth === 'rate_limited') return
+        if (!keyAuth) {
+          if (AUTH_ENABLED) {
+            const rateResult = authRateLimiter.check(address.toLowerCase())
+            if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+            const verified = await authenticateMerchant(req, res, address)
+            if (!verified) return
+          }
+        }
+        if (!/^[A-Za-z0-9_-]{1,48}$/.test(shortId)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Checkout link not found' }))
+          return
+        }
+        const deleted = await deleteCheckoutLink(config.databaseUrl, shortId, address)
+        if (!deleted) {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Checkout link not found' }))
+          return
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ deleted: true }))
         return
       }
 
@@ -2079,6 +2308,7 @@ export function startApiServer(server: Server, port: number): Promise<void> {
 export function stopApiServer(server: Server): Promise<void> {
   nonceRateLimiter.destroy()
   authRateLimiter.destroy()
+  checkoutLinkRateLimiter.destroy()
   destroyAuthStore()
   return new Promise((resolve) => {
     server.close(() => {

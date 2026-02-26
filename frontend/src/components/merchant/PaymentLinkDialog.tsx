@@ -7,8 +7,8 @@ import {
   DialogDescription,
 } from '../ui/dialog'
 import { Button } from '../ui/button'
-import { Copy, Check } from 'lucide-react'
-import { getCustomRelayerConfig } from '../../lib/relayer'
+import { Copy, Check, Loader2, Link2, RefreshCw } from 'lucide-react'
+import { getCustomRelayerConfig, createCheckoutLink } from '../../lib/relayer'
 import type { PlanSummary } from '../../lib/relayer'
 
 type FieldKey = 'email' | 'name' | 'discord' | 'telegram' | 'twitter' | 'mobile'
@@ -36,16 +36,23 @@ interface PaymentLinkDialogProps {
   onOpenChange: (open: boolean) => void
   plan: PlanSummary
   merchantAddress: string
+  signMessage: (args: { message: string }) => Promise<`0x${string}`>
 }
 
-export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }: PaymentLinkDialogProps) {
+export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress, signMessage }: PaymentLinkDialogProps) {
   const [fields, setFields] = React.useState<Record<FieldKey, FieldState>>(() => {
     const initial: Record<FieldKey, FieldState> = {} as Record<FieldKey, FieldState>
     for (const key of ALL_FIELDS) initial[key] = 'off'
     return initial
   })
   const [copied, setCopied] = React.useState(false)
+  const [copiedShort, setCopiedShort] = React.useState(false)
   const [copiedBadge, setCopiedBadge] = React.useState(false)
+  const [isGenerating, setIsGenerating] = React.useState(false)
+  const [generateError, setGenerateError] = React.useState<string | null>(null)
+  const [shortUrl, setShortUrl] = React.useState<string | null>(null)
+  const [shortUrlFieldsKey, setShortUrlFieldsKey] = React.useState<string | null>(null)
+  const [slug, setSlug] = React.useState('')
 
   const cycleField = (key: FieldKey) => {
     setFields((prev) => {
@@ -79,7 +86,6 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
     params.set('success_url', `${baseUrl}/dashboard`)
     params.set('cancel_url', `${baseUrl}/dashboard`)
 
-    // Build fields param
     const fieldParts: string[] = []
     for (const key of ALL_FIELDS) {
       if (fields[key] === 'required') fieldParts.push(`${key}:r`)
@@ -92,19 +98,90 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
     return `${baseUrl}/checkout?${params.toString()}`
   }, [plan, merchantAddress, fields])
 
+  const currentFieldsKey = React.useMemo(() => {
+    const parts: string[] = []
+    for (const key of ALL_FIELDS) {
+      if (fields[key] === 'required') parts.push(`${key}:r`)
+      else if (fields[key] === 'optional') parts.push(`${key}:o`)
+    }
+    return parts.join(',')
+  }, [fields])
+
+  // Invalidate cached short URL when fields change
+  React.useEffect(() => {
+    if (shortUrl && shortUrlFieldsKey !== currentFieldsKey) {
+      setShortUrl(null)
+      setShortUrlFieldsKey(null)
+    }
+  }, [currentFieldsKey, shortUrl, shortUrlFieldsKey])
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(checkoutUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const badgeMarkdown = `[![Sponsor with AutoPay](https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA4LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=)](${checkoutUrl})`
+  const handleGenerateShortLink = async () => {
+    // If we already have a short link for this config, just copy it
+    if (shortUrl && shortUrlFieldsKey === currentFieldsKey) {
+      try {
+        await navigator.clipboard.writeText(shortUrl)
+        setCopiedShort(true)
+        setTimeout(() => setCopiedShort(false), 2000)
+      } catch { /* document not focused — user can retry */ }
+      return
+    }
+
+    setGenerateError(null)
+    setIsGenerating(true)
+    try {
+      const fieldsParam = currentFieldsKey || undefined
+      const origin = window.location.origin
+      const slugTrimmed = slug.trim() || undefined
+      const result = await createCheckoutLink(
+        merchantAddress,
+        {
+          planId: plan.id,
+          successUrl: `${origin}/dashboard`,
+          cancelUrl: `${origin}/dashboard`,
+          fields: fieldsParam,
+          slug: slugTrimmed,
+        },
+        signMessage,
+      )
+      setShortUrlFieldsKey(currentFieldsKey)
+      // For custom relayers, append ?relayer= so the frontend knows where to resolve
+      const url = result.isCustomRelayer
+        ? `${origin}/pay/${result.shortId}?relayer=${encodeURIComponent(result.relayerBaseUrl)}`
+        : `${origin}/pay/${result.shortId}`
+      setShortUrl(url)
+      // Don't auto-copy here — the signing popup steals focus so clipboard.writeText
+      // throws "Document is not focused". The user can click Copy once the URL appears.
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Failed to generate short link')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  // Badge uses the short URL if available, otherwise falls back to long URL
+  const badgeLinkUrl = shortUrl ?? checkoutUrl
+  const badgeMarkdown = `[![Sponsor with AutoPay](https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA0LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=)](${badgeLinkUrl})`
 
   const handleCopyBadge = async () => {
     await navigator.clipboard.writeText(badgeMarkdown)
     setCopiedBadge(true)
     setTimeout(() => setCopiedBadge(false), 2000)
   }
+
+  const randomSuffix = React.useMemo(() => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let s = ''
+    for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)]
+    return s
+  }, [])
+
+  const slugValid = !slug.trim() || /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,23}$/.test(slug.trim())
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,7 +221,7 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
           </p>
         </div>
 
-        {/* Generated link */}
+        {/* Payment Link (long URL) */}
         <div className="mt-4">
           <p className="text-xs font-medium text-muted-foreground mb-2">Payment Link</p>
           <div className="flex gap-2">
@@ -166,8 +243,76 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
           </div>
         </div>
 
+        {/* Short Link */}
+        <div className="mt-3">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Short Link</p>
+          {shortUrl ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={shortUrl}
+                  className="flex-1 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-mono text-foreground truncate"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 shrink-0"
+                  onClick={handleGenerateShortLink}
+                >
+                  {copiedShort ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedShort ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
+              <button
+                onClick={() => { setShortUrl(null); setShortUrlFieldsKey(null) }}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Generate a new link
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* Slug input inline with generate button */}
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs font-mono text-muted-foreground overflow-hidden">
+                  <span className="shrink-0 opacity-50">/pay/</span>
+                  <input
+                    value={slug}
+                    onChange={(e) => {
+                      setSlug(e.target.value)
+                      setShortUrl(null)
+                    }}
+                    placeholder="my-brand"
+                    className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground/40 min-w-0 flex-1"
+                  />
+                  <span className="shrink-0 opacity-30">-{randomSuffix}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 shrink-0"
+                  onClick={handleGenerateShortLink}
+                  disabled={isGenerating || !slugValid}
+                >
+                  {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                  {isGenerating ? 'Generating...' : 'Generate'}
+                </Button>
+              </div>
+              {!slugValid && (
+                <p className="text-[10px] text-destructive">Letters, numbers, hyphens, underscores only (max 24 chars).</p>
+              )}
+            </div>
+          )}
+          {generateError && (
+            <p className="text-[10px] text-destructive mt-1">{generateError}</p>
+          )}
+        </div>
+
         {/* GitHub Badge */}
-        <div className="mt-4">
+        <div className="mt-3">
           <p className="text-xs font-medium text-muted-foreground mb-2">GitHub Sponsor Badge</p>
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
             {/* Preview */}
@@ -198,7 +343,7 @@ export function PaymentLinkDialog({ open, onOpenChange, plan, merchantAddress }:
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground/60">
-              Paste into your README.md — links to your checkout page.
+              Paste into your README.md — {shortUrl ? 'uses your short link.' : 'links to your checkout page.'}
             </p>
           </div>
         </div>

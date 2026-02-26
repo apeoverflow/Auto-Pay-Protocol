@@ -19,6 +19,7 @@ export type Route =
   | '/merchant/reports'
   | '/merchant/subscribers'
   | '/merchant/settings'
+  | '/pay'
 
 type RouteLayout = 'auth' | 'dashboard' | 'fullscreen'
 
@@ -62,7 +63,7 @@ const NAV_TO_ROUTE: Record<NavItem, Route> = {
 }
 
 const VALID_ROUTES: Route[] = [
-  '/', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout',
+  '/', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout', '/pay',
   '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/receipts', '/merchant/reports', '/merchant/subscribers', '/merchant/settings',
 ]
 
@@ -70,12 +71,14 @@ function pathToRoute(pathname: string): Route {
   // Strip trailing slash (but keep "/" as-is)
   const stripped = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
   const normalized = stripped === '' ? '/' : stripped
+  // Match /pay/:shortId paths
+  if (normalized.startsWith('/pay/')) return '/pay'
   return VALID_ROUTES.includes(normalized as Route) ? (normalized as Route) : '/'
 }
 
 export function getRouteLayout(route: Route): RouteLayout {
   if (route === '/') return 'auth'
-  if (route === '/docs' || route === '/checkout') return 'fullscreen'
+  if (route === '/docs' || route === '/checkout' || route === '/pay') return 'fullscreen'
   return 'dashboard'
 }
 
