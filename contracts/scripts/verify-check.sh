@@ -29,9 +29,12 @@ if [ -n "$CHAIN" ]; then
 
     CHAIN_ID=$(echo "$CHAIN_DATA" | jq -r '.chainId')
     VERIFIER_URL=$(echo "$CHAIN_DATA" | jq -r '.verifierUrl')
+    VERIFIER_TYPE=$(echo "$CHAIN_DATA" | jq -r '.verifierType // "blockscout"')
     EXPLORER_URL=$(echo "$CHAIN_DATA" | jq -r '.blockExplorer')
+    API_KEY_ENV=$(echo "$CHAIN_DATA" | jq -r '.etherscanApiKeyEnv // empty')
 else
     CHAIN_ID="${CHAIN_ID:-747}"
+    VERIFIER_TYPE="blockscout"
 fi
 
 DEPLOYMENT_FILE="deployments/${CHAIN_ID}.json"
@@ -50,13 +53,39 @@ fi
 
 echo "Checking verification status for $CONTRACT..."
 
-RESULT=$(curl -s "${VERIFIER_URL}/v2/smart-contracts/$CONTRACT" | jq -r '.is_verified // false')
+if [ "$VERIFIER_TYPE" = "etherscan" ]; then
+    # Etherscan V2 API
+    API_KEY=""
+    if [ -n "$API_KEY_ENV" ]; then
+        API_KEY="${!API_KEY_ENV}"
+    fi
 
-if [ "$RESULT" = "true" ]; then
-    echo -e "${GREEN}Contract is verified${NC}"
-    echo "  View: ${EXPLORER_URL}/address/$CONTRACT"
+    if [ -z "$API_KEY" ]; then
+        echo -e "${RED}Error: ${API_KEY_ENV:-ETHERSCAN_API_KEY} not set in .env${NC}"
+        echo "  Get a free key at ${EXPLORER_URL}/myapikey"
+        exit 1
+    fi
+
+    RESULT=$(curl -s "${VERIFIER_URL}&module=contract&action=getabi&address=${CONTRACT}&apikey=${API_KEY}" | jq -r '.status')
+
+    if [ "$RESULT" = "1" ]; then
+        echo -e "${GREEN}Contract is verified${NC}"
+        echo "  View: ${EXPLORER_URL}/address/$CONTRACT#code"
+    else
+        echo -e "${RED}Contract is not verified${NC}"
+        echo "  Run 'make verify CHAIN=$CHAIN' to verify"
+        exit 1
+    fi
 else
-    echo -e "${RED}Contract is not verified${NC}"
-    echo "  Run 'make verify CHAIN=$CHAIN' to verify"
-    exit 1
+    # Blockscout API
+    RESULT=$(curl -s "${VERIFIER_URL}v2/smart-contracts/$CONTRACT" | jq -r '.is_verified // false')
+
+    if [ "$RESULT" = "true" ]; then
+        echo -e "${GREEN}Contract is verified${NC}"
+        echo "  View: ${EXPLORER_URL}/address/$CONTRACT"
+    else
+        echo -e "${RED}Contract is not verified${NC}"
+        echo "  Run 'make verify CHAIN=$CHAIN' to verify"
+        exit 1
+    fi
 fi

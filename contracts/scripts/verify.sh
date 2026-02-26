@@ -30,9 +30,12 @@ if [ -n "$CHAIN" ]; then
 
     CHAIN_ID=$(echo "$CHAIN_DATA" | jq -r '.chainId')
     VERIFIER_URL=$(echo "$CHAIN_DATA" | jq -r '.verifierUrl')
+    VERIFIER_TYPE=$(echo "$CHAIN_DATA" | jq -r '.verifierType // "blockscout"')
     EXPLORER_URL=$(echo "$CHAIN_DATA" | jq -r '.blockExplorer')
+    API_KEY_ENV=$(echo "$CHAIN_DATA" | jq -r '.etherscanApiKeyEnv // empty')
 else
     CHAIN_ID="${CHAIN_ID:-747}"
+    VERIFIER_TYPE="blockscout"
 fi
 
 DEPLOYMENT_FILE="deployments/${CHAIN_ID}.json"
@@ -51,20 +54,47 @@ if [ -z "$VERIFIER_URL" ]; then
     exit 1
 fi
 
-echo -e "${YELLOW}Verifying PolicyManager on Blockscout...${NC}"
+echo -e "${YELLOW}Verifying PolicyManager (${VERIFIER_TYPE})...${NC}"
 echo "  Chain ID: $CHAIN_ID"
 echo "  Contract: $CONTRACT"
 echo "  USDC: $USDC"
 echo "  Fee Recipient: $FEE_RECV"
 echo ""
 
-forge verify-contract \
-    --chain-id "$CHAIN_ID" \
-    --verifier blockscout \
-    --verifier-url "${VERIFIER_URL}" \
-    --constructor-args $(cast abi-encode "constructor(address,address)" "$USDC" "$FEE_RECV") \
-    "$CONTRACT" \
-    src/PolicyManager.sol:PolicyManager
+CONSTRUCTOR_ARGS=$(cast abi-encode "constructor(address,address)" "$USDC" "$FEE_RECV")
+
+if [ "$VERIFIER_TYPE" = "etherscan" ]; then
+    # Etherscan-compatible (Basescan, Etherscan, etc.)
+    # Resolve API key from the env var name specified in chains.json
+    API_KEY=""
+    if [ -n "$API_KEY_ENV" ]; then
+        API_KEY="${!API_KEY_ENV}"
+    fi
+
+    if [ -z "$API_KEY" ]; then
+        echo -e "${RED}Error: ${API_KEY_ENV:-ETHERSCAN_API_KEY} not set in .env${NC}"
+        echo "  Get a free key at ${EXPLORER_URL}/myapikey"
+        exit 1
+    fi
+
+    forge verify-contract \
+        --chain-id "$CHAIN_ID" \
+        --verifier etherscan \
+        --etherscan-api-key "$API_KEY" \
+        --verifier-url "${VERIFIER_URL}" \
+        --constructor-args "$CONSTRUCTOR_ARGS" \
+        "$CONTRACT" \
+        src/PolicyManager.sol:PolicyManager
+else
+    # Blockscout (Flow EVM, etc.)
+    forge verify-contract \
+        --chain-id "$CHAIN_ID" \
+        --verifier blockscout \
+        --verifier-url "${VERIFIER_URL}" \
+        --constructor-args "$CONSTRUCTOR_ARGS" \
+        "$CONTRACT" \
+        src/PolicyManager.sol:PolicyManager
+fi
 
 echo ""
 echo -e "${GREEN}Verification submitted!${NC}"
