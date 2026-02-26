@@ -4,7 +4,7 @@
 
 <p align="center">
 
-[![Sponsor with AutoPay](https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA0LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=)](https://flow.autopayprotocol.com/checkout?merchant=0x91D43BfDc698b1e510efa0811e2e07F628D02e6b&metadata_url=https%3A%2F%2Frelayer.autopayprotocol.com%2Fmetadata%2F0x91d43bfdc698b1e510efa0811e2e07f628d02e6b%2Fmain-account-plan-6s9ql&amount=0.01&interval=60&spending_cap=1000&success_url=https%3A%2F%2Fflow.autopayprotocol.com%2Fdashboard&cancel_url=https%3A%2F%2Fflow.autopayprotocol.com%2Fdashboard)
+[![Sponsor with AutoPay](https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA0LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=)](https://autopayprotocol.com/pay/sponsor-z_N_2q8a)
 
 </p>
 
