@@ -568,7 +568,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
       },
       table({ children }) {
         return (
-          <div className="my-4 overflow-x-auto rounded-lg border border-border/40 bg-background shadow-sm">
+          <div className="my-4 overflow-x-auto rounded-lg border border-border/40 bg-white shadow-sm dark:bg-card">
             <table className="w-full text-sm">{children}</table>
           </div>
         )
