@@ -48,6 +48,7 @@ Go to your relayer service > **Variables** tab > **New Variable**:
 |----------|-------|
 | `RELAYER_PRIVATE_KEY` | `0xYOUR_PRIVATE_KEY_HERE` |
 | `FLOW_EVM_RPC` | `https://mainnet.evm.nodes.onflow.org` |
+| `BASE_RPC` | `https://mainnet.base.org` (use Alchemy for reliability) |
 | `PORT` | `3001` |
 | `LOG_LEVEL` | `info` |
 | `RETRY_PRESET` | `standard` |
@@ -75,7 +76,7 @@ If using Supabase for database, also add:
 
 > **Note:** If using Railway PostgreSQL, `DATABASE_URL` is auto-injected.
 
-See the [Configuration Reference](./relayer-configuration.md) for all available options.
+See the **Configuration Reference** for all available options.
 
 ### Step 6: Deploy
 
@@ -94,19 +95,19 @@ INFO (api): API server listening on port 3001
 1. Go to your relayer service > **Settings**
 2. Scroll to **Networking** > **Public Networking**
 3. Click **Generate Domain**
-4. You'll get a URL like: `autopay-relayer-production.up.railway.app`
+4. You'll get a URL like: `your-relayer-production.up.railway.app`
 
 ### Step 8: Verify Deployment
 
 ```bash
-curl https://YOUR-RAILWAY-URL.up.railway.app/health
+curl https://YOUR-RAILWAY-URL/health
 ```
 
 ### Step 9: Fund Relayer Wallet
 
-Check deployment logs for your wallet address and fund it with native tokens for gas on the consolidation chain (e.g. FLOW on Flow EVM).
+Check deployment logs for your wallet address and fund it with native tokens for gas on each enabled consolidation chain (ETH on Base, FLOW on Flow EVM).
 
-### Step 10: Run CLI Commands
+### Step 10: Verify CLI Access
 
 Railway provides a shell for running commands:
 
@@ -115,28 +116,9 @@ Railway provides a shell for running commands:
 
 ```bash
 npm run cli -- status
-npm run cli -- merchant:add \
-  --address 0xMERCHANT_ADDRESS \
-  --webhook-url https://merchant.com/webhooks/autopay \
-  --webhook-secret their_secret_here
 ```
 
-For metadata files in Railway shell:
-
-```bash
-cat > /tmp/plan.json << 'EOF'
-{
-  "version": "1.0",
-  "plan": { "name": "Pro Plan", "description": "Premium features" },
-  "merchant": { "name": "Acme Inc", "logo": "acme-logo.png" }
-}
-EOF
-
-npm run cli -- metadata:add \
-  --id pro-plan \
-  --merchant 0xMERCHANT_ADDRESS \
-  --file /tmp/plan.json
-```
+> **Note:** Merchants configure their own webhooks and plans through the dashboard (Settings → Webhooks). The CLI `merchant:add` command is only needed for self-hosted relayers where merchants don't have dashboard access.
 
 ---
 
@@ -146,7 +128,7 @@ Use the included Docker Compose configuration to run the relayer alongside Postg
 
 ### Setup
 
-1. Create a `.env` file in the `relayer/` directory (see [Configuration Reference](./relayer-configuration.md))
+1. Create a `.env` file in the `relayer/` directory (see the **Configuration Reference**)
 
 2. Start the services:
 
@@ -246,8 +228,8 @@ Use a process manager like `pm2` or `systemd` to keep it running.
 
 - [ ] PostgreSQL set up with backups (Supabase, Neon, RDS, or self-hosted)
 - [ ] `RELAYER_PRIVATE_KEY` stored securely (not in plain text env files)
-- [ ] Private/dedicated RPC endpoint configured for the consolidation chain
-- [ ] Relayer wallet funded with native tokens for gas
+- [ ] Private/dedicated RPC endpoints configured (especially Base, where the public RPC is unreliable)
+- [ ] Relayer wallet funded with native tokens for gas on each chain (ETH on Base, FLOW on Flow EVM)
 - [ ] Auto-restart on failure (`restart: unless-stopped` in Docker, or `pm2`/`systemd`)
 - [ ] Health monitoring configured (see below)
 - [ ] Log aggregation set up for debugging
@@ -363,6 +345,6 @@ npm start
 
 ## Related Documentation
 
-- [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
-- [Running Locally](./relayer-local-setup.md) - Development environment
-- [Relayer Operations](./relayer-operations.md) - CLI commands, webhooks, metadata
+- **Configuration Reference** - All environment variables and settings
+- **Running Locally** - Development environment
+- **Relayer Operations** - CLI commands, webhooks, metadata

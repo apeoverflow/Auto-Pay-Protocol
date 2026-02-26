@@ -12,7 +12,7 @@ The example has three components that work together:
 
 ```mermaid
 graph TD
-    subgraph Relayer["Relayer :3420"]
+    subgraph Relayer["Relayer :3001"]
         G[Metadata API]
         F[Charge Executor]
     end
@@ -75,8 +75,8 @@ sequenceDiagram
     Merchant-->>User: Show plan cards
 
     User->>Frontend: Click "Subscribe" (checkout URL)
-    Frontend->>User: Passkey auth + USDC approval
-    User->>Contract: createPolicy() — first charge included
+    Frontend->>User: Connect wallet + USDC approval
+    User->>Contract: createPolicy() (first charge included)
     Contract-->>Frontend: PolicyCreated event + policyId
     Frontend->>Merchant: Redirect to /success?policy_id=...&tx_hash=...
 
@@ -96,6 +96,16 @@ sequenceDiagram
 
 ## Key Components
 
+### Checkout Flow
+
+The checkout page guides subscribers through plan review, confirmation, and payment:
+
+![Checkout - plan details](/doc-imgs/checkout-plan.png)
+
+![Checkout - confirm subscription](/doc-imgs/checkout-confirm.png)
+
+![Checkout - success](/doc-imgs/checkout-success.png)
+
 ### 1. Pricing Page (`public/index.html`)
 
 Fetches plans from the relayer's metadata API and renders cards with pricing, features, and a "Subscribe" button. The button links to the AutoPay checkout with query params:
@@ -103,7 +113,7 @@ Fetches plans from the relayer's metadata API and renders cards with pricing, fe
 ```
 https://autopayprotocol.com/checkout?
   merchant=0x2B8b...
-  metadata_url=http://localhost:3420/metadata/0x2B8b.../pro-plan
+  metadata_url=http://localhost:3001/metadata/0x2B8b.../pro-plan
   amount=0.10
   interval=60
   spending_cap=1.20
@@ -115,12 +125,12 @@ https://autopayprotocol.com/checkout?
 
 Uses Supabase Auth for email/password accounts. The auth helper (`auth.js`) provides shared functions used by all pages:
 
-- `getSession()` — current Supabase session
-- `getAccessToken()` — JWT for API calls
-- `requireAuth()` — redirects to `/login` if not signed in
-- `handleLogout()` — clears session
+- `getSession()` - current Supabase session
+- `getAccessToken()` - JWT for API calls
+- `requireAuth()` - redirects to `/login` if not signed in
+- `handleLogout()` - clears session
 
-### 3. Webhook Handler (`server.js` — POST /webhook)
+### 3. Webhook Handler (`server.js` - POST /webhook)
 
 Receives events from the relayer and updates subscriber records in Supabase.
 
@@ -153,7 +163,7 @@ const verified = verifyWebhook(payload, signature, WEBHOOK_SECRET)
 // verified.data  → { policyId, payer, amount, ... }
 ```
 
-### 4. Access Control (`server.js` — GET /api/check-access)
+### 4. Access Control (`server.js` - GET /api/check-access)
 
 Gates premium content by checking the subscriber's status in the database.
 
@@ -171,9 +181,9 @@ graph TD
     P -- No --> A4[Access denied]
 ```
 
-### 5. Policy Claiming (`server.js` — POST /api/claim-policy)
+### 5. Policy Claiming (`server.js` - POST /api/claim-policy)
 
-After checkout, the success page calls this endpoint to link the on-chain policy to the authenticated user. This handles a race condition — the user may reach the success page before the webhook arrives.
+After checkout, the success page calls this endpoint to link the on-chain policy to the authenticated user. This handles a race condition: the user may reach the success page before the webhook arrives.
 
 - If webhook already created the record: associates `user_id`
 - If webhook hasn't arrived yet: creates a placeholder that the webhook will later fill in
@@ -263,7 +273,7 @@ Plans are JSON files served by the relayer. The example includes two demo plans 
 
 - Node.js >= 20
 - AutoPay frontend available at [autopayprotocol.com](https://autopayprotocol.com)
-- Relayer running on port 3420 (`cd relayer && npm run dev`)
+- Relayer running on port 3001 (`cd relayer && npm run dev`)
 - Supabase project (for auth and subscriber tracking)
 
 ### Setup
@@ -284,12 +294,12 @@ The server starts at `http://localhost:3002`. Visit it to see the pricing page.
 
 ### Testing the Flow
 
-1. Visit `http://localhost:3002` — sign up with email/password
-2. Pick a plan — redirects to AutoPay checkout
-3. Complete checkout with passkey — creates policy on-chain
-4. Redirected to success page — policy verified and claimed
-5. Click "Access Content" — gated content unlocked
-6. Wait for the relayer to execute the next charge — `charge.succeeded` webhook arrives
+1. Visit `http://localhost:3002` and sign up with email/password
+2. Pick a plan (redirects to AutoPay checkout)
+3. Complete checkout with wallet (creates policy on-chain)
+4. Redirected to success page (policy verified and claimed)
+5. Click "Access Content" (gated content unlocked)
+6. Wait for the relayer to execute the next charge (the `charge.succeeded` webhook arrives)
 
 ---
 
@@ -298,17 +308,17 @@ The server starts at `http://localhost:3002`. Visit it to see the pricing page.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3002` | Server port |
-| `MERCHANT_ADDRESS` | — | Your wallet address for receiving payments |
+| `MERCHANT_ADDRESS` | - | Your wallet address for receiving payments |
 | `CHECKOUT_URL` | `https://autopayprotocol.com/checkout` | AutoPay frontend checkout URL |
-| `RELAYER_URL` | `http://localhost:3420` | Relayer API for metadata |
+| `RELAYER_URL` | `http://localhost:3001` | Relayer API for metadata |
 | `WEBHOOK_SECRET` | `test-secret-123` | Shared secret for webhook verification |
-| `SUPABASE_URL` | — | Supabase project URL |
-| `SUPABASE_KEY` | — | Supabase service role key (server-side) |
+| `SUPABASE_URL` | - | Supabase project URL |
+| `SUPABASE_KEY` | - | Supabase service role key (server-side) |
 
 ---
 
 ## Related Documentation
 
-- [Backend Integration Guide](./sdk-backend.md) — `@autopayprotocol/sdk` reference
-- [Merchant Guide](./merchant-guide.md) — Business-level overview
-- [Relayer Operations](./relayer-operations.md) — Registering merchants and metadata
+- **Backend Integration Guide** - `@autopayprotocol/sdk` reference
+- **Merchant Guide** - Business-level overview
+- **Relayer Operations** - Registering merchants and metadata

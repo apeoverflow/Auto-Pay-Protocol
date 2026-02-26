@@ -40,7 +40,7 @@ You handle webhooks to manage access. Everything else is automatic.
 ## Prerequisites
 
 - Node.js >= 20 (for SDK) or any HTTP server (for manual verification)
-- A webhook secret (shared with the AutoPay relayer operator during merchant registration)
+- A webhook secret (generated automatically when you configure webhooks in the merchant dashboard)
 
 ---
 
@@ -103,16 +103,21 @@ createServer((req, res) => {
 
 ---
 
-## Merchant Registration
+## Webhook Setup
 
-Before you can receive webhooks, your merchant must be registered with the AutoPay relayer. Registration links your wallet address to a webhook URL and shared secret.
+Before you can receive webhooks, configure them from the merchant dashboard:
 
-**If using a hosted relayer**, contact the relayer operator with:
-- Your wallet address (where you receive USDC)
-- Your webhook endpoint URL
-- A webhook secret (any random string you choose)
+1. Connect your merchant wallet and switch to **Merchant** mode
+2. Go to **Settings → Webhooks**
+3. Enter your webhook endpoint URL (e.g., `https://yoursite.com/webhooks/autopay`)
+4. Sign with your wallet to authenticate
+5. A webhook secret is generated automatically. Copy it for signature verification
 
-**If self-hosting**, use the relayer CLI:
+You can rotate the secret or remove the webhook at any time from the same settings page.
+
+![Webhooks settings](/doc-imgs/settings-webhooks.png)
+
+**If self-hosting a relayer**, you can also use the CLI:
 
 ```bash
 npm run cli -- merchant:add \
@@ -219,7 +224,7 @@ Every webhook is an HTTP POST with a JSON body. The `event` field identifies the
   "timestamp": "2026-02-05T12:00:00.000Z",
   "data": {
     "policyId": "0x1234...abcd",
-    "chainId": 5042002,
+    "chainId": 747,
     "payer": "0xPAYER_ADDRESS",
     "merchant": "0xMERCHANT_ADDRESS",
     "amount": "10000000",
@@ -342,8 +347,9 @@ If your endpoint fails to respond with a 2xx status code, delivery is retried:
 | 1st | Immediate |
 | 2nd | After ~1 minute |
 | 3rd | After ~5 minutes |
+| 4th | After ~15 minutes |
 
-Timeout is 10 seconds per attempt. Always respond `200` promptly, even if you process the event asynchronously.
+After 3 failed retries, the webhook is marked as permanently failed. Timeout is 10 seconds per attempt. Always respond `200` promptly, even if you process the event asynchronously.
 
 ---
 
@@ -407,7 +413,7 @@ server.listen(PORT, () => {
 })
 ```
 
-For a full merchant server with checkout URLs, auth, access gating, and database tracking, see the [Checkout Example](./merchant-checkout-example.md).
+For a full merchant server with checkout URLs, auth, access gating, and database tracking, see the **Merchant Checkout Example**.
 
 ---
 
@@ -429,13 +435,13 @@ For the full API reference, see the [SDK README](https://github.com/apeoverflow/
 
 ### Not Receiving Webhooks
 
-- Confirm your merchant is registered with the relayer operator
+- Confirm your webhook URL is configured in the merchant dashboard (**Settings → Webhooks**)
 - Ensure your webhook URL is publicly reachable (use [ngrok](https://ngrok.com) for local testing)
 - Check that you're responding with a 2xx status code within 10 seconds
 
 ### Invalid Signature Errors
 
-- Ensure `WEBHOOK_SECRET` matches what was registered during merchant setup
+- Ensure `WEBHOOK_SECRET` matches the secret shown in your merchant dashboard (**Settings → Webhooks**)
 - Verify you're computing the HMAC over the **raw request body string**, not a parsed/re-serialized JSON object
 
 ### Webhook Payloads Missing Fields
@@ -446,5 +452,5 @@ Some fields are event-specific. For example, `amount` and `protocolFee` only app
 
 ## Related Documentation
 
-- [Checkout Example](./merchant-checkout-example.md) - Full merchant server with auth, webhooks, and access gating
-- [Merchant Guide](./merchant-guide.md) - Business-level overview for non-technical stakeholders
+- **Merchant Checkout Example** - Full merchant server with auth, webhooks, and access gating
+- **Merchant Guide** - Business-level overview for non-technical stakeholders

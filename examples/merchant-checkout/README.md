@@ -13,7 +13,7 @@ GET / (plan cards)
     └──> User clicks ──────────────> Parses query params
          "Subscribe" link            Fetches plan metadata
                                      Shows plan summary
-                                     Auth (passkey)
+                                     Connect wallet (RainbowKit)
                                      Wallet setup (USDC approval)
                                      User clicks "Subscribe" ──────────> createPolicy()
                                      Processing...                        (first charge)
@@ -47,7 +47,7 @@ Opens at [http://localhost:3002](http://localhost:3002) — shows plan cards wit
 
 1. Open [http://localhost:3002](http://localhost:3002)
 2. Click "Subscribe with AutoPay" on a plan
-3. Walk through: register passkey → approve USDC → confirm subscription
+3. Walk through: connect wallet → approve USDC → confirm subscription
 4. After success: auto-redirects to merchant's success page with `policy_id`
 
 ## Chain Selection

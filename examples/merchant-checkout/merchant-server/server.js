@@ -36,7 +36,7 @@ const PORT = process.env.PORT || 3002
 const MERCHANT_ADDRESS = process.env.MERCHANT_ADDRESS || '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B'
 const CHECKOUT_URL = preset.checkoutUrl
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
-const RELAYER_URL = (process.env.RELAYER_URL || 'http://localhost:3420').trim()
+const RELAYER_URL = (process.env.RELAYER_URL || 'http://localhost:3001').trim()
 const RPC_URL = (process.env.RPC_URL || preset.rpcUrl).trim()
 const POLICY_MANAGER = (process.env.POLICY_MANAGER || preset.policyManager).trim()
 const PLAN_IDS = process.env.PLAN_IDS ? process.env.PLAN_IDS.split(',').map(s => s.trim()).filter(Boolean) : null

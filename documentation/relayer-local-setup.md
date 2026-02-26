@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks you through setting up and running the AutoPay relayer on your local machine for development and testing. The relayer indexes policy events from the consolidation chain (currently Flow EVM), executes charges when subscriptions are due, and sends webhooks to merchants.
+This guide walks you through setting up and running the AutoPay relayer on your local machine for development and testing. The relayer indexes policy events from the consolidation chains (Base Mainnet and Flow EVM), executes charges when subscriptions are due, and sends webhooks to merchants.
 
 ---
 
@@ -10,7 +10,7 @@ This guide walks you through setting up and running the AutoPay relayer on your 
 
 - **Node.js** 20+
 - **Docker** (for PostgreSQL) or a managed Postgres instance
-- **A funded wallet** with native tokens for gas on the consolidation chain (e.g. FLOW on Flow EVM)
+- **A funded wallet** with native tokens for gas on the consolidation chains (ETH on Base, FLOW on Flow EVM)
 
 ---
 
@@ -75,11 +75,15 @@ Edit `.env` with your values:
 DATABASE_URL=postgres://autopay:password@localhost:5432/autopay
 RELAYER_PRIVATE_KEY=0x...  # Your relayer wallet private key
 
-# Optional
+# Optional: RPC overrides (falls back to public RPCs)
 FLOW_EVM_RPC=https://mainnet.evm.nodes.onflow.org
+BASE_RPC=https://mainnet.base.org
 PORT=3001
 LOG_LEVEL=info
 RETRY_PRESET=standard
+
+# Optional: restrict to specific chains (default: all enabled in chains.json)
+# ENABLED_CHAINS=flowEvm,base
 ```
 
 For IPFS metadata archival (optional):
@@ -90,11 +94,11 @@ STORACHA_PRINCIPAL_KEY=...
 STORACHA_DELEGATION_PROOF=...
 ```
 
-See the [Configuration Reference](./relayer-configuration.md) for all available options.
+See the **Configuration Reference** for all available options.
 
 ### 4. Fund Your Relayer Wallet
 
-The relayer wallet pays gas for `charge()` transactions. Fund it with native tokens for the consolidation chain (e.g. FLOW on Flow EVM).
+The relayer wallet pays gas for `charge()` transactions. Fund it with native tokens for each enabled consolidation chain (ETH on Base, FLOW on Flow EVM).
 
 To find your relayer wallet address, start the relayer and check the logs:
 
@@ -115,6 +119,12 @@ Expected output:
 [migrations] Applying migration: 001_initial_schema.sql
 [migrations] Applying migration: 002_metadata.sql
 [migrations] Applying migration: 003_consecutive_failures.sql
+[migrations] Applying migration: 004_filecoin_storage.sql
+[migrations] Applying migration: 005_plan_status.sql
+[migrations] Applying migration: 006_plan_composite_key.sql
+[migrations] Applying migration: 007_report_json_cache.sql
+[migrations] Applying migration: 008_subscriber_data.sql
+[migrations] Applying migration: 010_merchant_api_keys.sql
 [migrations] All migrations complete
 ```
 
@@ -148,6 +158,11 @@ Expected output:
 ```
 === AutoPay Relayer Status ===
 
+Base (8453):
+  Last indexed block: 42560000
+  Active policies: 12
+  Pending charges: 1
+
 Flow EVM (747):
   Last indexed block: 56881090
   Active policies: 5
@@ -171,6 +186,13 @@ Expected output:
   "status": "healthy",
   "timestamp": "2026-02-05T12:00:00Z",
   "chains": {
+    "8453": {
+      "name": "Base",
+      "lastIndexedBlock": 42560000,
+      "activePolicies": 12,
+      "pendingCharges": 1,
+      "healthy": true
+    },
     "747": {
       "name": "Flow EVM",
       "lastIndexedBlock": 56881090,
@@ -258,13 +280,13 @@ docker start autopay-db
 
 ### "Insufficient funds for gas"
 
-Your relayer wallet needs native tokens for gas. Check the startup logs for your wallet address and fund it on the consolidation chain.
+Your relayer wallet needs native tokens for gas. Check the startup logs for your wallet address and fund it on each enabled consolidation chain (ETH on Base, FLOW on Flow EVM).
 
 ### "Rate limited" or "Too many requests"
 
 Some RPCs have rate limits. The relayer handles this with delays and batch sizing, but if you see issues:
 - Use a private RPC endpoint
-- The default batch size of 9,000 blocks stays within most RPC provider limits
+- Flow EVM uses a batch size of 9,000 blocks; Base uses 10 blocks (Alchemy free tier limit)
 
 ### Relayer Not Picking Up Events
 
@@ -277,6 +299,6 @@ Some RPCs have rate limits. The relayer handles this with delays and batch sizin
 
 ## Related Documentation
 
-- [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
-- [Deploying the Relayer](./relayer-deployment.md) - Deploy to production
-- [Relayer Operations](./relayer-operations.md) - CLI commands, webhooks, metadata
+- **Configuration Reference** - All environment variables and settings
+- **Deploying the Relayer** - Deploy to production
+- **Relayer Operations** - CLI commands, webhooks, metadata

@@ -10,15 +10,21 @@ This guide explains how AutoPay subscriptions work from the subscriber's perspec
 
 Connect using any Ethereum-compatible wallet via RainbowKit (MetaMask, Rabby, WalletConnect, Coinbase Wallet, and more). No special wallet or passkey required - just the browser wallet you already use.
 
+![Wallet connection modal](/doc-imgs/wallet-connect.png)
+
 ### 2. Fund Your Wallet
 
-Your wallet needs USDC on the consolidation chain (the chain where the merchant's subscriptions settle, e.g. Flow EVM). If your USDC is on another chain, use the built-in LiFi bridge widget to transfer it — 30+ source chains are supported (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more).
+Your wallet needs USDC on the consolidation chain (the chain where the merchant's subscriptions settle, e.g. Flow EVM). If your USDC is on another chain, use the built-in LiFi bridge widget to transfer it. 30+ source chains are supported (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more).
+
+![LiFi bridge widget](/doc-imgs/lifi-bridge.png)
 
 ### 3. Approve USDC Spending
 
 The first time you use AutoPay, you'll approve the AutoPay smart contract to charge USDC from your wallet. This is a one-time setup step.
 
 **Is this safe?** Yes. The smart contract can only charge you according to active subscription policies that you've created. It cannot drain your wallet or charge you arbitrary amounts. See [Safety & Protections](#safety-protections) below for details.
+
+![USDC approval screen](/doc-imgs/usdc-approval.png)
 
 ### 4. Subscribe
 
@@ -44,6 +50,8 @@ Your dashboard shows all active and past subscriptions, including:
 - Total spent vs spending cap
 - Subscription status (active, cancelled, failed)
 
+![Subscriber dashboard](/doc-imgs/subscriber-dashboard.png)
+
 ### Activity Feed
 
 The activity feed shows a chronological history of all subscription events:
@@ -55,6 +63,8 @@ The activity feed shows a chronological history of all subscription events:
 
 Each entry links to the on-chain transaction for full transparency.
 
+![Activity feed](/doc-imgs/activity-feed.png)
+
 ---
 
 ## Cancelling a Subscription
@@ -64,8 +74,10 @@ You can cancel any subscription at any time. Cancellation is **instant** - no wa
 To cancel:
 1. Go to your subscriptions dashboard
 2. Find the subscription you want to cancel
-3. Click **Cancel**
+3. Click **Cancel Subscription**
 4. Confirm the transaction in your wallet
+
+![Subscription detail with cancel button](/doc-imgs/subscription-detail.png)
 
 After cancellation:
 - No future charges will be made
@@ -144,7 +156,7 @@ When you subscribe to a 10 USDC/month plan, you pay 10 USDC. The fee breakdown i
 | Merchant receives | 9.75 USDC |
 | Protocol fee (2.5%) | 0.25 USDC |
 
-The protocol fee is included in the charge amount - you don't pay extra on top of the stated price. Gas fees for transactions are covered by the service (sponsored via a paymaster), so you don't pay those either.
+The protocol fee is included in the charge amount - you don't pay extra on top of the stated price. You'll also need a small amount of the chain's native token for gas fees (FLOW on Flow EVM, ETH on Base), typically less than $0.01 per transaction.
 
 ---
 
@@ -188,14 +200,14 @@ Yes. You can have as many active subscriptions as you want, to different merchan
 <details>
 <summary>What blockchain does this use?</summary>
 
-AutoPay deploys to **consolidation chains** — EVM chains where subscriptions settle. Currently live on **Flow EVM Mainnet** (with Base planned as the default). You can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) using the built-in LiFi bridge widget.
+AutoPay deploys to **consolidation chains** (EVM chains where subscriptions settle). Currently live on **Base Mainnet** (primary) and **Flow EVM Mainnet**. You can bridge USDC from 30+ chains (Ethereum, Arbitrum, Polygon, Optimism, Avalanche, and more) using the built-in LiFi bridge widget.
 
 </details>
 
 <details>
 <summary>Do I need ETH or other tokens for gas?</summary>
 
-No. Gas fees are sponsored - you only need USDC in your wallet.
+You'll need a tiny amount of the chain's native token for gas (FLOW on Flow EVM, ETH on Base). Gas costs are typically under $0.01 per transaction. Your main balance should be in USDC.
 
 </details>
 

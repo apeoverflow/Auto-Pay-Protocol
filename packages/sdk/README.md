@@ -24,7 +24,7 @@ If you manage plans through the [merchant dashboard](https://autopayprotocol.com
 import { createCheckoutUrlFromPlan } from '@autopayprotocol/sdk'
 
 const url = await createCheckoutUrlFromPlan({
-  relayerUrl: 'https://autopay-relayer-production.up.railway.app',
+  relayerUrl: 'https://relayer.autopayprotocol.com',
   merchant: '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B',
   planId: 'pro-plan',
   successUrl: 'https://mysite.com/success',

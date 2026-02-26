@@ -71,53 +71,43 @@ You need an Ethereum-compatible wallet address to receive payments. This can be:
 - A hardware wallet (Ledger, Trezor)
 - A software wallet (MetaMask, Coinbase Wallet)
 - A multisig (Safe)
-- Any address you control on the consolidation chain (e.g. Flow EVM)
+- Any address you control on the consolidation chain (Base or Flow EVM)
 
 > **Important:** Make sure you control the private key to this address. All payments are sent directly here.
 
-### Step 2: Register with the Relayer
+### Step 2: Connect to the Dashboard
 
-Contact the relayer operator (or self-host - see [Deployment Guide](./relayer-deployment.md)) to register your merchant. Registration requires:
+1. Visit the AutoPay app (`autopayprotocol.com` for Base, `flow.autopayprotocol.com` for Flow EVM)
+2. Connect your merchant wallet
+3. Switch to **Merchant** mode using the toggle in the header
 
-| Item | Description |
-|------|-------------|
-| **Wallet address** | Where you receive USDC payments |
-| **Webhook URL** | Your server endpoint for payment notifications |
-| **Webhook secret** | A shared secret for verifying notification authenticity |
+No registration required. Your wallet address is your merchant identity. Everything is self-service from the dashboard.
 
-The operator runs:
+![Merchant mode toggle](/doc-imgs/merchant-toggle.png)
 
-```
-merchant:add --address 0xYOUR_ADDRESS --webhook-url https://yoursite.com/webhooks/autopay --webhook-secret your_secret
-```
+### Step 3: Create Your Subscription Plans
 
-### Step 3: Set Up Your Subscription Plans
+Use the **Plan Editor** in the dashboard to create plans with a 3-step wizard:
 
-Each subscription plan needs **metadata** - the display information subscribers see during checkout:
+**Step 1 - Plan Details:**
+- Plan name and description
+- Tier label (e.g., "pro", "starter")
+- Feature list (tag-based entry)
 
-```json
-{
-  "version": "1.0",
-  "plan": {
-    "name": "Pro Plan",
-    "description": "Everything you need to succeed",
-    "tier": "pro",
-    "features": [
-      "Unlimited API calls",
-      "Priority support",
-      "Advanced analytics"
-    ]
-  },
-  "merchant": {
-    "name": "Your Company Name",
-    "logo": "your-logo.png",
-    "website": "https://yoursite.com",
-    "supportEmail": "support@yoursite.com"
-  }
-}
-```
+**Step 2 - Merchant Info:**
+- Your company/project name
+- Logo upload (PNG, JPEG, GIF, WebP)
+- Website URL and support email
+- Brand color and optional badge text (e.g., "Most Popular")
 
-The relayer operator registers this metadata and provides you with a **metadata URL** (e.g., `https://relayer.example.com/metadata/{merchant}/{planId}`). This URL is embedded in the subscription when a customer signs up.
+**Step 3 - Billing:**
+- Charge amount in USDC
+- Billing interval (daily, weekly, biweekly, monthly, quarterly, yearly)
+- Spending cap (auto-calculated to 12x the charge amount if not set)
+
+Plans start as **Draft** and can be **Published** when ready. Published plans get their metadata uploaded to IPFS (Filecoin) for immutable, verifiable storage. You can **Archive** a plan to stop new subscriptions while existing ones remain active.
+
+![Plan editor wizard](/doc-imgs/plan-editor.png)
 
 **What's on-chain vs off-chain:**
 
@@ -128,7 +118,28 @@ The relayer operator registers this metadata and provides you with a **metadata 
 | Spending cap (e.g., 180 USDC) | Your company name and logo |
 | Merchant wallet address | Support email, website link |
 
-### Step 4: Handle Webhook Notifications
+### Step 4: Share Your Checkout Link
+
+From the Plans page, click **Share** on any published plan to open the Payment Link dialog. You get:
+
+- A **checkout URL** with all plan details pre-filled. Share it anywhere.
+- **Subscriber field configuration** to choose which fields to collect (email, name, Discord, Telegram, X/Twitter, mobile) and mark each as optional or required
+- A **GitHub Sponsor badge** with copyable markdown that renders a "Sponsor with AutoPay" button in your README
+
+![Payment Link dialog](/doc-imgs/payment-link-dialog.png)
+
+### Step 5: Configure Webhooks
+
+Go to **Settings → Webhooks** to set up notifications. This is fully self-service:
+
+1. Enter your webhook URL (e.g., `https://yoursite.com/webhooks/autopay`)
+2. Sign with your wallet to authenticate
+3. A webhook secret is generated automatically. Copy it for signature verification
+4. You can rotate the secret or remove the webhook at any time
+
+![Webhooks settings](/doc-imgs/settings-webhooks.png)
+
+### Step 6: Handle Webhook Notifications
 
 When subscription events occur, AutoPay sends HTTP POST requests to your webhook URL. Your backend uses these to manage customer access.
 
@@ -143,14 +154,24 @@ When subscription events occur, AutoPay sends HTTP POST requests to your webhook
 
 Each webhook includes the subscriber's wallet address, policy ID, amounts, and a cryptographic signature you can verify for security.
 
-> **Developer needed?** Setting up a webhook endpoint requires a backend developer. Install `@autopayprotocol/sdk` for typed webhook verification, checkout URL building, and USDC amount helpers. See the [Backend Integration Guide](./sdk-backend.md) for implementation details.
+> **Developer needed?** Setting up a webhook endpoint requires a backend developer. Install `@autopayprotocol/sdk` for typed webhook verification, checkout URL building, and USDC amount helpers. See the **SDK Integration Guide** for implementation details.
 
-### Step 5: Build or Embed a Checkout Page
+### Step 7: Generate API Keys (Optional)
 
-You have three options:
+Go to **Settings → API Keys** to create keys for programmatic access:
 
-1. **Use the AutoPay frontend** - Point subscribers to the hosted checkout with your plan details pre-filled
-2. **Use `createCheckoutUrlFromPlan()`** - Build checkout URLs directly from relayer-managed plans (fetches plan data and uses the IPFS metadata URL when available):
+- Keys provide read access to your subscriber data, charges, reports, and stats
+- Use them in Discord bots, CRM integrations, or any server-side automation
+- Each key has a label (e.g., "Discord Bot") and can be revoked at any time
+- Keys use the `X-API-Key` header for authentication
+
+![API Keys settings](/doc-imgs/settings-api-keys.png)
+
+### Alternative: Build Your Own Checkout
+
+Instead of sharing the hosted checkout URL, you can build a custom checkout:
+
+1. **Use `createCheckoutUrlFromPlan()`** - Build checkout URLs directly from relayer-managed plans (fetches plan data and uses the IPFS metadata URL when available):
    ```typescript
    import { createCheckoutUrlFromPlan } from '@autopayprotocol/sdk'
    const url = await createCheckoutUrlFromPlan({
@@ -161,47 +182,91 @@ You have three options:
      cancelUrl: 'https://yoursite.com/cancel',
    })
    ```
-3. **Build your own** - See the [Checkout Example](./merchant-checkout-example.md) for a full merchant server with checkout links
+2. **Build your own** - See the **Merchant Checkout Example** for a full merchant server with checkout links
 
 ---
 
 ## Merchant Dashboard
 
-The merchant dashboard provides a self-service UI for managing your subscription business. Access it by connecting your merchant wallet and signing an authentication message.
+The merchant dashboard provides a full self-service UI for managing your subscription business. Access it by connecting your merchant wallet and switching to **Merchant** mode.
+
+### Overview
+
+The overview page shows at a glance:
+- Total plans (active + draft)
+- Active subscriber count
+- Total revenue earned
+- Recent plans with status badges
+
+![Merchant overview](/doc-imgs/merchant-overview.png)
 
 ### Plan Management
 
-Create and manage subscription plans through the dashboard UI:
+Create and manage subscription plans through a visual editor:
 
-- **Draft** plans while you configure pricing and features
-- **Activate** plans to make them available for checkout (metadata is uploaded to IPFS when Storacha is configured)
+- **Draft** plans while you configure pricing, features, and branding
+- **Publish** plans to make them available for checkout. Metadata is uploaded to IPFS (Filecoin) for immutable storage.
 - **Archive** plans to stop new subscriptions while keeping existing ones active
+- **Share** payment links and GitHub sponsor badges from any published plan
 
 Each plan has a composite key of `(planId, merchantAddress)`, so different merchants can use the same plan slug (e.g., "pro").
 
-### Dashboard Features
+![Plans page](/doc-imgs/plans-page.png)
 
-- View subscriber count and active subscription stats
-- Monitor recent charges and revenue
-- Upload merchant logos for checkout branding
-- Manage plan lifecycle (draft → active → archived)
+### Subscribers
 
-### Authenticated API
+View and manage your subscriber base:
 
-The dashboard uses EIP-191 signature authentication. Merchants sign a nonce with their wallet to prove ownership. All plan management endpoints require this authentication.
+- Paginated list of all subscribers with wallet addresses, plan, amount, and status
+- **Filter by plan** or **filter by status** (active / cancelled)
+- Expandable rows showing custom form data (email, Discord, etc.)
+- **Export CSV** with all subscriber data and custom fields
+
+![Subscribers page](/doc-imgs/subscribers-page.png)
+
+### Reports
+
+Monthly reports with detailed analytics:
+
+- **Net revenue**, gross revenue, and protocol fees for each period
+- **Charge stats**: total charges, success rate, pass/fail counts
+- **Subscriber stats**: active count, churn rate, new/cancelled breakdown
+- **Top plans** ranked by revenue with subscriber counts
+- **Download CSV** for accounting
+- **Archive to Filecoin** for immutable, verifiable record-keeping
+
+![Reports page](/doc-imgs/reports-page.png)
+
+### Receipts
+
+Charge receipt management with IPFS archival:
+
+- View all successful charges with amounts, fees, and transaction hashes
+- Select charges and **batch upload to IPFS** (Filecoin) for immutable receipts
+- View uploaded receipts via IPFS gateway links
+
+![Receipts page](/doc-imgs/receipts-page.png)
+
+### Settings
+
+Four configuration tabs:
+
+| Tab | What it does |
+|-----|-------------|
+| **API Reference** | Browse all available endpoints with an interactive simulator. Try any GET endpoint live with auto-generated temp API keys |
+| **API Keys** | Create, label, and revoke API keys for programmatic access (`X-API-Key` header) |
+| **Custom Relayer** | Override the relayer URL for self-hosted setups (saved to browser) |
+| **Webhooks** | Configure your webhook URL, view/rotate the signing secret, test delivery |
+
+![API Reference tab](/doc-imgs/settings-api-reference.png)
+
+### Authentication
+
+The dashboard uses EIP-191 wallet signature authentication. Merchants sign a nonce with their wallet to prove ownership. Plan management and webhook configuration require this signature-based auth, while read-only data endpoints accept API keys.
 
 ---
 
 ## Managing Your Business
-
-### Viewing Subscribers
-
-The relayer tracks all subscription data. You can:
-
-- Use the **merchant dashboard** to view subscribers, revenue, and charge history
-- Query the database for active subscribers, churn, and revenue
-- Use the API endpoint (`/metadata/{merchant}/{planId}`) to verify your plans are set up correctly
-- Check the relayer health endpoint to ensure the service is running
 
 ### Handling Failed Payments
 
@@ -279,7 +344,7 @@ import { verifyWebhook } from '@autopayprotocol/sdk'
 const event = verifyWebhook(rawBody, req.headers['x-autopay-signature'], secret)
 ```
 
-See the [Backend Integration Guide](./sdk-backend.md#signature-verification) for full details.
+See the **SDK Integration Guide** for full details.
 
 ### Wallet Security
 
@@ -304,7 +369,7 @@ For full control, you can run your own relayer instance. This gives you:
 - Ability to customize retry behavior and charge timing
 - Your own API and health monitoring
 
-See the [Deployment Guide](./relayer-deployment.md) for setup instructions. A basic deployment costs $5–20/month on Railway or Docker.
+See the **Relayer Deployment** guide for setup instructions. A basic deployment costs $5–20/month on Railway or Docker.
 
 ---
 
@@ -314,7 +379,7 @@ See the [Deployment Guide](./relayer-deployment.md) for setup instructions. A ba
 
 Don't want to self-host? **Relayer as a Service** will be a managed relayer that you can deploy from the AutoPay dashboard.
 
-Self-hosting remains free — you only pay the 2.5% protocol fee on charges. See the [Deployment Guide](./relayer-deployment.md) for self-hosting instructions.
+Self-hosting remains free. You only pay the 2.5% protocol fee on charges. See the **Relayer Deployment** guide for self-hosting instructions.
 
 ---
 
@@ -365,7 +430,7 @@ You cannot change the price of existing subscriptions - the charge amount is loc
 <details>
 <summary>What chains are supported?</summary>
 
-AutoPay deploys to **consolidation chains** — EVM chains where subscriptions settle. Currently live on **Flow EVM Mainnet**, with Base planned as the default. Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) via the built-in [LiFi](https://li.fi) bridge widget.
+AutoPay deploys to **consolidation chains** (EVM chains where subscriptions settle). Currently live on **Base Mainnet** (primary) and **Flow EVM Mainnet**. Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Polygon, Optimism, Avalanche, and more) via the built-in [LiFi](https://li.fi) bridge widget.
 
 </details>
 

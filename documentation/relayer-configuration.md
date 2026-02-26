@@ -13,6 +13,8 @@ The AutoPay relayer is configured entirely through environment variables. This r
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string |
 | `RELAYER_PRIVATE_KEY` | Yes | - | Wallet private key (must start with `0x`) |
 | `FLOW_EVM_RPC` | No | `https://mainnet.evm.nodes.onflow.org` | Flow EVM Mainnet RPC URL |
+| `BASE_RPC` | No | `https://mainnet.base.org` | Base Mainnet RPC URL |
+| `ENABLED_CHAINS` | No | *(all enabled in chains.json)* | Override enabled chains (e.g., `flowEvm,base`) |
 | `PORT` | No | `3001` | API server port |
 | `LOG_LEVEL` | No | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `RETRY_PRESET` | No | `standard` | Retry preset: `aggressive`, `standard`, `conservative`, `custom` |
@@ -25,6 +27,7 @@ The AutoPay relayer is configured entirely through environment variables. This r
 | `STORACHA_PRINCIPAL_KEY` | No | - | Ed25519 DID key for Storacha (IPFS + Filecoin) |
 | `STORACHA_DELEGATION_PROOF` | No | - | Base64-encoded delegation CAR for Storacha |
 | `IPFS_GATEWAY` | No | `https://w3s.link` | IPFS gateway for resolving CIDs |
+| `STATS_API_KEY` | No | - | Global API key for stats/subscriber endpoints (alternative to signature auth) |
 | `AUTH_ENABLED` | No | `false` | Enable EIP-191 signature auth for plan management |
 
 ---
@@ -38,12 +41,12 @@ DATABASE_URL=postgres://autopay:password@localhost:5432/autopay
 # Relayer wallet private key (must have native tokens for gas)
 RELAYER_PRIVATE_KEY=0x...
 
-# RPC URLs (Flow EVM is the current consolidation chain)
+# RPC URLs (both consolidation chains are enabled by default)
 FLOW_EVM_RPC=https://mainnet.evm.nodes.onflow.org
+BASE_RPC=https://mainnet.base.org
 
-# Future consolidation chains (disabled)
-# BASE_RPC=https://mainnet.base.org
-# POLYGON_AMOY_RPC=https://rpc-amoy.polygon.technology
+# Optional: Override which chains to process (default: all enabled in chains.json)
+# ENABLED_CHAINS=flowEvm,base
 
 # Optional: Health server port
 PORT=3001
@@ -64,7 +67,7 @@ RETRY_PRESET=standard
 # When unset/empty, all merchants are processed (default)
 # MERCHANT_ADDRESSES=0xabc...,0xdef...
 
-# Optional: Logo storage (S3-compatible — Supabase Storage or equivalent)
+# Optional: Logo storage (S3-compatible, e.g. Supabase Storage)
 # Required for logo uploads. Without these, the relayer starts but logos are disabled.
 # SUPABASE_URL=https://your-project.supabase.co
 # SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
@@ -84,9 +87,24 @@ RETRY_PRESET=standard
 
 ## Chain Configuration
 
-A **consolidation chain** is any EVM chain where a PolicyManager contract is deployed and subscriptions settle. The relayer supports multiple consolidation chains simultaneously — each with its own config entry in `CHAIN_CONFIGS`.
+A **consolidation chain** is any EVM chain where a PolicyManager contract is deployed and subscriptions settle. The relayer supports multiple consolidation chains simultaneously, each with its own config entry in `CHAIN_CONFIGS`.
 
-Currently enabled: **Flow EVM Mainnet**. Base is planned as the future default.
+Currently enabled: **Base Mainnet** (primary) and **Flow EVM Mainnet**. Use the `ENABLED_CHAINS` env var to override which chains are processed (e.g., `ENABLED_CHAINS=baseSepolia` for staging).
+
+### Base Mainnet
+
+| Property | Value |
+|----------|-------|
+| Chain ID | `8453` |
+| RPC URL | `https://mainnet.base.org` |
+| PolicyManager | `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a` |
+| USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Start Block | `42554078` |
+| Poll Interval | 2 seconds |
+| Batch Size | 10 blocks |
+| Confirmations | 5 blocks |
+
+> **Note:** Base public RPC (`mainnet.base.org`) can be unreliable. Use Alchemy free tier for production. Note: it limits `eth_getLogs` to 10 blocks per request, which is why `batchSize` is set to 10.
 
 ### Flow EVM Mainnet
 
@@ -101,17 +119,19 @@ Currently enabled: **Flow EVM Mainnet**. Base is planned as the future default.
 | Batch Size | 9,000 blocks |
 | Confirmations | 2 blocks |
 
-### Arc Testnet (legacy)
+### Base Sepolia (staging)
 
 | Property | Value |
 |----------|-------|
-| Chain ID | `5042002` |
-| RPC URL | `https://rpc.testnet.arc.network` |
-| PolicyManager | `0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1` |
-| USDC | `0x3600000000000000000000000000000000000000` |
-| Start Block | `26573469` |
+| Chain ID | `84532` |
+| RPC URL | `https://sepolia.base.org` |
+| PolicyManager | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| Start Block | `38095092` |
+| Batch Size | 10,000 blocks |
+| Confirmations | 2 blocks |
 
-> Arc Testnet is not currently enabled in the relayer config but the deployment metadata is retained for reference.
+> Base Sepolia is disabled by default. Enable it for staging with `ENABLED_CHAINS=baseSepolia`.
 
 ---
 
@@ -318,6 +338,6 @@ interface RetryConfig {
 
 ## Related Documentation
 
-- [Running the Relayer Locally](./relayer-local-setup.md)
-- [Deploying the Relayer](./relayer-deployment.md)
-- [Relayer Operations](./relayer-operations.md)
+- **Running the Relayer Locally** - Development setup
+- **Deploying the Relayer** - Production deployment
+- **Relayer Operations** - CLI commands, webhooks, metadata

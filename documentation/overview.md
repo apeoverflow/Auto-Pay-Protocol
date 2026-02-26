@@ -12,10 +12,10 @@ AutoPay is a non-custodial crypto subscription payment protocol. It lets users p
 
 | If you are a... | Start here |
 |-----------------|------------|
-| **Subscriber** (paying for services) | [Subscriber Guide](./subscriber-guide.md) |
-| **Merchant / business owner** (accepting payments) | [Merchant Guide](./merchant-guide.md) |
-| **Backend developer** (handling webhook events) | [SDK Integration Guide](./sdk-backend.md) |
-| **Relayer operator** (running the charge service) | [Running Locally](./relayer-local-setup.md) or [Deployment](./relayer-deployment.md) |
+| **Subscriber** (paying for services) | Subscriber Guide |
+| **Merchant / business owner** (accepting payments) | Merchant Guide |
+| **Backend developer** (handling webhook events) | SDK Integration Guide |
+| **Relayer operator** (running the charge service) | Relayer Local Setup or Relayer Deployment |
 
 ---
 
@@ -116,20 +116,19 @@ The system has three main components:
 | Component | What it does | Who runs it |
 |-----------|-------------|-------------|
 | **Smart contract** (PolicyManager) | Stores subscription policies, executes charges, enforces limits | Deployed on-chain |
-| **Relayer** | Indexes events, triggers charges, sends webhooks, serves metadata API | Operator / self-hosted |
-| **Merchant dashboard** | Plan management, subscriber stats, plan lifecycle (draft → active → archived) | Part of the frontend |
-| **Frontend** | Subscriber UI for managing subscriptions + merchant dashboard | Hosted by merchant or AutoPay |
+| **Relayer** | Indexes events, triggers charges, sends webhooks, serves metadata & reports API | AutoPay-hosted or self-hosted |
+| **Frontend** | Subscriber UI (manage subscriptions, bridge funds) + Merchant dashboard (plans, subscribers, receipts, reports, settings) | Hosted by AutoPay |
 
 ### Current Network
 
-AutoPay deploys to **consolidation chains** — EVM chains where a PolicyManager contract is deployed and subscriptions settle. Each chain gets its own frontend deployment:
+AutoPay deploys to **consolidation chains** (EVM chains where a PolicyManager contract is deployed and subscriptions settle). Each chain gets its own frontend deployment:
 
-| Deployment | Chain | Domain |
-|------------|-------|--------|
-| **Default** | Base (coming soon) | `autopayprotocol.com` / `base.autopayprotocol.com` |
-| **Flow EVM** | Flow EVM Mainnet (747) | `flow.autopayprotocol.com` |
+| Deployment | Chain | Chain ID | Domain |
+|------------|-------|----------|--------|
+| **Base** (primary) | Base Mainnet | 8453 | `autopayprotocol.com` |
+| **Flow EVM** | Flow EVM Mainnet | 747 | `flow.autopayprotocol.com` |
 
-Cross-chain funding is powered by [LiFi](https://li.fi) — subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) to the consolidation chain where their subscription settles.
+Cross-chain funding is powered by [LiFi](https://li.fi). Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) to the consolidation chain where their subscription settles.
 
 ---
 
@@ -137,15 +136,16 @@ Cross-chain funding is powered by [LiFi](https://li.fi) — subscribers can brid
 
 ### For Developers
 
-- [SDK Integration Guide](./sdk-backend.md) - Webhook events and signature verification
-- [Relayer Operations](./relayer-operations.md) - CLI commands, metadata, merchant management
-- [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
-- [Deployment Guide](./relayer-deployment.md) - Railway, Docker, and direct deployment
+- **SDK Integration Guide** - Webhook events and signature verification
+- **Relayer Operations** - CLI commands, metadata, merchant management
+- **Relayer Configuration** - All environment variables and settings
+- **Relayer Deployment** - Railway, Docker, and direct deployment
+- **Merchant Checkout Example** - Example integration with a Node.js server
 
 ### For Non-Developers
 
-- [Subscriber Guide](./subscriber-guide.md) - How subscriptions work, cancelling, safety
-- [Merchant Guide](./merchant-guide.md) - Accepting payments, pricing, getting started
+- **Subscriber Guide** - How subscriptions work, cancelling, safety
+- **Merchant Guide** - Accepting payments, pricing, getting started
 
 ---
 

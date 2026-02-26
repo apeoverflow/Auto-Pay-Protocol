@@ -33,7 +33,7 @@ console.log()
 // The SDK fetches billing params + IPFS metadata URL automatically.
 
 const planUrl = await createCheckoutUrlFromPlan({
-  relayerUrl: 'https://autopay-relayer-production.up.railway.app',
+  relayerUrl: 'https://relayer.autopayprotocol.com',
   merchant: '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B',
   planId: 'pro-plan-5av1m',
   successUrl: 'https://mysite.com/success',

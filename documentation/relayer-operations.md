@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers day-to-day relayer operations: CLI commands, webhook management, plan metadata, logo hosting, API endpoints, and debugging. For initial setup, see [Running Locally](./relayer-local-setup.md) or [Deployment](./relayer-deployment.md).
+This guide covers day-to-day relayer operations: CLI commands, webhook management, plan metadata, logo hosting, API endpoints, and debugging. For initial setup, see the **Running Locally** or **Deployment** guides.
 
 ---
 
@@ -47,6 +47,11 @@ Output:
 ```
 === AutoPay Relayer Status ===
 
+Base (8453):
+  Last indexed block: 42560000
+  Active policies: 12
+  Pending charges: 1
+
 Flow EVM (747):
   Last indexed block: 56881090
   Active policies: 42
@@ -84,7 +89,7 @@ npm run cli -- index --chain flowEvm
 | `--chain <name>` | Chain to index | `flowEvm` |
 | `--from-block <n>` | Start from specific block | Last indexed |
 
-> **Note:** The `index` and `backfill` commands respect the `MERCHANT_ADDRESSES` filter. When set, only events for the specified merchants are processed. See the [Configuration Reference](./relayer-configuration.md#merchant-filtering).
+> **Note:** The `index` and `backfill` commands respect the `MERCHANT_ADDRESSES` filter. When set, only events for the specified merchants are processed. See the **Configuration Reference** for details.
 
 ### `backfill`
 
@@ -157,11 +162,15 @@ To change, set environment variables:
   RETRY_PRESET=aggressive|standard|conservative|custom
 ```
 
-See the [Configuration Reference](./relayer-configuration.md#retry-configuration) for full details.
+See the **Configuration Reference** for full details.
 
 ---
 
 ## Merchant Management
+
+Merchants configure their own webhooks and API keys through the **merchant dashboard** (Settings → Webhooks / API Keys). The dashboard uses the relayer's self-service API endpoints. No CLI interaction needed.
+
+For **self-hosted relayers**, the CLI is also available:
 
 ### `merchant:add`
 
@@ -180,30 +189,7 @@ npm run cli -- merchant:add \
 | `--webhook-url <url>` | Yes | URL to receive webhooks |
 | `--webhook-secret <secret>` | Yes | Secret for HMAC-SHA256 signing |
 
-The webhook secret is used to sign payloads with HMAC-SHA256. Merchants verify the signature from the `X-AutoPay-Signature` header. See the [Backend Integration Guide](./sdk-backend.md) for verification code.
-
-#### Running against a hosted relayer (Railway)
-
-If the relayer is deployed on Railway, use the Railway CLI to run commands with the production environment variables:
-
-```bash
-# Install the Railway CLI (macOS)
-brew install railway
-
-# Log in to your Railway account
-railway login
-
-# Link to the relayer service (interactive — select the project and service)
-railway link
-
-# Run the CLI command with production env vars injected
-railway run npm run cli -- merchant:add \
-  --address 0xMERCHANT_ADDRESS \
-  --webhook-url https://your-merchant-server.up.railway.app/webhook \
-  --webhook-secret your_secret_here
-```
-
-`railway run` injects the service's environment variables (including `DATABASE_URL`) so you don't need to copy credentials locally. You must run this from the `relayer/` directory.
+The webhook secret is used to sign payloads with HMAC-SHA256. Merchants verify the signature from the `X-AutoPay-Signature` header. See the **Backend Integration Guide** for verification code.
 
 ### `merchant:list`
 
@@ -359,7 +345,7 @@ Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to enable logo uploads. Witho
 Upload via the API (requires auth when `AUTH_ENABLED=true`):
 
 ```bash
-curl -X POST https://YOUR-RELAYER/logos \
+curl -X POST https://relayer.autopayprotocol.com/logos \
   -H "Content-Type: image/png" \
   -H "X-Address: 0xYOUR_ADDRESS" \
   -H "X-Signature: ..." \
@@ -400,23 +386,45 @@ All uploads are converted to WebP. Max upload size: 512KB.
 
 The relayer exposes these HTTP endpoints (default port 3001):
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/` | GET | No | Service info and available endpoints |
-| `/health` | GET | No | Health check with chain and webhook status |
-| `/metadata/:merchant/:id` | GET | No | Get specific plan metadata (merchant-scoped) |
-| `/metadata/:id` | GET | No | Legacy redirect (returns first match) |
-| `/logos/:filename` | GET | No | Serve merchant logo images |
-| `/auth/nonce` | POST | No | Request a nonce for EIP-191 signature auth |
-| `/auth/verify` | POST | No | Verify signed nonce, returns session token |
-| `/plans` | GET | Yes | List plans for authenticated merchant |
-| `/plans` | POST | Yes | Create a new plan (status: draft) |
-| `/plans/:id` | PUT | Yes | Update plan details |
-| `/plans/:id/activate` | POST | Yes | Activate plan (draft → active), uploads to IPFS |
-| `/plans/:id/archive` | POST | Yes | Archive plan (active → archived) |
-| `/logos/upload` | POST | Yes | Upload a merchant logo image |
+### Public Endpoints
 
-**Authentication:** Endpoints marked "Auth: Yes" require an `Authorization: Bearer <token>` header. Obtain a token by signing a nonce with your merchant wallet (EIP-191). See the [Merchant Guide](./merchant-guide.md#authenticated-api) for details.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Service info and available endpoints |
+| `/health` | GET | Health check with chain and webhook status |
+| `/auth/nonce?address=0x...` | GET | Request a nonce for EIP-191 signature auth |
+| `/metadata` | GET | List all active plan metadata |
+| `/metadata/:merchant/:id` | GET | Get specific plan metadata (merchant-scoped) |
+| `/metadata/:id` | GET | Legacy redirect (returns first match) |
+| `/logos/:filename` | GET | Serve merchant logo images |
+
+### Authenticated Endpoints (Signature or API Key)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/merchants/:address/plans` | GET | List merchant's plans (filter by status) |
+| `/merchants/:address/plans` | POST | Create a new plan (status: draft) |
+| `/merchants/:address/plans/:id` | PUT/PATCH | Update plan details |
+| `/merchants/:address/plans/:id` | DELETE | Delete a plan |
+| `/merchants/:address/stats` | GET | Merchant statistics (revenue, subscribers, charges) |
+| `/merchants/:address/charges` | GET | Paginated charge history |
+| `/merchants/:address/subscribers` | GET | Paginated subscriber list (filter by plan, status) |
+| `/merchants/:address/reports` | GET | List monthly reports |
+| `/merchants/:address/reports/:period` | GET | Get report detail for a period |
+| `/merchants/:address/reports/:period/csv` | GET | Download report as CSV |
+| `/merchants/:address/reports/generate` | POST | Generate on-demand report |
+| `/merchants/:address/receipts/upload` | POST | Batch upload charge receipts to IPFS |
+| `/merchants/:address/webhook` | GET/PUT/DELETE | Get, configure, or delete webhook |
+| `/merchants/:address/webhook/rotate-secret` | POST | Rotate webhook signing secret |
+| `/merchants/:address/api-keys` | GET/POST | List or create API keys |
+| `/merchants/:address/api-keys/:id` | DELETE | Revoke an API key |
+| `/logos` | POST | Upload a merchant logo image |
+| `/subscribers` | POST | Submit subscriber form data (checkout integration) |
+| `/payers/:address/receipts/upload` | POST | Payer-initiated receipt upload to IPFS |
+
+**Authentication:** Authenticated endpoints require one of:
+- **EIP-191 signature headers**: `X-Address`, `X-Nonce`, `X-Signature` (sign a nonce from `/auth/nonce`)
+- **API key header**: `X-API-Key: sk_live_...` (created via `/merchants/:address/api-keys`)
 
 **Rate limiting:** All endpoints are rate-limited. Authenticated endpoints allow higher limits.
 
@@ -429,6 +437,13 @@ All endpoints return JSON and include CORS headers (`Access-Control-Allow-Origin
   "status": "healthy",
   "timestamp": "2026-02-05T12:00:00Z",
   "chains": {
+    "8453": {
+      "name": "Base",
+      "lastIndexedBlock": 42560000,
+      "activePolicies": 12,
+      "pendingCharges": 1,
+      "healthy": true
+    },
     "747": {
       "name": "Flow EVM",
       "lastIndexedBlock": 56900000,
@@ -533,9 +548,21 @@ npm run cli -- start
 
 ---
 
-## Complete Merchant Setup Example
+## Merchant Onboarding
 
-End-to-end walkthrough for onboarding a new merchant:
+### Self-Service (Dashboard)
+
+Merchants onboard themselves entirely through the dashboard. No relayer operator interaction needed:
+
+1. Connect wallet → switch to **Merchant** mode
+2. Create plans via the **Plan Editor** (3-step wizard)
+3. Publish plans → metadata uploaded to IPFS automatically
+4. Configure webhooks in **Settings → Webhooks** (sign with wallet)
+5. Create API keys in **Settings → API Keys** for programmatic access
+
+### CLI Setup (Self-Hosted Relayers)
+
+For self-hosted relayers, use the CLI to register merchants:
 
 ```bash
 # 1. Register the merchant's webhook
@@ -606,7 +633,7 @@ npm run cli -- merchant:list
 
 ## Related Documentation
 
-- [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
-- [Running Locally](./relayer-local-setup.md) - Development setup
-- [Deploying the Relayer](./relayer-deployment.md) - Production deployment
-- [Backend Integration Guide](./sdk-backend.md) - Webhook handling for merchants
+- **Configuration Reference** - All environment variables and settings
+- **Running Locally** - Development setup
+- **Deploying the Relayer** - Production deployment
+- **Backend Integration Guide** - Webhook handling for merchants
