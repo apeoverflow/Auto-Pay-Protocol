@@ -41,13 +41,14 @@ The core AutoPay checkout and relayer are **not** responsible for managing Disco
 
 That's it. AutoPay stays a payment protocol. Discord integration is a consumer of AutoPay events, not part of the core product.
 
-### Discord Gating Service (Separate Platform)
+### Discord Gating Service (Separate Repo)
 
-A standalone service that integrates with AutoPay to manage Discord roles. This can be:
+A standalone open-source service in its own repository (`autopay-discord-gating` or similar) that integrates with AutoPay to manage Discord roles.
 
-- A separate deployable that relayer operators opt into
-- Hosted on its own infrastructure (separate repo, separate deployment)
-- Consumed by self-hosted relayers who provide their own Discord bot credentials
+- **Separate repo, separate deployment** — independent release cycle from core AutoPay
+- **Open source** — operators need to trust what has `MANAGE_ROLES` on their server; consistent with AutoPay's open-source positioning
+- **Self-contained** — anyone can fork, deploy, and customize without touching the AutoPay monorepo
+- **Extensible pattern** — establishes the template for future gating integrations (Telegram, Slack, etc.) as their own repos
 
 ```
 ┌─────────────────────────────────────────────────────┐
