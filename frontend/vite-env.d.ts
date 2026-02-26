@@ -5,6 +5,11 @@ declare module '*.md?raw' {
   export default content
 }
 
+declare module 'mermaid/dist/mermaid.esm.min.mjs' {
+  import mermaid from 'mermaid'
+  export default mermaid
+}
+
 interface ImportMetaEnv {
   readonly VITE_CLIENT_KEY: string
   readonly VITE_CLIENT_URL: string

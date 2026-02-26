@@ -2,7 +2,7 @@ import * as React from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import mermaid from 'mermaid'
+import mermaid from 'mermaid/dist/mermaid.esm.min.mjs'
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript'
@@ -583,9 +583,12 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
           </th>
         )
       },
+      tr({ children }) {
+        return <tr className="even:bg-muted/15">{children}</tr>
+      },
       td({ children }) {
         return (
-          <td className="border-t border-border/30 px-4 py-2.5 text-foreground/80">{children}</td>
+          <td className="border-t border-border/20 px-4 py-2.5 text-foreground/70">{children}</td>
         )
       },
       blockquote({ children }) {
