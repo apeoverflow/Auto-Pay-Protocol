@@ -18,7 +18,7 @@ function loadMigrations(): Migration[] {
 
   // Load SQL migration files
   // 009 was removed (receipt_upload_status — never deployed to production, replaced by on-demand upload)
-  const files = ['001_initial_schema.sql', '002_metadata.sql', '003_consecutive_failures.sql', '004_filecoin_storage.sql', '005_plan_status.sql', '006_plan_composite_key.sql', '007_report_json_cache.sql', '008_subscriber_data.sql', '010_merchant_api_keys.sql', '011_checkout_links.sql']
+  const files = ['001_initial_schema.sql', '002_metadata.sql', '003_consecutive_failures.sql', '004_filecoin_storage.sql', '005_plan_status.sql', '006_plan_composite_key.sql', '007_report_json_cache.sql', '008_subscriber_data.sql', '010_merchant_api_keys.sql', '011_checkout_links.sql', '012_enable_rls.sql']
 
   for (const file of files) {
     const sql = readFileSync(join(__dirname, file), 'utf-8')
