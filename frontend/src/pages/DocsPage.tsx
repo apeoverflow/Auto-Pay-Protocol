@@ -613,6 +613,13 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
       strong({ children }) {
         return <strong className="font-semibold text-foreground">{children}</strong>
       },
+      img({ src, alt, ...props }) {
+        return (
+          <span className="my-4 flex justify-center">
+            <img src={src} alt={alt} className="max-w-full rounded-lg border border-border/30 shadow-sm" {...props} />
+          </span>
+        )
+      },
     }),
     [navigateTo]
   )

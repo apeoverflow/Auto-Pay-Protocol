@@ -319,6 +319,6 @@ The server starts at `http://localhost:3002`. Visit it to see the pricing page.
 
 ## Related Documentation
 
-- **Backend Integration Guide** - `@autopayprotocol/sdk` reference
-- **Merchant Guide** - Business-level overview
-- **Relayer Operations** - Registering merchants and metadata
+- [Backend Integration Guide](./sdk-backend.md) - `@autopayprotocol/sdk` reference
+- [Merchant Guide](./merchant-guide.md) - Business-level overview
+- [Relayer Operations](./relayer-operations.md) - Registering merchants and metadata

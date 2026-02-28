@@ -76,7 +76,7 @@ If using Supabase for database, also add:
 
 > **Note:** If using Railway PostgreSQL, `DATABASE_URL` is auto-injected.
 
-See the **Configuration Reference** for all available options.
+See the [Configuration Reference](./relayer-configuration.md) for all available options.
 
 ### Step 6: Deploy
 
@@ -128,7 +128,7 @@ Use the included Docker Compose configuration to run the relayer alongside Postg
 
 ### Setup
 
-1. Create a `.env` file in the `relayer/` directory (see the **Configuration Reference**)
+1. Create a `.env` file in the `relayer/` directory (see the [Configuration Reference](./relayer-configuration.md))
 
 2. Start the services:
 
@@ -345,6 +345,6 @@ npm start
 
 ## Related Documentation
 
-- **Configuration Reference** - All environment variables and settings
-- **Running Locally** - Development environment
-- **Relayer Operations** - CLI commands, webhooks, metadata
+- [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
+- [Running Locally](./relayer-local-setup.md) - Development environment
+- [Relayer Operations](./relayer-operations.md) - CLI commands, webhooks, metadata

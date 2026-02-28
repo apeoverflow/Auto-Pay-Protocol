@@ -413,7 +413,7 @@ server.listen(PORT, () => {
 })
 ```
 
-For a full merchant server with checkout URLs, auth, access gating, and database tracking, see the **Merchant Checkout Example**.
+For a full merchant server with checkout URLs, auth, access gating, and database tracking, see the [Merchant Checkout Example](./merchant-checkout-example.md).
 
 ---
 
@@ -452,5 +452,5 @@ Some fields are event-specific. For example, `amount` and `protocolFee` only app
 
 ## Related Documentation
 
-- **Merchant Checkout Example** - Full merchant server with auth, webhooks, and access gating
-- **Merchant Guide** - Business-level overview for non-technical stakeholders
+- [Merchant Checkout Example](./merchant-checkout-example.md) - Full merchant server with auth, webhooks, and access gating
+- [Merchant Guide](./merchant-guide.md) - Business-level overview for non-technical stakeholders

@@ -136,16 +136,16 @@ Cross-chain funding is powered by [LiFi](https://li.fi). Subscribers can bridge 
 
 ### For Developers
 
-- **SDK Integration Guide** - Webhook events and signature verification
-- **Relayer Operations** - CLI commands, metadata, merchant management
-- **Relayer Configuration** - All environment variables and settings
-- **Relayer Deployment** - Railway, Docker, and direct deployment
-- **Merchant Checkout Example** - Example integration with a Node.js server
+- [SDK Integration Guide](./sdk-backend.md) - Webhook events and signature verification
+- [Relayer Operations](./relayer-operations.md) - CLI commands, metadata, merchant management
+- [Relayer Configuration](./relayer-configuration.md) - All environment variables and settings
+- [Relayer Deployment](./relayer-deployment.md) - Railway, Docker, and direct deployment
+- [Merchant Checkout Example](./merchant-checkout-example.md) - Example integration with a Node.js server
 
 ### For Non-Developers
 
-- **Subscriber Guide** - How subscriptions work, cancelling, safety
-- **Merchant Guide** - Accepting payments, pricing, getting started
+- [Subscriber Guide](./subscriber-guide.md) - How subscriptions work, cancelling, safety
+- [Merchant Guide](./merchant-guide.md) - Accepting payments, pricing, getting started
 
 ---
 

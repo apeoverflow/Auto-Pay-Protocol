@@ -154,7 +154,7 @@ When subscription events occur, AutoPay sends HTTP POST requests to your webhook
 
 Each webhook includes the subscriber's wallet address, policy ID, amounts, and a cryptographic signature you can verify for security.
 
-> **Developer needed?** Setting up a webhook endpoint requires a backend developer. Install `@autopayprotocol/sdk` for typed webhook verification, checkout URL building, and USDC amount helpers. See the **SDK Integration Guide** for implementation details.
+> **Developer needed?** Setting up a webhook endpoint requires a backend developer. Install `@autopayprotocol/sdk` for typed webhook verification, checkout URL building, and USDC amount helpers. See the [SDK Integration Guide](./sdk-backend.md) for implementation details.
 
 ### Step 7: Generate API Keys (Optional)
 
@@ -182,7 +182,7 @@ Instead of sharing the hosted checkout URL, you can build a custom checkout:
      cancelUrl: 'https://yoursite.com/cancel',
    })
    ```
-2. **Build your own** - See the **Merchant Checkout Example** for a full merchant server with checkout links
+2. **Build your own** - See the [Merchant Checkout Example](./merchant-checkout-example.md) for a full merchant server with checkout links
 
 ---
 
@@ -344,7 +344,7 @@ import { verifyWebhook } from '@autopayprotocol/sdk'
 const event = verifyWebhook(rawBody, req.headers['x-autopay-signature'], secret)
 ```
 
-See the **SDK Integration Guide** for full details.
+See the [SDK Integration Guide](./sdk-backend.md) for full details.
 
 ### Wallet Security
 
@@ -369,7 +369,7 @@ For full control, you can run your own relayer instance. This gives you:
 - Ability to customize retry behavior and charge timing
 - Your own API and health monitoring
 
-See the **Relayer Deployment** guide for setup instructions. A basic deployment costs $5–20/month on Railway or Docker.
+See the [Relayer Deployment](./relayer-deployment.md) guide for setup instructions. A basic deployment costs $5–20/month on Railway or Docker.
 
 ---
 
@@ -379,7 +379,7 @@ See the **Relayer Deployment** guide for setup instructions. A basic deployment 
 
 Don't want to self-host? **Relayer as a Service** will be a managed relayer that you can deploy from the AutoPay dashboard.
 
-Self-hosting remains free. You only pay the 2.5% protocol fee on charges. See the **Relayer Deployment** guide for self-hosting instructions.
+Self-hosting remains free. You only pay the 2.5% protocol fee on charges. See the [Relayer Deployment](./relayer-deployment.md) guide for self-hosting instructions.
 
 ---
 

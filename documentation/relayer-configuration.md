@@ -338,6 +338,6 @@ interface RetryConfig {
 
 ## Related Documentation
 
-- **Running the Relayer Locally** - Development setup
-- **Deploying the Relayer** - Production deployment
-- **Relayer Operations** - CLI commands, webhooks, metadata
+- [Running the Relayer Locally](./relayer-local-setup.md) - Development setup
+- [Deploying the Relayer](./relayer-deployment.md) - Production deployment
+- [Relayer Operations](./relayer-operations.md) - CLI commands, webhooks, metadata

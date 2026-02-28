@@ -94,7 +94,7 @@ STORACHA_PRINCIPAL_KEY=...
 STORACHA_DELEGATION_PROOF=...
 ```
 
-See the **Configuration Reference** for all available options.
+See the [Configuration Reference](./relayer-configuration.md) for all available options.
 
 ### 4. Fund Your Relayer Wallet
 
@@ -299,6 +299,6 @@ Some RPCs have rate limits. The relayer handles this with delays and batch sizin
 
 ## Related Documentation
 
-- **Configuration Reference** - All environment variables and settings
-- **Deploying the Relayer** - Deploy to production
-- **Relayer Operations** - CLI commands, webhooks, metadata
+- [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
+- [Deploying the Relayer](./relayer-deployment.md) - Deploy to production
+- [Relayer Operations](./relayer-operations.md) - CLI commands, webhooks, metadata

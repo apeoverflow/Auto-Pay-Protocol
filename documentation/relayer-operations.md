@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers day-to-day relayer operations: CLI commands, webhook management, plan metadata, logo hosting, API endpoints, and debugging. For initial setup, see the **Running Locally** or **Deployment** guides.
+This guide covers day-to-day relayer operations: CLI commands, webhook management, plan metadata, logo hosting, API endpoints, and debugging. For initial setup, see the [Running Locally](./relayer-local-setup.md) or [Deployment](./relayer-deployment.md) guides.
 
 ---
 
@@ -89,7 +89,7 @@ npm run cli -- index --chain flowEvm
 | `--chain <name>` | Chain to index | `flowEvm` |
 | `--from-block <n>` | Start from specific block | Last indexed |
 
-> **Note:** The `index` and `backfill` commands respect the `MERCHANT_ADDRESSES` filter. When set, only events for the specified merchants are processed. See the **Configuration Reference** for details.
+> **Note:** The `index` and `backfill` commands respect the `MERCHANT_ADDRESSES` filter. When set, only events for the specified merchants are processed. See the [Configuration Reference](./relayer-configuration.md) for details.
 
 ### `backfill`
 
@@ -162,7 +162,7 @@ To change, set environment variables:
   RETRY_PRESET=aggressive|standard|conservative|custom
 ```
 
-See the **Configuration Reference** for full details.
+See the [Configuration Reference](./relayer-configuration.md) for full details.
 
 ---
 
@@ -189,7 +189,7 @@ npm run cli -- merchant:add \
 | `--webhook-url <url>` | Yes | URL to receive webhooks |
 | `--webhook-secret <secret>` | Yes | Secret for HMAC-SHA256 signing |
 
-The webhook secret is used to sign payloads with HMAC-SHA256. Merchants verify the signature from the `X-AutoPay-Signature` header. See the **Backend Integration Guide** for verification code.
+The webhook secret is used to sign payloads with HMAC-SHA256. Merchants verify the signature from the `X-AutoPay-Signature` header. See the [Backend Integration Guide](./sdk-backend.md) for verification code.
 
 ### `merchant:list`
 
@@ -633,7 +633,7 @@ npm run cli -- merchant:list
 
 ## Related Documentation
 
-- **Configuration Reference** - All environment variables and settings
-- **Running Locally** - Development setup
-- **Deploying the Relayer** - Production deployment
-- **Backend Integration Guide** - Webhook handling for merchants
+- [Configuration Reference](./relayer-configuration.md) - All environment variables and settings
+- [Running Locally](./relayer-local-setup.md) - Development setup
+- [Deploying the Relayer](./relayer-deployment.md) - Production deployment
+- [Backend Integration Guide](./sdk-backend.md) - Webhook handling for merchants
