@@ -1519,9 +1519,18 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
 
         @media (max-width: 639px) {
-          .lp-story-inner { padding: 32px 24px; }
-          .lp-story-stat { padding: 0 20px; }
-          .lp-story-stat-val { font-size: 22px; }
+          .lp-story-inner { padding: 28px 20px; }
+          .lp-story-stat-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0;
+            justify-items: center;
+          }
+          .lp-story-stat-div { display: none; }
+          .lp-story-stat { padding: 0 4px; }
+          .lp-story-stat-val { font-size: 20px; }
+          .lp-story-stat-label { font-size: 10px; text-align: center; }
+          .lp-story-quote { font-size: 17px; }
         }
 
         /* ── case studies (two-column) ── */
@@ -1933,9 +1942,34 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-stats-bar { margin-top: 40px; }
           .lp-stat { padding: 0 20px; }
           .lp-stat-val { font-size: 24px; }
-          .lp-section { padding: 64px 20px; }
-          .lp-compare-row { font-size: 13px; gap: 8px; }
-          .lp-cta { padding: 80px 20px; }
+          .lp-section { padding: 56px 16px; }
+          .lp-h2 { font-size: 28px; }
+          .lp-case-card { padding: 24px 20px; }
+          .lp-case-title { font-size: 16px; }
+          .lp-compare-head { display: none !important; }
+          .lp-compare-row {
+            grid-template-columns: 1fr;
+            gap: 6px;
+            padding: 16px 0;
+          }
+          .lp-compare-label {
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+          }
+          .lp-compare-us { font-size: 14px; }
+          .lp-compare-them { font-size: 12px; }
+          .lp-compare-pill { padding: 3px 8px; }
+          .lp-cta { padding: 64px 20px; }
+          .lp-cta-inner h2 { font-size: 28px; }
+          .lp-timeline-circle { width: 44px; height: 44px; font-size: 12px; }
+          .lp-timeline-title { font-size: 16px; }
+          .lp-timeline-desc { font-size: 13px; }
+          .lp-geo-grid { gap: 6px; }
+          .lp-geo-item { padding: 8px 10px; }
+          .lp-geo-city { font-size: 12px; }
+          .lp-geo-status { font-size: 9px; }
         }
       `}</style>
     </div>
