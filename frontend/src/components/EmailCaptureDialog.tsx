@@ -154,10 +154,7 @@ export function EmailCaptureDialog({ open, onOpenChange }: EmailCaptureDialogPro
 export function useEmailCaptureDialog() {
   const [open, setOpen] = React.useState(false)
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => setOpen(true), 1200)
-    return () => clearTimeout(timer)
-  }, [])
+  // No longer auto-opens — only shown when explicitly triggered
 
   return { open, setOpen }
 }
