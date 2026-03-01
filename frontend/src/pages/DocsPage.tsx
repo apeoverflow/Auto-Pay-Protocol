@@ -475,7 +475,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
         }
         return (
           <code
-            className="rounded bg-muted px-1.5 py-0.5 text-[0.8rem] font-mono text-foreground/90"
+            className="break-all rounded bg-muted px-1.5 py-0.5 text-[0.8rem] font-mono text-foreground/90"
             {...props}
           >
             {children}
@@ -625,7 +625,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col md:flex-row">
+    <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden md:flex-row">
       {/* Mobile dropdown */}
       <div className="flex-shrink-0 border-b border-border/50 bg-background p-3 md:hidden">
         <button
@@ -746,7 +746,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
               )}
             </div>
           )}
-          <div className="max-w-full overflow-x-hidden px-4 py-8 md:px-16 lg:px-24 xl:px-32">
+          <div className="w-full min-w-0 max-w-full break-words px-4 py-8 md:px-16 lg:px-24 xl:px-32">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
               {currentDoc.content}
             </ReactMarkdown>
@@ -771,7 +771,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
         <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]" onClick={closeSearch}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
-            className="relative w-full max-w-lg rounded-xl border border-border bg-background shadow-2xl"
+            className="relative mx-4 w-full max-w-lg rounded-xl border border-border bg-background shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Search input */}
