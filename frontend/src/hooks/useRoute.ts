@@ -3,6 +3,7 @@ import type { NavItem } from '../components/layout/Sidebar'
 
 export type Route =
   | '/'
+  | '/app'
   | '/dashboard'
   | '/subscriptions'
   | '/activity'
@@ -21,7 +22,7 @@ export type Route =
   | '/merchant/settings'
   | '/pay'
 
-type RouteLayout = 'auth' | 'dashboard' | 'fullscreen'
+type RouteLayout = 'landing' | 'auth' | 'dashboard' | 'fullscreen'
 
 const DASHBOARD_ROUTES: Route[] = [
   '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo',
@@ -63,7 +64,7 @@ const NAV_TO_ROUTE: Record<NavItem, Route> = {
 }
 
 const VALID_ROUTES: Route[] = [
-  '/', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout', '/pay',
+  '/', '/app', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout', '/pay',
   '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/receipts', '/merchant/reports', '/merchant/subscribers', '/merchant/settings',
 ]
 
@@ -77,7 +78,8 @@ function pathToRoute(pathname: string): Route {
 }
 
 export function getRouteLayout(route: Route): RouteLayout {
-  if (route === '/') return 'auth'
+  if (route === '/') return 'landing'
+  if (route === '/app') return 'auth'
   if (route === '/docs' || route === '/checkout' || route === '/pay') return 'fullscreen'
   return 'dashboard'
 }

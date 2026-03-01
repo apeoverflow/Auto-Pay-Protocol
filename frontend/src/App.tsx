@@ -14,6 +14,7 @@ import {
   BridgePage,
   DocsPage,
   CheckoutPage,
+  LandingPage,
 } from './pages'
 import {
   MerchantOverviewPage,
@@ -69,7 +70,7 @@ function App() {
   const [displayedRoute, setDisplayedRoute] = useState<Route>(route)
   const pendingRoute = useRef<Route | null>(null)
 
-  // Navigate to / when user disconnects (except on fullscreen flows like checkout)
+  // Navigate to landing when user disconnects (except on fullscreen flows like checkout)
   const wasLoggedIn = useRef(isLoggedIn)
   const routeRef = useRef(route)
   routeRef.current = route
@@ -83,8 +84,8 @@ function App() {
     wasLoggedIn.current = isLoggedIn
   }, [isLoggedIn, navigate])
 
-  // Redirect logged-in users from / to /dashboard
-  const effectiveRoute = route === '/' && isLoggedIn ? '/dashboard' : route
+  // Redirect logged-in users from /app to /dashboard
+  const effectiveRoute = route === '/app' && isLoggedIn ? '/dashboard' : route
 
   // Animated navigation between routes
   const animatedNavigate = useCallback(
@@ -125,7 +126,7 @@ function App() {
 
   // Sync displayedRoute when route changes via popstate
   if (route !== displayedRoute && phase === 'idle') {
-    const r = route === '/' && isLoggedIn ? '/dashboard' : route
+    const r = route === '/app' && isLoggedIn ? '/dashboard' : route
     if (r !== displayedRoute) {
       setDisplayedRoute(r)
     }
@@ -179,8 +180,25 @@ function App() {
     )
   }
 
+  // Landing page
+  if (activeRoute === '/') {
+    return (
+      <div className="relative min-h-screen w-screen overflow-auto">
+        <div
+          className={`route-layer ${animClass}`}
+          onAnimationEnd={onAnimationEnd}
+        >
+          <LandingPage
+            onOpenApp={() => animatedNavigate('/app')}
+            onDocs={() => animatedNavigate('/docs')}
+          />
+        </div>
+      </div>
+    )
+  }
+
   // Auth screen (not connected) — fullscreen routes handle their own auth
-  if (activeRoute === '/' || (!isLoggedIn && getRouteLayout(activeRoute) !== 'fullscreen')) {
+  if (activeRoute === '/app' || (!isLoggedIn && getRouteLayout(activeRoute) !== 'fullscreen')) {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div
