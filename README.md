@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-
-[![Sponsor with AutoPay](https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA0LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=)](https://autopayprotocol.com/pay/sponsor-z_N_2q8a)
-
+  <a href="https://autopayprotocol.com/pay/sponsor-z_N_2q8a">
+    <img src="https://img.shields.io/badge/Sponsor_with-AutoPay-0052FF?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA0LTggOHoiLz48cGF0aCBkPSJNMTAgOGw2IDQtNiA0VjgiLz48L3N2Zz4=" alt="Sponsor with AutoPay" />
+  </a>
 </p>
 
 **Non-custodial crypto subscription payments. 50% cheaper than Stripe.**
