@@ -11,6 +11,10 @@ import {
   // eslint-disable-next-line @typescript-eslint/no-deprecated
   Github,
   Package,
+  LayoutDashboard,
+  Link2,
+  Wallet,
+  Webhook,
 } from 'lucide-react'
 import {
   motion,
@@ -62,14 +66,6 @@ const cardVariants: Variants = {
     scale: 1,
     y: 0,
     transition: { type: 'spring', damping: 14, stiffness: 140 },
-  },
-}
-
-const lineVariants: Variants = {
-  hidden: { scaleX: 0 },
-  visible: {
-    scaleX: 1,
-    transition: { type: 'spring', damping: 16, stiffness: 100, delay: 0.3 },
   },
 }
 
@@ -136,9 +132,9 @@ function UsdcCoin({ size }: { size: number }) {
 /* ── USDC stream (arc paths — branch at top) ── */
 /* edge: conic-gradient start angle, tiltX/tiltY: subtle perspective tilt matching shadow direction */
 const ARC_COINS: { size: number; dur: number; spread: number; wobble: number; path: number; edge: number; tiltX: number; tiltY: number }[] = [
-  { size: 30, dur: 14, spread: -8, wobble: 28, path: 0, edge: 145, tiltX: 22, tiltY: -16 },
-  { size: 26, dur: 22, spread: 10, wobble: 32, path: 1, edge: 200, tiltX: -18, tiltY: -20 },
-  { size: 34, dur: 10, spread: -4, wobble: 30, path: 2, edge: 170, tiltX: 16, tiltY: -12 },
+  { size: 30, dur: 8, spread: -8, wobble: 24, path: 0, edge: 145, tiltX: 18, tiltY: -14 },
+  { size: 26, dur: 12, spread: 10, wobble: 29, path: 1, edge: 200, tiltX: -15, tiltY: -16 },
+  { size: 34, dur: 6, spread: -4, wobble: 26, path: 2, edge: 170, tiltX: 14, tiltY: -10 },
 ]
 
 function UsdcStream() {
@@ -167,9 +163,6 @@ function UsdcStream() {
               width: c.size,
               height: c.size,
               animationDuration: `${c.wobble}s`,
-              ['--edge' as string]: `${c.edge}deg`,
-              ['--tiltX' as string]: `${c.tiltX}deg`,
-              ['--tiltY' as string]: `${c.tiltY}deg`,
             }}
           >
             <UsdcCoin size={c.size} />
@@ -372,16 +365,35 @@ function TiltCard({
 
 /* ── Fee Waterfall visual ── */
 const WATERFALL_STEPS = [
-  { label: 'Subscriber pays', amount: '$10.00', pct: 100, color: 'var(--muted)' },
-  { label: 'Patreon / Discord takes 8–10%', amount: '−$0.80', pct: 92, color: '#DC2626' },
-  { label: 'Stripe takes 2.9% + 30¢', amount: '−$0.59', pct: 86.1, color: '#DC2626' },
-  { label: 'Creator keeps', amount: '$8.61', pct: 86.1, color: 'var(--muted)' },
+  { label: 'Subscriber pays', amount: '$10.00', numVal: 10.00, pct: 100 },
+  { label: 'Patreon / Discord takes 8–10%', amount: '−$0.80', numVal: -0.80, pct: 92 },
+  { label: 'Stripe takes 2.9% + 30¢', amount: '−$0.59', numVal: -0.59, pct: 86.1 },
+  { label: 'Creator keeps', amount: '$8.61', numVal: 8.61, pct: 86.1 },
 ]
+
+function AnimatedAmount({ value, prefix, inView, prefersReduced, delay }: { value: number; prefix?: string; inView: boolean; prefersReduced: boolean | null; delay: number }) {
+  const [display, setDisplay] = useState(prefersReduced ? value.toFixed(2) : '0.00')
+  useEffect(() => {
+    if (!inView || prefersReduced) {
+      setDisplay(value.toFixed(2))
+      return
+    }
+    const ctrl = animate(0, value, {
+      duration: 0.8,
+      delay,
+      ease: 'easeOut',
+      onUpdate: (v) => setDisplay(v.toFixed(2)),
+    })
+    return () => ctrl.stop()
+  }, [inView, value, delay, prefersReduced])
+  return <>{prefix}${display}</>
+}
 
 function FeeWaterfall() {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, amount: 0.3 })
   const prefersReduced = useReducedMotion()
+  const prevPcts = [100, 100, 92] // previous row's pct for computing red slice
   return (
     <div ref={ref} className="lp-waterfall" aria-hidden="true">
       {WATERFALL_STEPS.map((step, i) => {
@@ -395,19 +407,32 @@ function FeeWaterfall() {
             animate={inView || prefersReduced ? { opacity: 1, x: 0 } : {}}
             transition={{ type: 'spring', damping: 14, stiffness: 140, delay: i * 0.12 }}
           >
-            <span className="lp-wf-label">{step.label}</span>
-            <span className={`lp-wf-amount ${isCut ? 'lp-wf-cut' : ''} ${isLast ? 'lp-wf-final' : ''}`}>
-              {step.amount}
-            </span>
-            {!isLast && (
+            {/* Proportional background bar */}
+            <motion.div
+              className="lp-wf-bg-bar"
+              initial={{ scaleX: 0 }}
+              animate={inView || prefersReduced ? { scaleX: step.pct / 100 } : { scaleX: 0 }}
+              transition={{ type: 'spring', damping: 16, stiffness: 100, delay: i * 0.12 + 0.05 }}
+              style={{ transformOrigin: 'left' }}
+            />
+            {/* Red slice showing removed portion */}
+            {isCut && (
               <motion.div
-                className="lp-wf-bar"
-                initial={{ scaleX: 0 }}
-                animate={inView || prefersReduced ? { scaleX: step.pct / 100 } : { scaleX: 0 }}
-                transition={{ type: 'spring', damping: 16, stiffness: 100, delay: i * 0.12 + 0.1 }}
-                style={{ transformOrigin: 'left', background: isCut ? 'rgba(220,38,38,0.12)' : 'rgba(0,0,0,0.05)' }}
+                className="lp-wf-red-slice"
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={inView || prefersReduced ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
+                transition={{ type: 'spring', damping: 16, stiffness: 100, delay: i * 0.12 + 0.15 }}
+                style={{ transformOrigin: 'right', left: `${step.pct}%`, width: `${prevPcts[i] - step.pct}%` }}
               />
             )}
+            <span className="lp-wf-label">{step.label}</span>
+            <span className={`lp-wf-amount ${isCut ? 'lp-wf-cut' : ''} ${isLast ? 'lp-wf-final' : ''}`}>
+              {isLast ? (
+                <AnimatedAmount value={8.61} prefix="" inView={inView} prefersReduced={prefersReduced} delay={i * 0.12} />
+              ) : (
+                step.amount
+              )}
+            </span>
           </motion.div>
         )
       })}
@@ -419,40 +444,75 @@ function FeeWaterfall() {
         transition={{ type: 'spring', damping: 14, stiffness: 140, delay: 0.6 }}
       >
         <span className="lp-wf-alt-label">With AutoPay (2.5% flat)</span>
-        <span className="lp-wf-alt-amount">$9.75</span>
+        <span className="lp-wf-alt-amount-wrap">
+          <span className="lp-wf-alt-amount">
+            <AnimatedAmount value={9.75} prefix="" inView={inView} prefersReduced={prefersReduced} delay={0.65} />
+          </span>
+          <span className="lp-wf-savings">+$1.14/mo</span>
+        </span>
       </motion.div>
     </div>
   )
 }
 
-/* ── Timeline node for How It Works ── */
-function TimelineNode({
-  num,
-  title,
-  desc,
-}: {
-  num: string
-  title: string
-  desc: string
-}) {
-  const prefersReduced = useReducedMotion()
+/* ── Step visual vignettes ── */
+function StepVisual({ type }: { type: 'dashboard' | 'link' | 'wallet' | 'webhook' }) {
+  if (type === 'dashboard') return (
+    <div className="lp-sv lp-sv-dash">
+      <div className="lp-sv-dash-row">
+        <span className="lp-sv-dash-label">Plan name</span>
+        <span className="lp-sv-dash-val">Pro Monthly</span>
+      </div>
+      <div className="lp-sv-dash-row">
+        <span className="lp-sv-dash-label">Price</span>
+        <span className="lp-sv-dash-val lp-sv-dash-price">$49.00 <small>USDC</small></span>
+      </div>
+      <div className="lp-sv-dash-row">
+        <span className="lp-sv-dash-label">Interval</span>
+        <span className="lp-sv-dash-val">Monthly</span>
+      </div>
+      <div className="lp-sv-dash-btn">Publish Plan</div>
+    </div>
+  )
+  if (type === 'link') return (
+    <div className="lp-sv lp-sv-link">
+      <div className="lp-sv-link-bar">
+        <span className="lp-sv-link-url">autopayprotocol.com/checkout/pro-monthly</span>
+        <span className="lp-sv-link-copy">Copy</span>
+      </div>
+      <div className="lp-sv-link-or">or embed</div>
+      <div className="lp-sv-link-code">{'<a href="…">Subscribe</a>'}</div>
+    </div>
+  )
+  if (type === 'wallet') return (
+    <div className="lp-sv lp-sv-wallet">
+      <div className="lp-sv-wallet-top">
+        <div className="lp-sv-wallet-dot" />
+        <span className="lp-sv-wallet-addr">0x71C7…9a3F</span>
+        <span className="lp-sv-wallet-badge">Connected</span>
+      </div>
+      <div className="lp-sv-wallet-amount">$49.00 <small>USDC</small></div>
+      <div className="lp-sv-wallet-chains">
+        <span>Base</span><span>Flow</span><span>Arbitrum</span><span>+27</span>
+      </div>
+      <div className="lp-sv-wallet-btn">Pay Now</div>
+    </div>
+  )
   return (
-    <motion.div
-      className="lp-timeline-node"
-      variants={revealVariants}
-    >
-      <motion.div
-        className="lp-timeline-circle"
-        whileHover={prefersReduced ? {} : { scale: 1.15, boxShadow: '0 0 0 8px rgba(0,82,255,0.08), 0 0 20px rgba(0,82,255,0.15)' }}
-        transition={{ type: 'spring', damping: 12, stiffness: 200 }}
-      >
-        {num}
-      </motion.div>
-      <h3 className="lp-timeline-title">{title}</h3>
-      <p className="lp-timeline-desc">{desc}</p>
-    </motion.div>
+    <div className="lp-sv lp-sv-hook">
+      <pre className="lp-sv-hook-pre">
+        <span className="lp-syn-method">POST</span>{' '}<span className="lp-syn-url">/webhooks</span>{'\n'}
+        <span className="lp-syn-brace">{'{'}</span>{'\n'}
+        {'  '}<span className="lp-syn-key">"event"</span><span className="lp-syn-colon">:</span> <span className="lp-syn-str">"charge.succeeded"</span><span className="lp-syn-comma">,</span>{'\n'}
+        {'  '}<span className="lp-syn-key">"amount"</span><span className="lp-syn-colon">:</span> <span className="lp-syn-str">"49.00"</span><span className="lp-syn-comma">,</span>{'\n'}
+        {'  '}<span className="lp-syn-key">"payer"</span><span className="lp-syn-colon">:</span> <span className="lp-syn-str">"0x71C7…9a3F"</span>{'\n'}
+        <span className="lp-syn-brace">{'}'}</span>
+      </pre>
+    </div>
   )
 }
+
+/* StepCard is now inlined in the JSX for the staggered layout */
 
 /* ── data ── */
 
@@ -467,18 +527,111 @@ const ROWS = [
   { label: 'Source code', us: 'Open source', them: 'Proprietary' },
 ]
 
-const STEPS = [
-  { num: '01', title: 'Add the Button', desc: 'Drop a checkout button or link on your site. Two lines of code — no backend required.' },
-  { num: '02', title: 'Subscribers Pay', desc: 'Users connect any wallet and pay with USDC from 30+ chains. First charge is immediate.' },
-  { num: '03', title: 'You Get Paid', desc: 'USDC lands directly in your wallet on schedule. No holds, no intermediaries, no delays.' },
+/* ── dissolve block generator ── */
+function seededRandom(seed: number) {
+  let s = seed
+  return () => { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646 }
+}
+
+type BlkType = 'dark' | 'outline' | 'fill'
+
+function generateDissolveBlocks() {
+  const blocks: { x: number; y: number; w: number; h: number; t: BlkType }[] = []
+  const rand = seededRandom(42)
+
+  // zone weights: y-range → count, size-range, dark-probability
+  const zones = [
+    { yMin: 0, yMax: 12, count: 80, sMin: 4, sMax: 14, darkP: 0.4 },
+    { yMin: 10, yMax: 25, count: 100, sMin: 8, sMax: 24, darkP: 0.65 },
+    { yMin: 22, yMax: 40, count: 120, sMin: 14, sMax: 36, darkP: 0.8 },
+    { yMin: 36, yMax: 55, count: 140, sMin: 20, sMax: 52, darkP: 0.92 },
+  ]
+
+  for (const z of zones) {
+    for (let i = 0; i < z.count; i++) {
+      const x = rand() * 102 - 1 // -1% to 101% for edge coverage
+      const y = z.yMin + rand() * (z.yMax - z.yMin)
+      const s = z.sMin + rand() * (z.sMax - z.sMin)
+      const r = rand()
+      const t: BlkType = r < z.darkP ? 'dark' : r < z.darkP + 0.06 ? 'fill' : 'outline'
+      blocks.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, w: Math.round(s), h: Math.round(s), t })
+    }
+  }
+  return blocks
+}
+
+function generateFallingBlocks() {
+  const falls: { x: number; s: number; d: number; dl: number }[] = []
+  const rand = seededRandom(99)
+  for (let i = 0; i < 24; i++) {
+    falls.push({
+      x: rand() * 98 + 1,
+      s: 8 + Math.round(rand() * 14),
+      d: 2.4 + rand() * 2.0,
+      dl: rand() * 3.0,
+    })
+  }
+  return falls
+}
+
+const DISSOLVE_BLOCKS = generateDissolveBlocks()
+const DISSOLVE_FALLS = generateFallingBlocks()
+
+/* falling blocks for left/right gutters of comparison section */
+function generateSideFalls() {
+  const falls: { x: number; s: number; d: number; dl: number }[] = []
+  const rand = seededRandom(55)
+  for (let i = 0; i < 28; i++) {
+    // alternate left gutter (0-10%) and right gutter (90-100%)
+    const side = i % 2 === 0
+    const x = side ? rand() * 10 : 90 + rand() * 10
+    falls.push({
+      x: Math.round(x * 10) / 10,
+      s: 6 + Math.round(rand() * 12),
+      d: 3.0 + rand() * 3.0,
+      dl: rand() * 5.0,
+    })
+  }
+  return falls
+}
+const CMP_SIDE_FALLS = generateSideFalls()
+
+/* exit dissolve: dark → light at bottom of dark section */
+function generateExitBlocks() {
+  const blocks: { x: number; y: number; w: number; h: number; t: BlkType }[] = []
+  const rand = seededRandom(31)
+  // inverted: light blocks on dark bg, denser at bottom
+  const zones = [
+    { yMin: 38, yMax: 50, count: 160, sMin: 20, sMax: 52, darkP: 0.95 },
+    { yMin: 48, yMax: 62, count: 140, sMin: 14, sMax: 36, darkP: 0.85 },
+    { yMin: 60, yMax: 75, count: 100, sMin: 8, sMax: 24, darkP: 0.65 },
+    { yMin: 72, yMax: 90, count: 80, sMin: 4, sMax: 14, darkP: 0.4 },
+  ]
+  for (const z of zones) {
+    for (let i = 0; i < z.count; i++) {
+      const x = rand() * 102 - 1
+      const y = z.yMin + rand() * (z.yMax - z.yMin)
+      const s = z.sMin + rand() * (z.sMax - z.sMin)
+      const r = rand()
+      const t: BlkType = r < z.darkP ? 'dark' : r < z.darkP + 0.06 ? 'fill' : 'outline'
+      blocks.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, w: Math.round(s), h: Math.round(s), t })
+    }
+  }
+  return blocks
+}
+const EXIT_BLOCKS = generateExitBlocks()
+
+const STEPS: { num: string; title: string; desc: string; icon: typeof LayoutDashboard; visual: 'dashboard' | 'link' | 'wallet' | 'webhook' }[] = [
+  { num: '01', title: 'Create a Plan', desc: 'Set up a subscription plan in the merchant dashboard — name, price, interval. Takes 30 seconds.', icon: LayoutDashboard, visual: 'dashboard' },
+  { num: '02', title: 'Share the Link', desc: 'Copy your checkout link and drop it anywhere — your website, a button, or just send the URL directly.', icon: Link2, visual: 'link' },
+  { num: '03', title: 'Subscribers Pay', desc: 'Users connect any wallet and pay with USDC from 30+ chains. First charge is immediate, then recurring.', icon: Wallet, visual: 'wallet' },
+  { num: '04', title: 'Webhooks Fire', desc: 'Get real-time POST notifications on every charge, failure, and cancellation. Plug into your existing app logic.', icon: Webhook, visual: 'webhook' },
 ]
 
 /* ══════════════════════════════════════════════════════ */
 
 export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
   const prefersReduced = useReducedMotion()
-  const timelineRef = useRef(null)
-  const timelineInView = useInView(timelineRef, { once: true, amount: 0.3 })
 
   return (
     <div className="lp-root">
@@ -582,7 +735,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
       </section>
 
       {/* ── WHY AUTOPAY — case studies ── */}
-      <section className="lp-section">
+      <section className="lp-section lp-section-tight-bottom">
         <SectionReveal className="lp-contain">
           <motion.p variants={revealVariants} className="lp-eyebrow lp-text-center">WHY AUTOPAY</motion.p>
           <motion.h2 variants={revealVariants} className="lp-h2">
@@ -628,7 +781,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           {/* ── Two-column case studies ── */}
           <motion.div className="lp-cases" variants={containerVariants}>
             {/* Left: Fee waterfall */}
-            <TiltCard className="lp-case-card">
+            <TiltCard className="lp-case-card lp-case-fee">
               <div className="lp-case-head">
                 <BadgePercent size={16} strokeWidth={2.5} className="lp-case-icon" />
                 <span className="lp-case-tag">CASE STUDY</span>
@@ -646,37 +799,49 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             </TiltCard>
 
             {/* Right: Geography exclusion */}
-            <TiltCard className="lp-case-card">
+            <TiltCard className="lp-case-card lp-case-geo">
               <div className="lp-case-head">
-                <Globe size={16} strokeWidth={2.5} className="lp-case-icon" />
-                <span className="lp-case-tag">CASE STUDY</span>
+                <Globe size={16} strokeWidth={2.5} className="lp-case-icon lp-case-icon-geo" />
+                <span className="lp-case-tag lp-case-tag-geo">CASE STUDY</span>
               </div>
               <h3 className="lp-case-title">
                 Creators in Lagos, Bogotá, and Dhaka<br />
                 <em>can't even access</em> Stripe.
               </h3>
               <div className="lp-geo-grid" aria-hidden="true">
-                {[
-                  { city: 'Lagos', flag: '🇳🇬', status: 'Restricted' },
-                  { city: 'Bogotá', flag: '🇨🇴', status: 'Restricted' },
-                  { city: 'Dhaka', flag: '🇧🇩', status: 'Unavailable' },
-                  { city: 'Nairobi', flag: '🇰🇪', status: 'Limited' },
-                ].map((c) => (
-                  <div key={c.city} className="lp-geo-item">
-                    <span className="lp-geo-flag">{c.flag}</span>
+                {([
+                  { city: 'Lagos', status: 'Restricted', color: '#DC2626' },
+                  { city: 'Bogotá', status: 'Restricted', color: '#DC2626' },
+                  { city: 'Dhaka', status: 'Unavailable', color: '#DC2626' },
+                  { city: 'Nairobi', status: 'Limited', color: '#D97706' },
+                ] as const).map((c) => (
+                  <div key={c.city} className="lp-geo-item" style={{ borderLeftColor: c.color }}>
+                    <span className="lp-geo-dot" style={{ background: c.color }} />
                     <span className="lp-geo-city">{c.city}</span>
-                    <span className="lp-geo-status">{c.status}</span>
+                    <span className="lp-geo-status-pill" style={{ background: c.color === '#D97706' ? 'rgba(217,119,6,0.12)' : 'rgba(220,38,38,0.10)', color: c.color }}>
+                      {c.status}
+                    </span>
                   </div>
                 ))}
               </div>
               <div className="lp-geo-vs">
-                <div className="lp-geo-vs-row lp-geo-vs-bad">
-                  <X size={14} strokeWidth={2.5} />
-                  <span>Stripe: Bank account required, geography-gated, 4–7% fees</span>
+                <div className="lp-geo-vs-card lp-geo-vs-stripe">
+                  <div className="lp-geo-vs-card-head">
+                    <X size={14} strokeWidth={2.5} />
+                    <span>Stripe</span>
+                  </div>
+                  <span className="lp-geo-vs-card-line lp-geo-vs-strike">Bank account required</span>
+                  <span className="lp-geo-vs-card-line lp-geo-vs-strike">Geography-gated</span>
+                  <span className="lp-geo-vs-card-line lp-geo-vs-strike">4–7% fees</span>
                 </div>
-                <div className="lp-geo-vs-row lp-geo-vs-good">
-                  <Check size={14} strokeWidth={3} />
-                  <span>AutoPay: Any wallet, any country, 2.5% flat</span>
+                <div className="lp-geo-vs-card lp-geo-vs-autopay">
+                  <div className="lp-geo-vs-card-head">
+                    <Check size={14} strokeWidth={3} />
+                    <span>AutoPay</span>
+                  </div>
+                  <span className="lp-geo-vs-card-line">Any wallet</span>
+                  <span className="lp-geo-vs-card-line">Any country</span>
+                  <span className="lp-geo-vs-card-line">2.5% flat</span>
                 </div>
               </div>
               <div className="lp-geo-stat-callout">
@@ -684,63 +849,104 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                 <span className="lp-geo-stat-text">countries with crypto wallet access — vs 46 with full Stripe support</span>
               </div>
               <p className="lp-case-note">
-                If you have a crypto wallet, you can accept subscriptions.
-                No bank account, no KYC delays, no geography gates.
-                Creators in emerging markets keep the same 2.5% rate as everyone else.
+                Any wallet. Any country. Same rate.
               </p>
             </TiltCard>
           </motion.div>
         </SectionReveal>
       </section>
 
-      {/* ── HOW IT WORKS — connected timeline ── */}
-      <section className="lp-section lp-section-alt">
-        <SectionReveal className="lp-contain">
-          <motion.p variants={revealVariants} className="lp-eyebrow lp-text-center">HOW IT WORKS</motion.p>
-          <motion.h2 variants={revealVariants} className="lp-h2">
-            Three steps to{' '}
-            <em>get paid</em>
-          </motion.h2>
-          <div className="lp-timeline" ref={timelineRef}>
-            {/* Connecting line */}
-            <motion.div
-              className="lp-timeline-line"
-              variants={lineVariants}
-              initial="hidden"
-              animate={timelineInView ? 'visible' : 'hidden'}
-              style={{ transformOrigin: 'left' }}
-            />
-            {STEPS.map((s) => (
-              <TimelineNode key={s.num} num={s.num} title={s.title} desc={s.desc} />
+      {/* ── pixel dissolve transition ── */}
+      <div className="lp-dissolve" aria-hidden="true">
+        <div className="lp-dissolve-base" />
+        {DISSOLVE_BLOCKS.map((b, i) => (
+          <div key={i} className={`lp-blk lp-blk-${b.t}`} style={{ left:`${b.x}%`, top:`${b.y}%`, width:b.w, height:b.h }} />
+        ))}
+        {DISSOLVE_FALLS.map((f, i) => (
+          <div key={`f${i}`} className="lp-blk-fall" style={{ left:`${f.x}%`, width:f.s, height:f.s, animationDuration:`${f.d}s`, animationDelay:`${f.dl}s` }} />
+        ))}
+      </div>
+
+      {/* ── HOW IT WORKS + COMPARISON (unified dark section) ── */}
+      <section className="lp-section lp-section-dark lp-section-unified">
+        <div className="lp-dark-aurora" aria-hidden="true">
+          <div className="lp-dark-orb lp-dark-orb--1" />
+          <div className="lp-dark-orb lp-dark-orb--2" />
+          <div className="lp-dark-orb lp-dark-orb--3" />
+          <div className="lp-dark-grain" />
+        </div>
+        {/* steps: full-width, no container */}
+        <SectionReveal className="lp-steps-wrap">
+          <motion.div className="lp-hiw-header lp-contain" variants={revealVariants}>
+            <p className="lp-eyebrow lp-eyebrow-dim lp-text-center">HOW IT WORKS</p>
+            <h2 className="lp-h2 lp-h2-light">
+              Four steps to{' '}
+              <em>get paid</em>
+            </h2>
+          </motion.div>
+          <motion.div className="lp-steps" variants={containerVariants}>
+            {STEPS.map((s, i) => (
+              <motion.div key={s.num} className={`lp-step ${i % 2 === 1 ? 'lp-step-flip' : ''}`} variants={revealVariants}>
+                <div className="lp-step-visual">
+                  <StepVisual type={s.visual} />
+                </div>
+                <div className="lp-step-text">
+                  <span className="lp-step-num" aria-hidden="true">{s.num}</span>
+                  <h3 className="lp-step-title">{s.title}</h3>
+                  <p className="lp-step-desc">{s.desc}</p>
+                </div>
+              </motion.div>
             ))}
+          </motion.div>
+        </SectionReveal>
+
+        <SectionReveal className="lp-cmp-wrap">
+          <div className="lp-cmp-falls" aria-hidden="true">
+            {CMP_SIDE_FALLS.map((f, i) => (
+              <div key={i} className="lp-cmp-fall" style={{ left:`${f.x}%`, width:f.s, height:f.s, animationDuration:`${f.d}s`, animationDelay:`${f.dl}s` }} />
+            ))}
+          </div>
+          <div className="lp-contain">
+            <motion.p variants={revealVariants} className="lp-eyebrow lp-eyebrow-dim lp-text-center">AUTOPAY VS TRADITIONAL</motion.p>
+            <motion.h2 variants={revealVariants} className="lp-h2 lp-h2-light">
+              Half the cost.{' '}
+              <em>None of the risk.</em>
+            </motion.h2>
+            {/* Terminal diff comparison */}
+            <motion.div className="lp-diff" variants={containerVariants}>
+              <div className="lp-diff-chrome">
+                <div className="lp-diff-dots">
+                  <span className="lp-diff-dot lp-diff-dot--r" />
+                  <span className="lp-diff-dot lp-diff-dot--y" />
+                  <span className="lp-diff-dot lp-diff-dot--g" />
+                </div>
+                <span className="lp-diff-title">compare --autopay --traditional</span>
+              </div>
+              <div className="lp-diff-body">
+                {ROWS.map((r) => (
+                  <motion.div key={r.label} variants={revealVariants} className="lp-diff-block">
+                    <div className="lp-diff-comment"><span className="lp-diff-slashes">{'//'}</span> {r.label}</div>
+                    <div className="lp-diff-add"><span className="lp-diff-sign">+</span> {r.us}</div>
+                    <div className="lp-diff-del"><span className="lp-diff-sign">−</span> <span className="lp-diff-struck">{r.them}</span></div>
+                  </motion.div>
+                ))}
+                <motion.div variants={revealVariants} className="lp-diff-result">
+                  <span className="lp-diff-caret">{'>'}</span> autopay wins on <span className="lp-diff-count">8/8</span> criteria
+                  <span className="lp-diff-cursor" />
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
         </SectionReveal>
       </section>
 
-      {/* ── COMPARISON ── */}
-      <section className="lp-section lp-section-dark">
-        <SectionReveal className="lp-contain">
-          <motion.p variants={revealVariants} className="lp-eyebrow lp-eyebrow-dim lp-text-center">AUTOPAY VS TRADITIONAL</motion.p>
-          <motion.h2 variants={revealVariants} className="lp-h2 lp-h2-light">
-            Half the cost.{' '}
-            <em>None of the risk.</em>
-          </motion.h2>
-          <div className="lp-compare">
-            <motion.div variants={revealVariants} className="lp-compare-row lp-compare-head">
-              <span />
-              <span className="lp-compare-us-head">AutoPay</span>
-              <span className="lp-compare-them-head">Traditional</span>
-            </motion.div>
-            {ROWS.map((r) => (
-              <motion.div key={r.label} variants={revealVariants} className="lp-compare-row">
-                <span className="lp-compare-label">{r.label}</span>
-                <span className="lp-compare-us"><span className="lp-compare-pill"><Check size={14} strokeWidth={3} className="lp-icon-check" /> {r.us}</span></span>
-                <span className="lp-compare-them"><X size={14} strokeWidth={2.5} className="lp-icon-x" /> {r.them}</span>
-              </motion.div>
-            ))}
-          </div>
-        </SectionReveal>
-      </section>
+      {/* ── pixel dissolve exit: dark → light ── */}
+      <div className="lp-dissolve lp-dissolve-exit" aria-hidden="true">
+        <div className="lp-dissolve-exit-base" />
+        {EXIT_BLOCKS.map((b, i) => (
+          <div key={i} className={`lp-blk lp-blk-exit-${b.t}`} style={{ left:`${b.x}%`, top:`${b.y}%`, width:b.w, height:b.h }} />
+        ))}
+      </div>
 
       {/* ── CTA ── */}
       <section className="lp-section lp-cta">
@@ -768,14 +974,32 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
       {/* ── FOOTER ── */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
-          <div className="lp-footer-left">
-            <img src="/logo.png" alt="" className="lp-footer-logo" />
-            <span className="lp-footer-copy">&copy; {new Date().getFullYear()} AutoPay Protocol</span>
+          <div className="lp-footer-top">
+            <div className="lp-footer-brand">
+              <img src="/icon.png" alt="" className="lp-footer-icon" />
+              <div>
+                <div className="lp-footer-name">AutoPay Protocol</div>
+                <div className="lp-footer-tagline">Non-custodial crypto subscriptions</div>
+              </div>
+            </div>
+            <div className="lp-footer-cols">
+              <div className="lp-footer-col">
+                <div className="lp-footer-col-title">Product</div>
+                <button onClick={onOpenApp} className="lp-footer-link">Launch App</button>
+                <button onClick={onDocs} className="lp-footer-link">Documentation</button>
+              </div>
+              <div className="lp-footer-col">
+                <div className="lp-footer-col-title">Developers</div>
+                <a href="https://github.com/apeoverflow/auto-pay-protocol" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Github size={13} /> GitHub</a>
+                <a href="https://www.npmjs.com/package/@autopayprotocol/sdk" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> npm SDK</a>
+              </div>
+            </div>
           </div>
-          <div className="lp-footer-links">
-            <button onClick={onDocs} className="lp-footer-link"><BookOpen size={13} /> Docs</button>
-            <a href="https://github.com/apeoverflow/auto-pay-protocol" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Github size={13} /> GitHub</a>
-            <a href="https://www.npmjs.com/package/@autopayprotocol/sdk" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> SDK</a>
+          <div className="lp-footer-bottom">
+            <span className="lp-footer-copy">&copy; {new Date().getFullYear()} AutoPay Protocol</span>
+            <div className="lp-footer-bottom-links">
+              <a href="https://github.com/apeoverflow/auto-pay-protocol" target="_blank" rel="noopener noreferrer" className="lp-footer-social"><Github size={16} /></a>
+            </div>
           </div>
         </div>
       </footer>
@@ -790,7 +1014,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           --muted: #7C7C82;
           --blue: #0052FF;
           --blue-hover: #0047E0;
-          --dark: #0E0E10;
+          --dark: hsl(228 28% 7%);
           --green: #16A34A;
           --red: #DC2626;
           --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
@@ -852,7 +1076,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           position: absolute;
           offset-path: path("M 700 560 C 680 480, 580 420, 590 340 C 600 260, 720 220, 690 140 C 660 60, 700 -20, 710 -80");
           offset-rotate: 0deg;
-          animation: followArc var(--dur, 18s) var(--delay, 0s) linear infinite;
+          animation: followArc var(--dur, 14s) var(--delay, 0s) linear infinite;
           will-change: offset-distance, opacity;
           transform: translateX(var(--spread, 0px));
         }
@@ -867,57 +1091,44 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           offset-path: path("M 700 560 C 680 480, 580 420, 590 340 C 600 260, 720 220, 690 140 C 660 50, 680 -30, 680 -90");
         }
 
+
         .lp-coin-body {
           border-radius: 50%;
-          animation: coinWobble ease-in-out infinite;
+          animation: coinTumble ease-in-out infinite;
           position: relative;
-          transform: perspective(120px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg));
+          transform-style: preserve-3d;
+          transform: perspective(60px) rotateX(35deg) rotateY(-25deg);
         }
-        /* ── faux-3D coin edge (visible rim) ── */
+        /* ── 3D coin rim — pushed behind the face in Z-space.
+             Perspective naturally reveals it on the far edge as the coin tilts.
+             No gradient hacks needed — pure 3D geometry. ── */
         .lp-coin-body::before {
           content: '';
           position: absolute;
-          inset: -4px;
+          inset: -2px;
           border-radius: 50%;
-          background: conic-gradient(
-            from var(--edge, 150deg),
-            #0a3a6e 0deg,
-            #155ea0 60deg,
-            #1a6fbf 120deg,
-            #155ea0 200deg,
-            #0a3a6e 280deg,
-            #072b54 360deg
-          );
-          z-index: -1;
+          background: #0d4a82;
+          transform: translateZ(-3px);
+          backface-visibility: hidden;
         }
-        /* ── directional shadow (offset matches tilt) ── */
+        /* ── drop shadow — pushed even further back ── */
         .lp-coin-body::after {
           content: '';
           position: absolute;
-          inset: 0;
+          inset: 2px;
           border-radius: 50%;
-          box-shadow:
-            3px 4px 8px rgba(10,40,80,0.4),
-            5px 8px 18px rgba(10,40,80,0.18),
-            1px 2px 3px rgba(10,40,80,0.25);
-          z-index: -1;
+          background: rgba(10,40,80,0.35);
+          transform: translateZ(-6px);
+          filter: blur(8px);
+          backface-visibility: hidden;
         }
-        /* per-coin shadow direction matching tilt */
-        .lp-arc-0 .lp-coin-body::after {
-          box-shadow: -5px 6px 10px rgba(10,40,80,0.4), -7px 10px 22px rgba(10,40,80,0.2), -2px 3px 4px rgba(10,40,80,0.3);
-        }
-        .lp-arc-1 .lp-coin-body::after {
-          box-shadow: 5px 7px 10px rgba(10,40,80,0.4), 8px 12px 22px rgba(10,40,80,0.2), 2px 3px 4px rgba(10,40,80,0.3);
-        }
-        .lp-arc-2 .lp-coin-body::after {
-          box-shadow: -4px 5px 10px rgba(10,40,80,0.4), -5px 9px 22px rgba(10,40,80,0.2), -1px 3px 4px rgba(10,40,80,0.3);
-        }
-        /* ── lighting overlay on the face ── */
+        /* ── coin face sits at the front in Z ── */
         .lp-coin-body img {
           display: block;
           border-radius: 50%;
           position: relative;
-          z-index: 1;
+          transform: translateZ(0px);
+          backface-visibility: hidden;
         }
 
         @keyframes followArc {
@@ -935,11 +1146,18 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           100% { offset-distance: 100%; opacity: 0; transform: translateX(var(--spread, 0px)) scale(0.2); }
         }
 
-        @keyframes coinWobble {
-          0%   { transform: perspective(120px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg)) rotate(-2deg) scale(1); }
-          33%  { transform: perspective(120px) rotateX(calc(var(--tiltX, 0deg) + 3deg)) rotateY(calc(var(--tiltY, 0deg) - 2deg)) rotate(2deg) scale(1.03); }
-          66%  { transform: perspective(120px) rotateX(calc(var(--tiltX, 0deg) - 2deg)) rotateY(calc(var(--tiltY, 0deg) + 3deg)) rotate(-1deg) scale(0.98); }
-          100% { transform: perspective(120px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg)) rotate(-2deg) scale(1); }
+        /* Coin tumbles through tilt angles. The ::before rim sits at
+           translateZ(-4px) behind the face, so perspective naturally reveals
+           it on the correct side — no manual edge tracking needed. */
+        @keyframes coinTumble {
+          0%   { transform: perspective(60px) rotateX(35deg)  rotateY(-25deg) rotate(-2deg); }
+          15%  { transform: perspective(60px) rotateX(15deg)  rotateY(-45deg) rotate(1deg); }
+          30%  { transform: perspective(60px) rotateX(-25deg) rotateY(-15deg) rotate(3deg); }
+          45%  { transform: perspective(60px) rotateX(-40deg) rotateY(18deg)  rotate(0deg); }
+          60%  { transform: perspective(60px) rotateX(-15deg) rotateY(42deg)  rotate(-2deg); }
+          75%  { transform: perspective(60px) rotateX(20deg)  rotateY(30deg)  rotate(1deg); }
+          90%  { transform: perspective(60px) rotateX(40deg)  rotateY(8deg)   rotate(-1deg); }
+          100% { transform: perspective(60px) rotateX(35deg)  rotateY(-25deg) rotate(-2deg); }
         }
 
         /* ── aura mist system ── */
@@ -947,7 +1165,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           position: absolute;
           border-radius: 50%;
           filter: blur(65px);
-          animation: mistBreathe 9s ease-in-out infinite;
+          animation: mistBreathe 7s ease-in-out infinite;
           transform: translate(-50%, -50%);
           opacity: 0.5;
         }
@@ -956,19 +1174,21 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           width: 240px; height: 240px;
           background: radial-gradient(circle, rgba(39,117,202,0.14), rgba(80,140,220,0.05) 50%, transparent 70%);
           animation-delay: -1.8s;
+          animation-duration: 6.5s;
         }
         .lp-mist-3 {
           left: 700px; top: 220px;
           width: 200px; height: 200px;
           background: radial-gradient(circle, rgba(39,117,202,0.10), rgba(100,160,230,0.04) 50%, transparent 70%);
           animation-delay: -3.5s;
+          animation-duration: 7.5s;
         }
         .lp-mist-5 {
           left: 700px; top: 40px;
           width: 240px; height: 160px;
           background: radial-gradient(ellipse, rgba(39,117,202,0.16), rgba(100,160,230,0.06) 45%, transparent 65%);
           animation-delay: -2s;
-          animation-duration: 7s;
+          animation-duration: 5.5s;
         }
 
         @keyframes mistBreathe {
@@ -981,21 +1201,21 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           border-radius: 50%;
           filter: blur(40px);
           opacity: 0;
-          animation: tendrilDrift 10s ease-in-out infinite;
+          animation: tendrilDrift 8s ease-in-out infinite;
         }
         .lp-tendril-1 {
           left: 620px; top: 380px;
           width: 120px; height: 40px;
           background: rgba(39,117,202,0.14);
           animation-delay: -1s;
-          animation-duration: 9s;
+          animation-duration: 7s;
         }
         .lp-tendril-3 {
           left: 710px; top: 90px;
           width: 140px; height: 30px;
           background: rgba(39,117,202,0.16);
           animation-delay: -7s;
-          animation-duration: 8s;
+          animation-duration: 6s;
         }
 
         @keyframes tendrilDrift {
@@ -1018,13 +1238,13 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
 
         .lp-shimmer-firefly {
-          animation: shimmerFirefly 22s -8s linear infinite;
+          animation: shimmerFirefly 18s -7s linear infinite;
         }
         .lp-shimmer-firefly .lp-shimmer-core {
           width: 3px; height: 3px;
           background: rgba(160,200,255,0.8);
           box-shadow: 0 0 8px 3px rgba(39,117,202,0.5);
-          animation: fireflyBlink 2.5s ease-in-out infinite;
+          animation: fireflyBlink 2s ease-in-out infinite;
         }
         .lp-shimmer-firefly .lp-shimmer-core::after {
           content: '';
@@ -1035,15 +1255,18 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           border-radius: 1px;
           background: linear-gradient(to left, rgba(39,117,202,0.3), transparent);
         }
+        /* First 50% is the actual travel (same speed as 9s),
+           last 50% stays invisible — creates a gap between appearances */
         @keyframes shimmerFirefly {
           0%   { offset-distance: 0%;   opacity: 0; }
-          6%   { offset-distance: 3%;   opacity: 0.7; }
-          30%  { offset-distance: 14%;  opacity: 0.8; }
-          55%  { offset-distance: 28%;  opacity: 0.8; }
-          75%  { offset-distance: 42%;  opacity: 0.8; }
-          87%  { offset-distance: 60%;  opacity: 0.7; }
-          93%  { offset-distance: 82%;  opacity: 0.4; }
-          97%  { offset-distance: 95%;  opacity: 0.15; }
+          3%   { offset-distance: 3%;   opacity: 0.45; }
+          15%  { offset-distance: 14%;  opacity: 0.55; }
+          28%  { offset-distance: 28%;  opacity: 0.55; }
+          38%  { offset-distance: 42%;  opacity: 0.55; }
+          44%  { offset-distance: 60%;  opacity: 0.45; }
+          47%  { offset-distance: 82%;  opacity: 0.25; }
+          49%  { offset-distance: 95%;  opacity: 0.1; }
+          50%  { offset-distance: 100%; opacity: 0; }
           100% { offset-distance: 100%; opacity: 0; }
         }
         @keyframes fireflyBlink {
@@ -1056,7 +1279,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
 
         .lp-shimmer-streak {
-          animation: shimmerStreak 4.5s -1s linear infinite;
+          animation: shimmerStreak 5s -1s linear infinite;
         }
         .lp-shimmer-streak .lp-shimmer-core {
           width: 10px; height: 2.5px;
@@ -1076,13 +1299,14 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         @keyframes shimmerStreak {
           0%   { offset-distance: 0%;   opacity: 0; }
-          5%   { offset-distance: 3%;   opacity: 0.8; }
-          30%  { offset-distance: 16%;  opacity: 1; }
-          55%  { offset-distance: 30%;  opacity: 1; }
-          75%  { offset-distance: 44%;  opacity: 1; }
-          87%  { offset-distance: 62%;  opacity: 0.8; }
-          93%  { offset-distance: 82%;  opacity: 0.5; }
-          97%  { offset-distance: 95%;  opacity: 0.2; }
+          2%   { offset-distance: 3%;   opacity: 0.5; }
+          13%  { offset-distance: 16%;  opacity: 0.65; }
+          24%  { offset-distance: 30%;  opacity: 0.65; }
+          33%  { offset-distance: 44%;  opacity: 0.65; }
+          38%  { offset-distance: 62%;  opacity: 0.5; }
+          41%  { offset-distance: 82%;  opacity: 0.3; }
+          43%  { offset-distance: 95%;  opacity: 0.12; }
+          45%  { offset-distance: 100%; opacity: 0; }
           100% { offset-distance: 100%; opacity: 0; }
         }
 
@@ -1100,6 +1324,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-hero-card-1, .lp-hero-card-2, .lp-hero-card-3 { animation: none !important; }
           .lp-hc-badge-dot { animation: none; }
           .lp-hc-progress-fill::after { animation: none; display: none; }
+          .lp-step { transition: none; }
+          .lp-step-num { transition: none; }
+          .lp-cmp-row { transition: none; }
         }
 
         @media (max-width: 959px) {
@@ -1122,7 +1349,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-nav-brand { display: flex; align-items: center; }
         .lp-nav-logo {
           height: 44px; width: auto;
-          filter: brightness(0); opacity: 0.85;
+          filter: brightness(0); opacity: 0.65;
           transition: opacity 0.2s;
         }
         .lp-nav-brand:hover .lp-nav-logo { opacity: 0.9; }
@@ -1141,6 +1368,13 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           cursor: pointer; transition: background 0.2s;
         }
         .lp-nav-cta:hover { background: #333; }
+        @media (max-width: 639px) {
+          .lp-nav-inner { padding: 12px 16px; }
+          .lp-nav-logo { height: 28px; }
+          .lp-nav-links { gap: 12px; }
+          .lp-nav-link { font-size: 12px; }
+          .lp-nav-cta { font-size: 12px; padding: 6px 12px; white-space: nowrap; }
+        }
 
         /* ── hero ── */
         .lp-hero { padding: 80px 28px 0; max-width: 1160px; margin: 0 auto; }
@@ -1451,6 +1685,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
 
         /* ── sections ── */
         .lp-section { padding: 100px 28px; }
+        .lp-section-tight-bottom { padding-bottom: 0; margin-bottom: 40px; }
         .lp-section-alt { background: rgba(0,0,0,0.015); }
         .lp-contain { max-width: 1040px; margin: 0 auto; }
         .lp-h2 {
@@ -1468,9 +1703,29 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           border: 1px solid rgba(255,255,255,0.06);
           overflow: hidden;
           margin-bottom: 16px;
+          position: relative;
+        }
+        .lp-story-card::before {
+          content: '';
+          position: absolute; inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          background-size: 200px 200px;
+          opacity: 0.03;
+          pointer-events: none; z-index: 1;
+          border-radius: inherit;
+        }
+        .lp-story-card::after {
+          content: '';
+          position: absolute; inset: 0;
+          background:
+            radial-gradient(ellipse 60% 50% at 10% 20%, hsl(221 83% 53% / 0.08), transparent),
+            radial-gradient(ellipse 50% 60% at 85% 70%, hsl(260 60% 55% / 0.06), transparent);
+          pointer-events: none; z-index: 1;
+          border-radius: inherit;
         }
         .lp-story-inner {
           padding: 48px 40px;
+          position: relative; z-index: 2;
         }
         .lp-story-icon {
           width: 40px; height: 40px; border-radius: 12px;
@@ -1536,6 +1791,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         /* ── case studies (two-column) ── */
         .lp-cases {
           display: grid; grid-template-columns: 1fr; gap: 16px;
+          max-width: 100%; overflow: hidden;
         }
         @media (min-width: 768px) { .lp-cases { grid-template-columns: repeat(2, 1fr); } }
 
@@ -1546,18 +1802,28 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           padding: 32px 28px;
           display: flex;
           flex-direction: column;
+          border-top: 2px solid var(--blue);
+          transition: box-shadow 0.3s ease;
+          overflow: hidden;
+          min-width: 0;
         }
+        .lp-case-fee { border-top-color: var(--blue); }
+        .lp-case-geo { border-top-color: var(--green); }
+        .lp-case-fee:hover { box-shadow: 0 12px 48px rgba(0,82,255,0.08); }
+        .lp-case-geo:hover { box-shadow: 0 12px 48px rgba(22,163,74,0.08); }
         .lp-case-head {
           display: flex; align-items: center; gap: 8px;
           margin-bottom: 16px;
         }
         .lp-case-icon { color: var(--blue); }
+        .lp-case-icon-geo { color: var(--green); }
         .lp-case-tag {
           font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
           color: var(--blue); opacity: 0.6;
         }
+        .lp-case-tag-geo { color: var(--green); }
         .lp-case-title {
-          font-size: 18px; font-weight: 660; letter-spacing: -0.02em;
+          font-size: 20px; font-weight: 660; letter-spacing: -0.02em;
           line-height: 1.35; margin: 0 0 24px; color: var(--fg);
         }
         .lp-case-title em {
@@ -1579,9 +1845,26 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           display: grid;
           grid-template-columns: 1fr auto;
           align-items: center;
-          padding: 10px 0;
+          padding: 10px 12px;
           border-bottom: 1px solid rgba(0,0,0,0.04);
           position: relative;
+          overflow: hidden;
+          z-index: 0;
+        }
+        .lp-wf-bg-bar {
+          position: absolute;
+          top: 0; left: 0; bottom: 0;
+          width: 100%;
+          background: rgba(0,0,0,0.03);
+          z-index: -1;
+          border-radius: 0 4px 4px 0;
+        }
+        .lp-wf-red-slice {
+          position: absolute;
+          top: 0; bottom: 0;
+          background: rgba(220,38,38,0.08);
+          z-index: -1;
+          border-radius: 0 4px 4px 0;
         }
         .lp-wf-row-result {
           border-bottom: none;
@@ -1590,36 +1873,46 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-wf-label {
           font-size: 12.5px; font-weight: 500; color: var(--muted);
+          position: relative; z-index: 1;
         }
         .lp-wf-amount {
           font-size: 13px; font-weight: 650; color: var(--fg);
           font-variant-numeric: tabular-nums;
           letter-spacing: -0.01em;
+          position: relative; z-index: 1;
         }
         .lp-wf-cut { color: var(--red); }
         .lp-wf-final { font-size: 15px; }
-        .lp-wf-bar {
-          position: absolute;
-          bottom: 0; left: 0;
-          height: 2px;
-          width: 100%;
-          border-radius: 1px;
-        }
         .lp-wf-alt {
           margin-top: 12px;
           display: flex; justify-content: space-between; align-items: center;
-          padding: 12px 14px;
+          padding: 14px 16px;
           background: rgba(0,82,255,0.04);
-          border: 1px solid rgba(0,82,255,0.08);
+          border-left: 3px solid var(--blue);
           border-radius: 10px;
+          border-top: 1px solid rgba(0,82,255,0.08);
+          border-right: 1px solid rgba(0,82,255,0.08);
+          border-bottom: 1px solid rgba(0,82,255,0.08);
         }
         .lp-wf-alt-label {
           font-size: 12.5px; font-weight: 600; color: var(--blue);
         }
+        .lp-wf-alt-amount-wrap {
+          display: flex; align-items: center; gap: 8px;
+        }
         .lp-wf-alt-amount {
-          font-size: 17px; font-weight: 750; color: var(--blue);
+          font-size: 20px; font-weight: 750; color: var(--blue);
           letter-spacing: -0.02em;
           font-variant-numeric: tabular-nums;
+        }
+        .lp-wf-savings {
+          font-size: 11px; font-weight: 650;
+          color: var(--green);
+          background: rgba(22,163,74,0.08);
+          padding: 2px 8px;
+          border-radius: 20px;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
         }
 
         /* ── geography grid ── */
@@ -1632,47 +1925,86 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-geo-item {
           display: flex; align-items: center; gap: 8px;
           padding: 10px 12px;
-          background: rgba(0,0,0,0.02);
+          background: rgba(0,0,0,0.015);
           border-radius: 10px;
           border: 1px solid rgba(0,0,0,0.04);
+          border-left: 3px solid #DC2626;
         }
-        .lp-geo-flag { font-size: 16px; }
+        .lp-geo-dot {
+          width: 7px; height: 7px; border-radius: 50%;
+          flex-shrink: 0;
+        }
         .lp-geo-city {
           font-size: 13px; font-weight: 600; color: var(--fg);
           flex: 1;
         }
-        .lp-geo-status {
-          font-size: 10px; font-weight: 650; letter-spacing: 0.02em;
-          color: var(--red); opacity: 0.7;
+        .lp-geo-status-pill {
+          font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
           text-transform: uppercase;
+          padding: 2px 7px;
+          border-radius: 20px;
+          white-space: nowrap;
         }
 
         .lp-geo-vs {
-          display: flex; flex-direction: column; gap: 8px;
+          display: flex; gap: 8px;
           margin-bottom: 16px;
         }
-        .lp-geo-vs-row {
-          display: flex; align-items: flex-start; gap: 8px;
-          font-size: 13px; line-height: 1.5;
+        @media (max-width: 639px) { .lp-geo-vs { flex-direction: column; } }
+        .lp-geo-vs-card {
+          flex: 1;
+          padding: 14px;
+          border-radius: 10px;
+          display: flex; flex-direction: column; gap: 4px;
         }
-        .lp-geo-vs-row svg { flex-shrink: 0; margin-top: 2px; }
-        .lp-geo-vs-bad { color: rgba(0,0,0,0.35); }
-        .lp-geo-vs-bad svg { color: var(--red); opacity: 0.5; }
-        .lp-geo-vs-good { color: var(--fg); font-weight: 600; }
-        .lp-geo-vs-good svg { color: var(--green); }
+        .lp-geo-vs-stripe {
+          background: rgba(220,38,38,0.035);
+          border: 1px solid rgba(220,38,38,0.12);
+        }
+        .lp-geo-vs-autopay {
+          background: rgba(0,82,255,0.035);
+          border: 1px solid rgba(0,82,255,0.12);
+        }
+        .lp-geo-vs-card-head {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 12px; font-weight: 700; margin-bottom: 4px;
+        }
+        .lp-geo-vs-stripe .lp-geo-vs-card-head { color: var(--red); }
+        .lp-geo-vs-stripe .lp-geo-vs-card-head svg { color: var(--red); }
+        .lp-geo-vs-autopay .lp-geo-vs-card-head { color: var(--blue); }
+        .lp-geo-vs-autopay .lp-geo-vs-card-head svg { color: var(--blue); }
+        .lp-geo-vs-card-line {
+          font-size: 12px; line-height: 1.5; color: var(--fg);
+          font-weight: 500;
+        }
+        .lp-geo-vs-strike {
+          text-decoration: line-through;
+          color: var(--muted);
+        }
+        .lp-geo-vs-autopay .lp-geo-vs-card-line { font-weight: 600; }
 
         .lp-geo-stat-callout {
           display: flex; align-items: baseline; gap: 10px;
           padding: 14px 16px;
-          background: rgba(0,82,255,0.04);
-          border: 1px solid rgba(0,82,255,0.08);
+          background: rgba(22,163,74,0.04);
+          border: 1px solid rgba(22,163,74,0.08);
           border-radius: 10px;
           margin-bottom: 12px;
         }
         .lp-geo-stat-num {
-          font-size: 24px; font-weight: 750; color: var(--blue);
-          letter-spacing: -0.02em;
+          font-size: 34px; font-weight: 750; color: var(--green);
+          letter-spacing: -0.03em;
           flex-shrink: 0;
+          position: relative;
+        }
+        .lp-geo-stat-num::after {
+          content: '';
+          position: absolute;
+          bottom: -2px; left: 0;
+          width: 40px; height: 2px;
+          background: var(--green);
+          border-radius: 1px;
+          opacity: 0.5;
         }
         .lp-geo-stat-text {
           font-size: 13px; line-height: 1.45; color: var(--muted);
@@ -1713,175 +2045,610 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-partner-item:hover { opacity: 1; }
         .lp-partner-logo {
-          height: 24px;
-          width: 24px;
+          height: 30px;
+          width: 30px;
           object-fit: contain;
-          opacity: 0.4;
+          opacity: 0.3;
           border-radius: 4px;
-          transition: opacity 0.2s;
+          filter: grayscale(0.8);
+          transition: opacity 0.2s, filter 0.2s;
         }
         .lp-partner-name {
-          font-size: 14px;
+          font-size: 16px;
           font-weight: 620;
           color: var(--fg);
           letter-spacing: -0.01em;
-          opacity: 0.35;
+          opacity: 0.25;
           transition: opacity 0.2s;
         }
-        .lp-partner-item:hover .lp-partner-name { opacity: 0.8; }
-        .lp-partner-item:hover .lp-partner-logo { opacity: 0.85; }
+        .lp-partner-item:hover .lp-partner-name { opacity: 0.7; }
+        .lp-partner-item:hover .lp-partner-logo { opacity: 0.7; filter: grayscale(0.2); }
         .lp-partner-dot {
           width: 3px; height: 3px; border-radius: 50%;
-          background: rgba(0,0,0,0.15);
+          background: rgba(0,0,0,0.1);
           margin: 0 18px;
           flex-shrink: 0;
-          opacity: 0.4;
+          opacity: 0.3;
         }
         @media (max-width: 639px) {
           .lp-partners { padding: 32px 0 24px; }
           .lp-ticker-track { animation-duration: 25s; }
           .lp-partner-dot { margin: 0 12px; }
-          .lp-partner-name { font-size: 13px; }
-          .lp-partner-logo { height: 20px; width: 20px; }
+          .lp-partner-name { font-size: 14px; }
+          .lp-partner-logo { height: 24px; width: 24px; }
         }
 
-        /* ── timeline (how it works) ── */
-        .lp-timeline {
+        /* ── pixel dissolve transition ── */
+        .lp-dissolve {
           position: relative;
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 32px;
+          height: clamp(160px, 18vw, 280px);
+          background: var(--bg);
+          overflow: hidden;
+          mask-image: linear-gradient(to bottom, transparent 0%, black 15%);
+          -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%);
         }
-        @media (min-width: 768px) {
-          .lp-timeline {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0;
-          }
+        .lp-dissolve-base {
+          position: absolute;
+          left: 0; right: 0; bottom: 0;
+          height: 50%;
+          background: var(--dark);
+        }
+        .lp-dissolve::after {
+          content: '';
+          position: absolute; inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          background-size: 200px 200px;
+          opacity: 0.03;
+          pointer-events: none; z-index: 10;
+        }
+        .lp-blk {
+          position: absolute;
+        }
+        .lp-blk-dark {
+          background: var(--dark);
+        }
+        .lp-blk-outline {
+          background: transparent;
+          border: 2px solid rgba(0,82,255,0.45);
+        }
+        .lp-blk-fill {
+          background: rgba(0,82,255,0.12);
+          border: 2px solid rgba(0,82,255,0.35);
+        }
+        /* falling blocks */
+        .lp-blk-fall {
+          position: absolute;
+          top: -10%;
+          background: var(--dark);
+          border: 1.5px solid rgba(0,82,255,0.3);
+          opacity: 0;
+          animation: blkFall 3.5s ease-in infinite;
+        }
+        @keyframes blkFall {
+          0% { top: -10%; opacity: 0; }
+          10% { opacity: 0.6; }
+          50% { opacity: 0.3; }
+          100% { top: 105%; opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .lp-blk-fall { animation: none; }
         }
 
-        .lp-timeline-line {
-          display: none;
+        /* ── exit dissolve: dark → light (inverted) ── */
+        .lp-dissolve-exit {
+          background: var(--bg);
+          height: clamp(140px, 18vw, 260px);
+          mask-image: linear-gradient(to top, transparent 0%, black 15%);
+          -webkit-mask-image: linear-gradient(to top, transparent 0%, black 15%);
         }
-        @media (min-width: 768px) {
-          .lp-timeline-line {
-            display: block;
-            position: absolute;
-            top: 28px;
-            left: calc(16.67%);
-            right: calc(16.67%);
-            height: 2px;
-            background: linear-gradient(90deg, var(--blue), rgba(0,82,255,0.3));
-            box-shadow: 0 0 8px rgba(0,82,255,0.2);
-            z-index: 0;
-          }
+        .lp-dissolve-exit-base {
+          position: absolute;
+          left: 0; right: 0; top: 0;
+          height: 50%;
+          background: var(--dark);
+        }
+        .lp-blk-exit-dark { background: var(--dark); }
+        .lp-blk-exit-outline {
+          background: transparent;
+          border: 2px solid rgba(0,82,255,0.45);
+        }
+        .lp-blk-exit-fill {
+          background: rgba(0,82,255,0.12);
+          border: 2px solid rgba(0,82,255,0.35);
         }
 
-        .lp-timeline-node {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+        /* ── unified dark section (HIW + comparison) ── */
+        .lp-section-unified {
+          padding-top: 0;
+          padding-bottom: 96px;
+        }
+        .lp-hiw-header {
           text-align: center;
+          margin-top: -40px;
+          padding-bottom: 8px;
+        }
+
+        /* ── comparison wrapper inside unified dark section ── */
+        .lp-cmp-wrap {
+          padding-top: 80px;
+          position: relative;
+          overflow: hidden;
+        }
+        .lp-cmp-falls {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .lp-cmp-fall {
+          position: absolute;
+          top: -10%;
+          background: rgba(0,82,255,0.06);
+          border: 1.5px solid rgba(0,82,255,0.5);
+          opacity: 0;
+          animation: blkFall 4s ease-in infinite;
+        }
+        .lp-cmp-wrap > *:not(.lp-cmp-falls) {
           position: relative;
           z-index: 1;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .lp-cmp-fall { animation: none; }
+        }
 
-        .lp-timeline-circle {
-          width: 56px;
-          height: 56px;
-          border-radius: 50%;
-          background: var(--blue);
-          color: #fff;
+        /* ── steps: full-width editorial ── */
+        .lp-steps-wrap {
+          margin-top: 48px;
+        }
+        .lp-steps {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          width: 100%;
+        }
+        .lp-step {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          align-items: center;
+          min-height: 320px;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .lp-step:last-child {
+          border-bottom: none;
+        }
+        /* flip even rows */
+        .lp-step-flip .lp-step-visual { order: 2; }
+        .lp-step-flip .lp-step-text { order: 1; }
+
+        .lp-step-visual {
           display: flex;
           align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: 700;
+          justify-content: flex-end;
+          padding: 48px 40px 48px 56px;
+        }
+        .lp-step-flip .lp-step-visual {
+          justify-content: flex-start;
+          padding: 48px 56px 48px 40px;
+        }
+        /* subtle glow behind vignettes */
+        .lp-step-visual::before {
+          content: '';
+          position: absolute;
+          width: 200px;
+          height: 200px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(0,82,255,0.06) 0%, transparent 70%);
+          pointer-events: none;
+          filter: blur(40px);
+        }
+        .lp-step-visual { position: relative; }
+
+        .lp-step-text {
+          padding: 56px 64px;
+          border-left: 1px solid rgba(0,82,255,0.08);
+          position: relative;
+        }
+        .lp-step-flip .lp-step-text {
+          border-left: none;
+          border-right: 1px solid rgba(0,82,255,0.08);
+        }
+        .lp-step-num {
+          display: block;
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          font-size: 72px;
+          font-weight: 800;
+          line-height: 1;
+          letter-spacing: -0.04em;
+          background: linear-gradient(180deg, rgba(0,82,255,0.35) 0%, rgba(0,82,255,0.12) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          user-select: none;
+          margin-bottom: 12px;
+        }
+        .lp-step-title {
+          font-size: 28px;
+          font-weight: 720;
+          letter-spacing: -0.03em;
+          margin: 0 0 12px;
+          color: #fff;
+        }
+        .lp-step-desc {
+          font-size: 15px;
+          line-height: 1.7;
+          color: rgba(255,255,255,0.45);
+          margin: 0;
+          max-width: 400px;
+        }
+
+        /* ── step vignettes (shared) ── */
+        .lp-sv {
+          width: 100%;
+          max-width: 420px;
+          font-size: 12px;
+          line-height: 1.5;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 12px;
+          padding: 16px 18px;
+        }
+
+        /* dashboard vignette */
+        .lp-sv-dash-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 5px 0;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .lp-sv-dash-row:last-of-type { border-bottom: none; }
+        .lp-sv-dash-label {
+          color: rgba(255,255,255,0.35);
+          font-size: 10.5px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-weight: 550;
+        }
+        .lp-sv-dash-val {
+          font-weight: 600;
+          color: rgba(255,255,255,0.85);
+          font-size: 12px;
+        }
+        .lp-sv-dash-price small {
+          color: rgba(255,255,255,0.4);
+          font-weight: 500;
+          font-size: 10px;
+        }
+        .lp-sv-dash-btn {
+          margin-top: 10px;
+          padding: 6px 0;
+          text-align: center;
+          font-size: 10.5px;
+          font-weight: 650;
           letter-spacing: 0.02em;
-          box-shadow: 0 0 0 4px var(--bg), 0 0 16px rgba(0,82,255,0.2);
-          margin-bottom: 20px;
+          color: #fff;
+          background: var(--blue);
+          border-radius: 6px;
+        }
+
+        /* link vignette */
+        .lp-sv-link-bar {
+          display: flex;
+          align-items: center;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 8px;
+          padding: 6px 8px;
+          gap: 6px;
+        }
+        .lp-sv-link-url {
+          flex: 1;
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          font-size: 9.5px;
+          color: rgba(255,255,255,0.7);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .lp-sv-link-copy {
+          flex-shrink: 0;
+          font-size: 9.5px;
+          font-weight: 650;
+          color: var(--blue);
+          padding: 2px 8px;
+          background: rgba(0,82,255,0.15);
+          border-radius: 4px;
           cursor: default;
         }
+        .lp-sv-link-or {
+          text-align: center;
+          font-size: 9.5px;
+          color: rgba(255,255,255,0.3);
+          margin: 8px 0 6px;
+          font-weight: 500;
+        }
+        .lp-sv-link-code {
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          font-size: 9.5px;
+          color: var(--blue);
+          background: rgba(0,82,255,0.08);
+          border: 1px solid rgba(0,82,255,0.15);
+          border-radius: 6px;
+          padding: 6px 10px;
+          text-align: center;
+        }
 
-        .lp-timeline-title {
-          font-size: 18px;
+        /* wallet vignette */
+        .lp-sv-wallet-top {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+        .lp-sv-wallet-dot {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #22c55e;
+        }
+        .lp-sv-wallet-addr {
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          font-size: 10px;
+          color: rgba(255,255,255,0.7);
+          font-weight: 500;
+        }
+        .lp-sv-wallet-badge {
+          font-size: 9px;
           font-weight: 650;
-          letter-spacing: -0.015em;
-          margin: 0 0 8px;
+          color: #22c55e;
+          background: rgba(34,197,94,0.12);
+          padding: 1px 6px;
+          border-radius: 4px;
+          margin-left: auto;
+        }
+        .lp-sv-wallet-amount {
+          font-size: 20px;
+          font-weight: 750;
+          color: #f0f2f5;
+          letter-spacing: -0.03em;
+          margin-bottom: 8px;
+        }
+        .lp-sv-wallet-amount small {
+          font-size: 11px;
+          font-weight: 500;
+          color: rgba(255,255,255,0.4);
+        }
+        .lp-sv-wallet-chains {
+          display: flex;
+          gap: 4px;
+        }
+        .lp-sv-wallet-chains span {
+          font-size: 9px;
+          font-weight: 600;
+          padding: 2px 7px;
+          border-radius: 4px;
+          background: rgba(255,255,255,0.06);
+          color: rgba(255,255,255,0.5);
+        }
+        .lp-sv-wallet-chains span:last-child {
+          color: var(--blue);
+          background: rgba(0,82,255,0.15);
+        }
+        .lp-sv-wallet-btn {
+          margin-top: 12px;
+          padding: 6px 0;
+          text-align: center;
+          font-size: 10.5px;
+          font-weight: 650;
+          letter-spacing: 0.02em;
+          color: #fff;
+          background: var(--blue);
+          border-radius: 6px;
         }
 
-        .lp-timeline-desc {
-          font-size: 14px;
-          line-height: 1.6;
-          color: var(--muted);
+        /* webhook vignette */
+        .lp-sv-hook-pre {
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          font-size: 13px;
+          line-height: 1.7;
+          background: rgba(0,0,0,0.5);
+          color: #a8b4c4;
+          border-radius: 10px;
+          border: 1px solid rgba(255,255,255,0.08);
+          padding: 16px 20px;
           margin: 0;
-          max-width: 260px;
+          overflow: hidden;
+          white-space: pre;
         }
+        .lp-syn-method { color: #c678dd; font-weight: 700; }
+        .lp-syn-url { color: #e5c07b; }
+        .lp-syn-brace { color: rgba(255,255,255,0.5); }
+        .lp-syn-key { color: #61afef; }
+        .lp-syn-colon { color: rgba(255,255,255,0.35); }
+        .lp-syn-str { color: #98c379; }
+        .lp-syn-comma { color: rgba(255,255,255,0.3); }
 
-        /* mobile timeline: vertical layout with line on left */
-        @media (max-width: 767px) {
-          .lp-timeline {
-            padding-left: 44px;
-            position: relative;
-          }
-          .lp-timeline::before {
-            content: '';
-            position: absolute;
-            left: 28px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: linear-gradient(to bottom, var(--blue), rgba(0,82,255,0.2));
-          }
-          .lp-timeline-node {
-            align-items: flex-start;
-            text-align: left;
-          }
-          .lp-timeline-circle {
-            position: absolute;
-            left: -44px;
-            width: 40px;
-            height: 40px;
-            font-size: 12px;
-            box-shadow: 0 0 0 3px var(--bg), 0 0 12px rgba(0,82,255,0.15);
-          }
-          .lp-timeline-desc {
-            max-width: none;
-          }
-        }
-
-        /* ── comparison ── */
+        /* ── dark section ── */
         .lp-section-dark {
           background: var(--dark); color: #fff;
+          position: relative; overflow: hidden;
         }
+
+        /* aurora orbs */
+        .lp-dark-aurora {
+          position: absolute; inset: 0; z-index: 0;
+          pointer-events: none; overflow: hidden;
+        }
+        .lp-dark-orb {
+          position: absolute; border-radius: 50%;
+          filter: blur(100px); will-change: transform;
+        }
+        .lp-dark-orb--1 {
+          width: 500px; height: 500px;
+          top: 5%; left: -8%;
+          background: radial-gradient(circle, hsl(221 83% 53% / 0.12), transparent 70%);
+          animation: lp-drift-1 14s ease-in-out infinite alternate;
+        }
+        .lp-dark-orb--2 {
+          width: 400px; height: 400px;
+          top: 40%; right: -5%;
+          background: radial-gradient(circle, hsl(260 60% 55% / 0.08), transparent 70%);
+          animation: lp-drift-2 16s ease-in-out infinite alternate;
+        }
+        .lp-dark-orb--3 {
+          width: 350px; height: 350px;
+          bottom: 10%; left: 25%;
+          background: radial-gradient(circle, hsl(142 70% 45% / 0.06), transparent 70%);
+          animation: lp-drift-3 12s ease-in-out infinite alternate;
+        }
+        @keyframes lp-drift-1 { from { transform: translate(0, 0); } to { transform: translate(40px, 30px); } }
+        @keyframes lp-drift-2 { from { transform: translate(0, 0); } to { transform: translate(-30px, -20px); } }
+        @keyframes lp-drift-3 { from { transform: translate(0, 0); } to { transform: translate(20px, -25px); } }
+
+        /* grain texture */
+        .lp-dark-grain {
+          position: absolute; inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          background-size: 200px 200px;
+          opacity: 0.03;
+          pointer-events: none;
+        }
+
+        .lp-section-dark > *:not(.lp-dark-aurora) { position: relative; z-index: 1; }
+
         .lp-eyebrow-dim { color: rgba(255,255,255,0.35); }
-        .lp-compare { max-width: 640px; margin: 0 auto; }
-        .lp-compare-row {
-          display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 12px;
-          padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.07);
-          font-size: 14px; align-items: center;
+        .lp-cmp-block { padding-top: 0; }
+
+        /* ── comparison: terminal diff ── */
+        .lp-diff {
+          max-width: 680px;
+          margin: 0 auto;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(0,0,0,0.4);
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          position: relative;
         }
-        .lp-compare-row:last-child { border-bottom: none; }
-        .lp-compare-head {
-          font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
-          text-transform: uppercase; padding-bottom: 14px;
-          border-bottom: 1px solid rgba(255,255,255,0.12);
+        .lp-diff::before {
+          content: '';
+          position: absolute; inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          background-size: 200px 200px;
+          opacity: 0.02;
+          pointer-events: none; z-index: 0;
+          border-radius: inherit;
         }
-        .lp-compare-label { color: rgba(255,255,255,0.4); font-weight: 500; }
-        .lp-compare-us, .lp-compare-us-head {
-          display: flex; align-items: center; gap: 8px; font-weight: 600; color: #fff;
+        .lp-diff > * { position: relative; z-index: 1; }
+
+        .lp-diff-chrome {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 18px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          background: rgba(255,255,255,0.02);
         }
-        .lp-compare-pill {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: rgba(0,82,255,0.07);
-          padding: 4px 10px;
-          border-radius: 6px;
-          white-space: nowrap;
+        .lp-diff-dots {
+          display: flex; gap: 6px;
         }
-        .lp-compare-them, .lp-compare-them-head {
-          display: flex; align-items: center; gap: 8px; font-weight: 500; color: rgba(255,255,255,0.3);
+        .lp-diff-dot {
+          width: 10px; height: 10px; border-radius: 50%;
         }
-        .lp-icon-check { color: var(--green); flex-shrink: 0; }
-        .lp-icon-x { color: var(--red); opacity: 0.55; flex-shrink: 0; }
+        .lp-diff-dot--r { background: #ff5f57; }
+        .lp-diff-dot--y { background: #febc2e; }
+        .lp-diff-dot--g { background: #28c840; }
+        .lp-diff-title {
+          font-size: 11px;
+          color: rgba(255,255,255,0.3);
+          letter-spacing: 0.02em;
+        }
+
+        .lp-diff-body {
+          padding: 20px 24px;
+        }
+        .lp-diff-block {
+          margin-bottom: 6px;
+        }
+        .lp-diff-comment {
+          font-size: 12px;
+          line-height: 2;
+          color: rgba(255,255,255,0.2);
+        }
+        .lp-diff-slashes {
+          color: rgba(255,255,255,0.12);
+        }
+        .lp-diff-add {
+          font-size: 13.5px;
+          line-height: 2;
+          color: #4ade80;
+          font-weight: 500;
+          padding-left: 4px;
+          border-radius: 3px;
+          background: rgba(74,222,128,0.04);
+        }
+        .lp-diff-del {
+          font-size: 12.5px;
+          line-height: 2;
+          color: rgba(248,113,113,0.45);
+          font-weight: 400;
+          padding-left: 4px;
+          border-radius: 3px;
+          background: rgba(248,113,113,0.02);
+        }
+        .lp-diff-sign {
+          display: inline-block;
+          width: 16px;
+          font-weight: 700;
+        }
+        .lp-diff-struck {
+          text-decoration: line-through;
+          text-decoration-color: rgba(248,113,113,0.25);
+        }
+
+        .lp-diff-result {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          font-size: 13px;
+          line-height: 2;
+          color: rgba(255,255,255,0.4);
+        }
+        .lp-diff-caret {
+          color: var(--blue);
+          font-weight: 700;
+          margin-right: 6px;
+        }
+        .lp-diff-count {
+          color: #4ade80;
+          font-weight: 700;
+        }
+        .lp-diff-cursor {
+          display: inline-block;
+          width: 8px;
+          height: 15px;
+          background: var(--blue);
+          margin-left: 4px;
+          vertical-align: text-bottom;
+          animation: lp-blink 1s step-end infinite;
+        }
+        @keyframes lp-blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
+        }
+
+        /* ── tablet ── */
+        @media (max-width: 768px) {
+          .lp-diff { max-width: 100%; }
+          .lp-diff-body { padding: 16px 18px; }
+          .lp-diff-add { font-size: 13px; }
+          .lp-diff-del { font-size: 12px; }
+          .lp-step { min-height: 260px; }
+          .lp-step-visual { padding: 36px 32px; }
+          .lp-step-text { padding: 40px 36px; }
+          .lp-step-num { font-size: 48px; }
+          .lp-step-title { font-size: 22px; }
+          .lp-step-desc { font-size: 13.5px; }
+        }
 
         /* ── cta ── */
         .lp-cta { padding: 120px 28px; text-align: center; }
@@ -1918,23 +2685,51 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
 
         /* ── footer ── */
-        .lp-footer { border-top: 1px solid rgba(0,0,0,0.06); padding: 24px 28px; }
-        .lp-footer-inner {
-          max-width: 1160px; margin: 0 auto;
-          display: flex; align-items: center; justify-content: space-between;
-          flex-wrap: wrap; gap: 16px;
+        .lp-footer {
+          border-top: 1px solid rgba(0,0,0,0.06);
+          padding: 48px 28px 32px;
+          background: #fafafa;
         }
-        .lp-footer-left { display: flex; align-items: center; gap: 10px; }
-        .lp-footer-logo { height: 32px; width: auto; filter: brightness(0); opacity: 0.4; }
-        .lp-footer-copy { font-size: 13px; color: var(--muted); }
-        .lp-footer-links { display: flex; align-items: center; gap: 20px; }
+        .lp-footer-inner { max-width: 1160px; margin: 0 auto; }
+        .lp-footer-top {
+          display: flex; justify-content: space-between; align-items: flex-start;
+          gap: 48px; padding-bottom: 32px;
+          border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        .lp-footer-brand { display: flex; align-items: center; gap: 12px; }
+        .lp-footer-icon { height: 36px; width: 36px; border-radius: 8px; }
+        .lp-footer-name {
+          font-family: var(--sans); font-size: 15px; font-weight: 600;
+          color: var(--fg); letter-spacing: -0.01em;
+        }
+        .lp-footer-tagline { font-size: 13px; color: var(--muted); margin-top: 1px; }
+        .lp-footer-cols { display: flex; gap: 64px; }
+        .lp-footer-col { display: flex; flex-direction: column; gap: 8px; }
+        .lp-footer-col-title {
+          font-family: var(--sans); font-size: 11px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.08em;
+          color: var(--fg); margin-bottom: 4px;
+        }
         .lp-footer-link {
-          display: inline-flex; align-items: center; gap: 5px;
-          font-family: var(--sans); font-size: 13px; font-weight: 500;
+          display: inline-flex; align-items: center; gap: 6px;
+          font-family: var(--sans); font-size: 13px; font-weight: 450;
           color: var(--muted); text-decoration: none;
-          border: none; background: none; cursor: pointer; transition: color 0.2s;
+          border: none; background: none; cursor: pointer;
+          padding: 0; transition: color 0.2s;
         }
         .lp-footer-link:hover { color: var(--fg); }
+        .lp-footer-bottom {
+          display: flex; align-items: center; justify-content: space-between;
+          padding-top: 20px;
+        }
+        .lp-footer-copy { font-size: 12px; color: var(--muted); }
+        .lp-footer-bottom-links { display: flex; gap: 12px; }
+        .lp-footer-social {
+          display: flex; align-items: center; justify-content: center;
+          width: 32px; height: 32px; border-radius: 8px;
+          color: var(--muted); transition: color 0.2s, background 0.2s;
+        }
+        .lp-footer-social:hover { color: var(--fg); background: rgba(0,0,0,0.04); }
 
         /* ── mobile ── */
         @media (max-width: 639px) {
@@ -1945,33 +2740,55 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-section { padding: 56px 16px; }
           .lp-h2 { font-size: 28px; }
           .lp-case-card { padding: 24px 20px; }
-          .lp-case-title { font-size: 16px; }
-          .lp-compare { padding: 0 4px; }
-          .lp-compare-head { display: none !important; }
-          .lp-compare-row {
+          .lp-case-title { font-size: 17px; }
+          .lp-wf-alt-amount { font-size: 18px; }
+          .lp-geo-stat-num { font-size: 28px; }
+          /* steps: stack on mobile */
+          .lp-step {
             grid-template-columns: 1fr;
-            gap: 4px;
-            padding: 18px 0;
+            min-height: auto;
           }
-          .lp-compare-label {
-            font-size: 10.5px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-            opacity: 0.5;
+          .lp-step-flip .lp-step-visual { order: 0; }
+          .lp-step-flip .lp-step-text { order: 0; }
+          .lp-step-visual { padding: 28px 20px 16px; }
+          .lp-step-text { padding: 0 20px 36px; }
+          .lp-step-num { font-size: 40px; margin-bottom: 8px; }
+          .lp-step-title { font-size: 20px; }
+          .lp-step-desc { font-size: 13px; max-width: none; }
+          .lp-section-unified { padding: 32px 0 16px; }
+          .lp-story-foot { display: none; }
+          .lp-cmp-wrap { padding-top: 48px; }
+          .lp-dissolve,
+          .lp-dissolve-exit { height: 200px; margin-bottom: -40px; }
+          .lp-dissolve .lp-blk:nth-child(odd) { display: none; }
+          .lp-dissolve-exit .lp-blk:nth-child(3n) { display: none; }
+          .lp-blk-fall:nth-child(odd) { display: none; }
+
+          /* comparison: terminal diff on mobile */
+          .lp-diff {
+            border-radius: 8px;
+            margin: 0 16px;
+            max-width: calc(100vw - 32px);
+            box-sizing: border-box;
           }
-          .lp-compare-us { font-size: 15px; font-weight: 650; }
-          .lp-compare-them { font-size: 13px; margin-top: 2px; }
-          .lp-compare-pill { padding: 5px 12px; border-radius: 8px; }
+          .lp-diff-body { padding: 14px 14px; overflow-x: auto; }
+          .lp-diff-chrome { padding: 10px 14px; }
+          .lp-diff-title { font-size: 10px; }
+          .lp-diff-comment { font-size: 11px; }
+          .lp-diff-add { font-size: 12px; }
+          .lp-diff-del { font-size: 11px; }
+          .lp-diff-result { font-size: 11.5px; }
+
           .lp-cta { padding: 64px 20px; }
           .lp-cta-inner h2 { font-size: 28px; }
-          .lp-timeline-circle { width: 44px; height: 44px; font-size: 12px; }
-          .lp-timeline-title { font-size: 16px; }
-          .lp-timeline-desc { font-size: 13px; }
           .lp-geo-grid { gap: 6px; }
           .lp-geo-item { padding: 8px 10px; }
           .lp-geo-city { font-size: 12px; }
-          .lp-geo-status { font-size: 9px; }
+          .lp-geo-status-pill { font-size: 8.5px; padding: 2px 6px; }
+
+          .lp-footer { padding: 32px 20px 24px; }
+          .lp-footer-top { flex-direction: column; gap: 32px; }
+          .lp-footer-cols { gap: 40px; }
         }
       `}</style>
     </div>
