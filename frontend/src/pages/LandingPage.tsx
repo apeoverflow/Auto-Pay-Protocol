@@ -734,8 +734,14 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             {ROWS.map((r) => (
               <motion.div key={r.label} variants={revealVariants} className="lp-compare-row">
                 <span className="lp-compare-label">{r.label}</span>
-                <span className="lp-compare-us"><span className="lp-compare-pill"><Check size={14} strokeWidth={3} className="lp-icon-check" /> {r.us}</span></span>
-                <span className="lp-compare-them"><X size={14} strokeWidth={2.5} className="lp-icon-x" /> {r.them}</span>
+                <span className="lp-compare-us">
+                  <span className="lp-compare-mob-label">AutoPay</span>
+                  <span className="lp-compare-pill"><Check size={14} strokeWidth={3} className="lp-icon-check" /> {r.us}</span>
+                </span>
+                <span className="lp-compare-them">
+                  <span className="lp-compare-mob-label">Traditional</span>
+                  <X size={14} strokeWidth={2.5} className="lp-icon-x" /> {r.them}
+                </span>
               </motion.div>
             ))}
           </div>
@@ -1882,6 +1888,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-icon-check { color: var(--green); flex-shrink: 0; }
         .lp-icon-x { color: var(--red); opacity: 0.55; flex-shrink: 0; }
+        .lp-compare-mob-label { display: none; }
 
         /* ── cta ── */
         .lp-cta { padding: 120px 28px; text-align: center; }
@@ -1946,23 +1953,70 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-h2 { font-size: 28px; }
           .lp-case-card { padding: 24px 20px; }
           .lp-case-title { font-size: 16px; }
-          .lp-compare { padding: 0 4px; }
+          .lp-compare { padding: 0; }
           .lp-compare-head { display: none !important; }
           .lp-compare-row {
             grid-template-columns: 1fr;
-            gap: 4px;
-            padding: 18px 0;
+            gap: 0;
+            padding: 0;
+            border-bottom: none;
+            background: rgba(255,255,255,0.04);
+            border-radius: 14px;
+            margin-bottom: 10px;
+            overflow: hidden;
           }
+          .lp-compare-row:last-child { margin-bottom: 0; }
           .lp-compare-label {
-            font-size: 10.5px;
-            letter-spacing: 0.08em;
+            font-size: 11px;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            margin-bottom: 6px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.45);
+            padding: 14px 18px 8px;
+          }
+          .lp-compare-us {
+            font-size: 15px;
+            font-weight: 650;
+            padding: 0 18px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+          }
+          .lp-compare-them {
+            font-size: 13px;
+            padding: 10px 18px 14px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+          }
+          .lp-compare-them > .lp-icon-x {
+            display: none;
+          }
+          .lp-compare-mob-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+          }
+          .lp-compare-us .lp-compare-mob-label {
+            color: var(--green);
+            opacity: 0.7;
+          }
+          .lp-compare-them .lp-compare-mob-label {
+            color: var(--red);
             opacity: 0.5;
           }
-          .lp-compare-us { font-size: 15px; font-weight: 650; }
-          .lp-compare-them { font-size: 13px; margin-top: 2px; }
-          .lp-compare-pill { padding: 5px 12px; border-radius: 8px; }
+          .lp-compare-them > svg { display: none; }
+          .lp-compare-pill {
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            background: rgba(0,82,255,0.1);
+          }
           .lp-cta { padding: 64px 20px; }
           .lp-cta-inner h2 { font-size: 28px; }
           .lp-timeline-circle { width: 44px; height: 44px; font-size: 12px; }
