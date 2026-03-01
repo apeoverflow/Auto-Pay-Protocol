@@ -123,26 +123,22 @@ function MotionButton({
 /* ── USDC coin SVG ── */
 function UsdcCoin({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="20" fill="#2775CA" />
-      <circle cx="20" cy="20" r="19" fill="none" stroke="#fff" strokeWidth="0.5" strokeOpacity="0.3" />
-      <path
-        d="M25.15 23.15c0-2.35-1.45-3.15-4.35-3.5-2.1-.3-2.5-.9-2.5-1.95s.7-1.7 2.1-1.7c1.25 0 1.95.45 2.3 1.55.05.15.2.25.35.25h.8c.2 0 .35-.15.35-.35v-.05c-.3-1.45-1.35-2.5-2.95-2.75V13.3c0-.2-.15-.35-.4-.4h-.75c-.2 0-.35.15-.4.4v1.3c-1.95.25-3.2 1.55-3.2 3.1 0 2.2 1.4 3.05 4.3 3.4 1.95.35 2.55.8 2.55 2.05 0 1.25-1.05 2.1-2.5 2.1-1.95 0-2.65-.8-2.85-1.9-.05-.2-.2-.3-.35-.3h-.85c-.2 0-.35.15-.35.35v.05c.3 1.7 1.5 2.75 3.25 3.05v1.35c0 .2.15.35.4.4h.75c.2 0 .35-.15.4-.4v-1.35c1.95-.3 3.2-1.65 3.2-3.35z"
-        fill="#fff"
-      />
-      <path
-        d="M16.55 31.1C11.5 29.35 8.85 23.8 10.65 18.8c1.05-2.9 3.35-5.15 6.25-6.2.2-.1.3-.25.3-.5v-.7c0-.2-.1-.35-.3-.4-.05 0-.1 0-.15.05-5.95 1.85-9.25 8.2-7.4 14.15 1.1 3.55 3.85 6.3 7.4 7.4.2.1.4 0 .45-.2.05-.05.05-.1.05-.15v-.7c0-.15-.15-.35-.35-.45zM23.6 10.95c-.2-.1-.4 0-.45.2-.05.05-.05.1-.05.15v.7c0 .2.15.4.35.5 5.05 1.75 7.7 7.3 5.9 12.3-1.05 2.9-3.35 5.15-6.25 6.2-.2.1-.3.25-.3.5v.7c0 .2.1.35.3.4.05 0 .1 0 .15-.05 5.95-1.85 9.25-8.2 7.4-14.15-1.1-3.55-3.85-6.3-7.4-7.4z"
-        fill="#fff"
-      />
-    </svg>
+    <img
+      src="/logos/usdc.svg"
+      alt=""
+      width={size}
+      height={size}
+      style={{ borderRadius: '50%', display: 'block' }}
+    />
   )
 }
 
-/* ── USDC stream (arc path) ── */
-const ARC_COINS: { size: number; dur: number; spread: number; wobble: number }[] = [
-  { size: 30, dur: 22, spread: -8, wobble: 30 },
-  { size: 26, dur: 22, spread: 10, wobble: 34 },
-  { size: 34, dur: 22, spread: -4, wobble: 32 },
+/* ── USDC stream (arc paths — branch at top) ── */
+/* edge: conic-gradient start angle, tiltX/tiltY: subtle perspective tilt matching shadow direction */
+const ARC_COINS: { size: number; dur: number; spread: number; wobble: number; path: number; edge: number; tiltX: number; tiltY: number }[] = [
+  { size: 30, dur: 14, spread: -8, wobble: 28, path: 0, edge: 145, tiltX: 22, tiltY: -16 },
+  { size: 26, dur: 22, spread: 10, wobble: 32, path: 1, edge: 200, tiltX: -18, tiltY: -20 },
+  { size: 34, dur: 10, spread: -4, wobble: 30, path: 2, edge: 170, tiltX: 16, tiltY: -12 },
 ]
 
 function UsdcStream() {
@@ -153,12 +149,12 @@ function UsdcStream() {
       <div className="lp-mist lp-mist-5" />
       <div className="lp-tendril lp-tendril-1" />
       <div className="lp-tendril lp-tendril-3" />
-      <div className="lp-shimmer lp-shimmer-firefly"><div className="lp-shimmer-core" /></div>
-      <div className="lp-shimmer lp-shimmer-streak"><div className="lp-shimmer-core" /></div>
+      <div className="lp-shimmer lp-shimmer-firefly lp-arc-1"><div className="lp-shimmer-core" /></div>
+      <div className="lp-shimmer lp-shimmer-streak lp-arc-2"><div className="lp-shimmer-core" /></div>
       {ARC_COINS.map((c, i) => (
         <div
           key={i}
-          className="lp-coin"
+          className={`lp-coin lp-arc-${c.path}`}
           style={{
             ['--dur' as string]: `${c.dur}s`,
             ['--delay' as string]: `${-((i / ARC_COINS.length) * c.dur).toFixed(1)}s`,
@@ -171,6 +167,9 @@ function UsdcStream() {
               width: c.size,
               height: c.size,
               animationDuration: `${c.wobble}s`,
+              ['--edge' as string]: `${c.edge}deg`,
+              ['--tiltX' as string]: `${c.tiltX}deg`,
+              ['--tiltY' as string]: `${c.tiltY}deg`,
             }}
           >
             <UsdcCoin size={c.size} />
@@ -554,6 +553,32 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             <span className="lp-stat-label">Intermediaries</span>
           </motion.div>
         </SectionReveal>
+
+        {/* ── PARTNERS — ticker tape ── */}
+        <div className="lp-partners">
+          <div className="lp-ticker-track">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="lp-ticker-set" aria-hidden={copy === 1 || undefined}>
+                {[
+                  { src: '/logos/usdc.svg', name: 'USDC' },
+                  { src: '/logos/base.svg', name: 'Base' },
+                  { src: '/logos/flow.svg', name: 'Flow' },
+                  { src: '/logos/lifi.svg', name: 'LI.FI' },
+                  { src: '/logos/ipfs.svg', name: 'IPFS' },
+                  { src: '/logos/filecoin.svg', name: 'Filecoin' },
+                  { src: '/logos/storacha.svg', name: 'Storacha' },
+                  { src: '/logos/rainbowkit.svg', name: 'RainbowKit' },
+                ].map((p) => (
+                  <div key={p.name} className="lp-partner-item">
+                    <img src={p.src} alt={p.name} className="lp-partner-logo" />
+                    <span className="lp-partner-name">{p.name}</span>
+                    <span className="lp-partner-dot" aria-hidden="true" />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── WHY AUTOPAY — case studies ── */}
@@ -831,34 +856,90 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           will-change: offset-distance, opacity;
           transform: translateX(var(--spread, 0px));
         }
+        /* branching paths — shared trunk, diverging tops */
+        .lp-arc-0 {
+          offset-path: path("M 700 560 C 680 480, 580 420, 590 340 C 600 260, 720 220, 690 140 C 670 70, 640 10, 610 -60");
+        }
+        .lp-arc-1 {
+          offset-path: path("M 700 560 C 680 480, 580 420, 590 340 C 600 260, 720 220, 690 140 C 690 60, 720 -10, 750 -70");
+        }
+        .lp-arc-2 {
+          offset-path: path("M 700 560 C 680 480, 580 420, 590 340 C 600 260, 720 220, 690 140 C 660 50, 680 -30, 680 -90");
+        }
 
         .lp-coin-body {
           border-radius: 50%;
           animation: coinWobble ease-in-out infinite;
-          box-shadow:
-            0 2px 6px rgba(39,117,202,0.15),
-            0 6px 16px rgba(39,117,202,0.08);
+          position: relative;
+          transform: perspective(120px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg));
         }
-        .lp-coin-body svg {
+        /* ── faux-3D coin edge (visible rim) ── */
+        .lp-coin-body::before {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          background: conic-gradient(
+            from var(--edge, 150deg),
+            #0a3a6e 0deg,
+            #155ea0 60deg,
+            #1a6fbf 120deg,
+            #155ea0 200deg,
+            #0a3a6e 280deg,
+            #072b54 360deg
+          );
+          z-index: -1;
+        }
+        /* ── directional shadow (offset matches tilt) ── */
+        .lp-coin-body::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          box-shadow:
+            3px 4px 8px rgba(10,40,80,0.4),
+            5px 8px 18px rgba(10,40,80,0.18),
+            1px 2px 3px rgba(10,40,80,0.25);
+          z-index: -1;
+        }
+        /* per-coin shadow direction matching tilt */
+        .lp-arc-0 .lp-coin-body::after {
+          box-shadow: -5px 6px 10px rgba(10,40,80,0.4), -7px 10px 22px rgba(10,40,80,0.2), -2px 3px 4px rgba(10,40,80,0.3);
+        }
+        .lp-arc-1 .lp-coin-body::after {
+          box-shadow: 5px 7px 10px rgba(10,40,80,0.4), 8px 12px 22px rgba(10,40,80,0.2), 2px 3px 4px rgba(10,40,80,0.3);
+        }
+        .lp-arc-2 .lp-coin-body::after {
+          box-shadow: -4px 5px 10px rgba(10,40,80,0.4), -5px 9px 22px rgba(10,40,80,0.2), -1px 3px 4px rgba(10,40,80,0.3);
+        }
+        /* ── lighting overlay on the face ── */
+        .lp-coin-body img {
           display: block;
           border-radius: 50%;
+          position: relative;
+          z-index: 1;
         }
 
         @keyframes followArc {
-          0%   { offset-distance: 0%;   opacity: 0; }
-          6%   { offset-distance: 8%;   opacity: 1; }
-          15%  { offset-distance: 18%;  opacity: 1; }
-          35%  { offset-distance: 38%;  opacity: 1; }
-          55%  { offset-distance: 56%;  opacity: 1; }
-          75%  { offset-distance: 75%;  opacity: 1; }
-          88%  { offset-distance: 90%;  opacity: 0.4; }
-          100% { offset-distance: 100%; opacity: 0; }
+          0%   { offset-distance: 0%;   opacity: 0; transform: translateX(var(--spread, 0px)) scale(1); }
+          5%   { offset-distance: 3%;   opacity: 1; transform: translateX(var(--spread, 0px)) scale(1); }
+          20%  { offset-distance: 10%;  opacity: 1; transform: translateX(var(--spread, 0px)) scale(1); }
+          40%  { offset-distance: 20%;  opacity: 1; transform: translateX(var(--spread, 0px)) scale(1); }
+          55%  { offset-distance: 28%;  opacity: 1; transform: translateX(var(--spread, 0px)) scale(1); }
+          70%  { offset-distance: 38%;  opacity: 1; transform: translateX(var(--spread, 0px)) scale(1); }
+          80%  { offset-distance: 48%;  opacity: 1; transform: translateX(var(--spread, 0px)) scale(1); }
+          87%  { offset-distance: 60%;  opacity: 1; transform: translateX(var(--spread, 0px)) scale(0.95); }
+          92%  { offset-distance: 75%;  opacity: 0.8; transform: translateX(var(--spread, 0px)) scale(0.85); }
+          95%  { offset-distance: 88%;  opacity: 0.5; transform: translateX(var(--spread, 0px)) scale(0.7); }
+          97%  { offset-distance: 95%;  opacity: 0.25; transform: translateX(var(--spread, 0px)) scale(0.5); }
+          100% { offset-distance: 100%; opacity: 0; transform: translateX(var(--spread, 0px)) scale(0.2); }
         }
 
         @keyframes coinWobble {
-          0%   { transform: translateX(var(--spread, 0px)) rotate(-2deg) scale(1); }
-          50%  { transform: translateX(var(--spread, 0px)) rotate(2deg) scale(1.02); }
-          100% { transform: translateX(var(--spread, 0px)) rotate(-2deg) scale(1); }
+          0%   { transform: perspective(120px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg)) rotate(-2deg) scale(1); }
+          33%  { transform: perspective(120px) rotateX(calc(var(--tiltX, 0deg) + 3deg)) rotateY(calc(var(--tiltY, 0deg) - 2deg)) rotate(2deg) scale(1.03); }
+          66%  { transform: perspective(120px) rotateX(calc(var(--tiltX, 0deg) - 2deg)) rotateY(calc(var(--tiltY, 0deg) + 3deg)) rotate(-1deg) scale(0.98); }
+          100% { transform: perspective(120px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg)) rotate(-2deg) scale(1); }
         }
 
         /* ── aura mist system ── */
@@ -928,7 +1009,6 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         /* shimmer particles */
         .lp-shimmer {
           position: absolute;
-          offset-path: path("M 700 560 C 680 480, 580 420, 590 340 C 600 260, 720 220, 690 140 C 660 60, 700 -20, 710 -80");
           offset-rotate: auto;
           will-change: offset-distance, opacity;
         }
@@ -957,9 +1037,13 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         @keyframes shimmerFirefly {
           0%   { offset-distance: 0%;   opacity: 0; }
-          6%   { opacity: 0.7; }
-          50%  { opacity: 0.8; }
-          90%  { opacity: 0.5; }
+          6%   { offset-distance: 3%;   opacity: 0.7; }
+          30%  { offset-distance: 14%;  opacity: 0.8; }
+          55%  { offset-distance: 28%;  opacity: 0.8; }
+          75%  { offset-distance: 42%;  opacity: 0.8; }
+          87%  { offset-distance: 60%;  opacity: 0.7; }
+          93%  { offset-distance: 82%;  opacity: 0.4; }
+          97%  { offset-distance: 95%;  opacity: 0.15; }
           100% { offset-distance: 100%; opacity: 0; }
         }
         @keyframes fireflyBlink {
@@ -992,9 +1076,13 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         @keyframes shimmerStreak {
           0%   { offset-distance: 0%;   opacity: 0; }
-          3%   { opacity: 0.8; }
-          40%  { opacity: 1; }
-          90%  { opacity: 0.6; }
+          5%   { offset-distance: 3%;   opacity: 0.8; }
+          30%  { offset-distance: 16%;  opacity: 1; }
+          55%  { offset-distance: 30%;  opacity: 1; }
+          75%  { offset-distance: 44%;  opacity: 1; }
+          87%  { offset-distance: 62%;  opacity: 0.8; }
+          93%  { offset-distance: 82%;  opacity: 0.5; }
+          97%  { offset-distance: 95%;  opacity: 0.2; }
           100% { offset-distance: 100%; opacity: 0; }
         }
 
@@ -1008,6 +1096,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-hero-orb { animation: none; }
           .lp-cta-orb { animation: none; }
           .lp-pulse-ring { animation: none !important; }
+          .lp-ticker-track { animation: none; }
           .lp-hero-card-1, .lp-hero-card-2, .lp-hero-card-3 { animation: none !important; }
           .lp-hc-badge-dot { animation: none; }
           .lp-hc-progress-fill::after { animation: none; display: none; }
@@ -1026,7 +1115,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           border-bottom: 1px solid rgba(0,0,0,0.06);
         }
         .lp-nav-inner {
-          max-width: 1160px; margin: 0 auto;
+          max-width: 1040px; margin: 0 auto;
           display: flex; align-items: center; justify-content: space-between;
           padding: 20px 28px;
         }
@@ -1579,6 +1668,72 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-geo-stat-text {
           font-size: 13px; line-height: 1.45; color: var(--muted);
           font-weight: 500;
+        }
+
+        /* ── partners / integrations ticker ── */
+        .lp-partners {
+          padding: 56px 0 28px;
+          position: relative;
+          z-index: 2;
+          overflow: hidden;
+          mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
+          -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
+        }
+        .lp-ticker-track {
+          display: flex;
+          width: max-content;
+          animation: tickerScroll 35s linear infinite;
+        }
+        .lp-ticker-track:hover { animation-play-state: paused; }
+        .lp-ticker-set {
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+        }
+        @keyframes tickerScroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .lp-partner-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 0;
+          transition: opacity 0.2s;
+          flex-shrink: 0;
+        }
+        .lp-partner-item:hover { opacity: 1; }
+        .lp-partner-logo {
+          height: 24px;
+          width: 24px;
+          object-fit: contain;
+          opacity: 0.4;
+          border-radius: 4px;
+          transition: opacity 0.2s;
+        }
+        .lp-partner-name {
+          font-size: 14px;
+          font-weight: 620;
+          color: var(--fg);
+          letter-spacing: -0.01em;
+          opacity: 0.35;
+          transition: opacity 0.2s;
+        }
+        .lp-partner-item:hover .lp-partner-name { opacity: 0.8; }
+        .lp-partner-item:hover .lp-partner-logo { opacity: 0.85; }
+        .lp-partner-dot {
+          width: 3px; height: 3px; border-radius: 50%;
+          background: rgba(0,0,0,0.15);
+          margin: 0 18px;
+          flex-shrink: 0;
+          opacity: 0.4;
+        }
+        @media (max-width: 639px) {
+          .lp-partners { padding: 32px 0 24px; }
+          .lp-ticker-track { animation-duration: 25s; }
+          .lp-partner-dot { margin: 0 12px; }
+          .lp-partner-name { font-size: 13px; }
+          .lp-partner-logo { height: 20px; width: 20px; }
         }
 
         /* ── timeline (how it works) ── */
