@@ -331,8 +331,8 @@ function TiltCard({
   const y = useMotionValue(0.5)
 
   const springCfg = { damping: 20, stiffness: 160 }
-  const rotateX = useSpring(useTransform(y, [0, 1], [4, -4]), springCfg)
-  const rotateY = useSpring(useTransform(x, [0, 1], [-4, 4]), springCfg)
+  const rotateX = useSpring(useTransform(y, [0, 1], [2, -2]), springCfg)
+  const rotateY = useSpring(useTransform(x, [0, 1], [-2, 2]), springCfg)
 
   const handleMouse = (e: React.MouseEvent) => {
     if (prefersReduced) return
@@ -353,7 +353,7 @@ function TiltCard({
       className={className}
       variants={cardVariants}
       style={prefersReduced ? {} : { rotateX, rotateY, transformPerspective: 800 }}
-      whileHover={prefersReduced ? {} : { y: -4, boxShadow: '0 12px 48px rgba(0,0,0,0.10)' }}
+      whileHover={prefersReduced ? {} : { y: -2, boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}
       transition={{ type: 'spring', damping: 14, stiffness: 160 }}
       onMouseMove={handleMouse}
       onMouseLeave={handleLeave}
@@ -781,7 +781,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           {/* ── Two-column case studies ── */}
           <motion.div className="lp-cases" variants={containerVariants}>
             {/* Left: Fee waterfall */}
-            <TiltCard className="lp-case-card lp-case-fee">
+            <motion.div className="lp-case-card lp-case-fee" variants={cardVariants}>
               <div className="lp-case-head">
                 <BadgePercent size={16} strokeWidth={2.5} className="lp-case-icon" />
                 <span className="lp-case-tag">CASE STUDY</span>
@@ -796,10 +796,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                 AutoPay keeps $9.75. That's <strong>$1,140/mo more</strong> — or
                 $13,680 per year back in your pocket.
               </p>
-            </TiltCard>
+            </motion.div>
 
             {/* Right: Geography exclusion */}
-            <TiltCard className="lp-case-card lp-case-geo">
+            <motion.div className="lp-case-card lp-case-geo" variants={cardVariants}>
               <div className="lp-case-head">
                 <Globe size={16} strokeWidth={2.5} className="lp-case-icon lp-case-icon-geo" />
                 <span className="lp-case-tag lp-case-tag-geo">CASE STUDY</span>
@@ -851,7 +851,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               <p className="lp-case-note">
                 Any wallet. Any country. Same rate.
               </p>
-            </TiltCard>
+            </motion.div>
           </motion.div>
         </SectionReveal>
       </section>
@@ -1807,8 +1807,6 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-case-fee { border-top-color: var(--blue); }
         .lp-case-geo { border-top-color: var(--green); }
-        .lp-case-fee:hover { box-shadow: 0 12px 48px rgba(0,82,255,0.08); }
-        .lp-case-geo:hover { box-shadow: 0 12px 48px rgba(22,163,74,0.08); }
         .lp-case-head {
           display: flex; align-items: center; gap: 8px;
           margin-bottom: 16px;
