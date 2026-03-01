@@ -1,13 +1,11 @@
 import { useRef } from 'react'
 import {
   ShieldCheck,
-  Globe,
   BadgePercent,
   ArrowRight,
   BookOpen,
   ArrowUpRight,
   Check,
-  X,
   // eslint-disable-next-line @typescript-eslint/no-deprecated
   Github,
   Package,
@@ -363,93 +361,168 @@ function TiltCard({
   )
 }
 
-/* ── Fee Waterfall visual ── */
-const WATERFALL_STEPS = [
-  { label: 'Subscriber pays', amount: '$10.00', numVal: 10.00, pct: 100 },
-  { label: 'Patreon / Discord takes 8–10%', amount: '−$0.80', numVal: -0.80, pct: 92 },
-  { label: 'Stripe takes 2.9% + 30¢', amount: '−$0.59', numVal: -0.59, pct: 86.1 },
-  { label: 'Creator keeps', amount: '$8.61', numVal: 8.61, pct: 86.1 },
-]
+/* ── Interactive Fee Calculator ── */
+const FEE_PRESETS = [500, 1000, 2500, 5000, 10000]
 
-function AnimatedAmount({ value, prefix, inView, prefersReduced, delay }: { value: number; prefix?: string; inView: boolean; prefersReduced: boolean | null; delay: number }) {
-  const [display, setDisplay] = useState(prefersReduced ? value.toFixed(2) : '0.00')
-  useEffect(() => {
-    if (!inView || prefersReduced) {
-      setDisplay(value.toFixed(2))
-      return
-    }
-    const ctrl = animate(0, value, {
-      duration: 0.8,
-      delay,
-      ease: 'easeOut',
-      onUpdate: (v) => setDisplay(v.toFixed(2)),
-    })
-    return () => ctrl.stop()
-  }, [inView, value, delay, prefersReduced])
-  return <>{prefix}${display}</>
+function FeeCalculator() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, amount: 0.2 })
+  const prefersReduced = useReducedMotion()
+  const [subs, setSubs] = useState(1000)
+  const price = 10
+  const [hasInteracted, setHasInteracted] = useState(false)
+
+  const monthly = subs * price
+  const platformCut = monthly * 0.08
+  const stripeCut = subs * 0.30 + monthly * 0.029
+  const tradKeeps = monthly - platformCut - stripeCut
+  const autoPayFee = monthly * 0.025
+  const autoKeeps = monthly - autoPayFee
+  const monthlyDiff = autoKeeps - tradKeeps
+  const yearlyDiff = monthlyDiff * 12
+  const tradPct = (tradKeeps / monthly) * 100
+  const autoPct = (autoKeeps / monthly) * 100
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 })
+
+  return (
+    <div ref={ref} className="lp-calc">
+      <div className="lp-calc-controls">
+        <div className="lp-calc-label">
+          <span className="lp-calc-label-text">Subscribers</span>
+          <motion.span className="lp-calc-label-val" key={subs} initial={hasInteracted ? { scale: 1.15 } : {}} animate={{ scale: 1 }}>{subs.toLocaleString()}</motion.span>
+        </div>
+        <div className="lp-calc-slider-wrap">
+          <input type="range" min={100} max={25000} step={100} value={subs}
+            onChange={(e) => { setSubs(Number(e.target.value)); setHasInteracted(true) }}
+            className="lp-calc-slider" />
+          <div className="lp-calc-slider-fill" style={{ width: `${((subs - 100) / (25000 - 100)) * 100}%` }} />
+        </div>
+        <div className="lp-calc-presets">
+          {FEE_PRESETS.map((p) => (
+            <button key={p} className={`lp-calc-preset ${subs === p ? 'lp-calc-preset--active' : ''}`}
+              onClick={() => { setSubs(p); setHasInteracted(true) }}>
+              {p >= 1000 ? `${p / 1000}k` : p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="lp-calc-race">
+        <div className="lp-calc-race-label">At ${price}/mo each — who keeps more?</div>
+        <div className="lp-calc-bar-group">
+          <div className="lp-calc-bar-label">
+            <span>Patreon + Stripe</span>
+            <span className="lp-calc-bar-amount lp-calc-bar-amount--trad">${fmt(tradKeeps)}</span>
+          </div>
+          <div className="lp-calc-bar-track">
+            <motion.div className="lp-calc-bar-fill lp-calc-bar-fill--trad"
+              initial={prefersReduced ? { width: `${tradPct}%` } : { width: '0%' }}
+              animate={inView ? { width: `${tradPct}%` } : {}}
+              transition={{ type: 'spring', damping: 20, stiffness: 120 }} />
+            <div className="lp-calc-bar-drain" style={{ left: `${tradPct}%`, width: `${100 - tradPct}%` }} />
+          </div>
+          <div className="lp-calc-bar-fees">
+            <span className="lp-calc-fee-chip">−${fmt(platformCut)} platform</span>
+            <span className="lp-calc-fee-chip">−${fmt(stripeCut)} processing</span>
+          </div>
+        </div>
+        <div className="lp-calc-bar-group">
+          <div className="lp-calc-bar-label">
+            <span>AutoPay</span>
+            <span className="lp-calc-bar-amount lp-calc-bar-amount--auto">${fmt(autoKeeps)}</span>
+          </div>
+          <div className="lp-calc-bar-track">
+            <motion.div className="lp-calc-bar-fill lp-calc-bar-fill--auto"
+              initial={prefersReduced ? { width: `${autoPct}%` } : { width: '0%' }}
+              animate={inView ? { width: `${autoPct}%` } : {}}
+              transition={{ type: 'spring', damping: 20, stiffness: 120, delay: 0.1 }} />
+          </div>
+          <div className="lp-calc-bar-fees">
+            <span className="lp-calc-fee-chip lp-calc-fee-chip--blue">−${fmt(autoPayFee)} flat 2.5%</span>
+          </div>
+        </div>
+      </div>
+
+      <motion.div className="lp-calc-savings" animate={hasInteracted ? { scale: [1, 1.04, 1] } : {}} transition={{ duration: 0.3 }} key={subs}>
+        <div className="lp-calc-savings-top">
+          <span className="lp-calc-savings-plus">+</span>
+          <span className="lp-calc-savings-amount">${fmt(yearlyDiff)}</span>
+          <span className="lp-calc-savings-per">/yr</span>
+        </div>
+        <div className="lp-calc-savings-yearly">
+          That's <strong>${fmt(monthlyDiff)}/mo</strong> more in your pocket
+        </div>
+      </motion.div>
+    </div>
+  )
 }
 
-function FeeWaterfall() {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, amount: 0.3 })
+/* ── Deplatforming Case Studies ── */
+const DEPLATFORM_CASES = [
+  {
+    entity: 'OnlyFans',
+    year: '2021',
+    event: 'Mastercard forced a ban on explicit content. 2M creators, $5B+ in annual earnings threatened. Reversed in 6 days — but the power was demonstrated.',
+    source: 'OnlyFans public statement, Aug 2021',
+  },
+  {
+    entity: 'Patreon',
+    year: '2018',
+    event: 'Banned a creator for speech on a different platform. Sam Harris left in protest — walking away from $100K+/mo in recurring revenue.',
+    source: 'Sam Harris public statement, Dec 2018',
+  },
+  {
+    entity: 'PayPal',
+    year: '2022',
+    event: 'Published a policy allowing $2,500 fines for "misinformation." Retracted after backlash — but it was in the official terms.',
+    source: 'PayPal AUP update, Oct 2022',
+  },
+]
+
+function DeplatformCases() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, amount: 0.2 })
   const prefersReduced = useReducedMotion()
-  const prevPcts = [100, 100, 92] // previous row's pct for computing red slice
+
   return (
-    <div ref={ref} className="lp-waterfall" aria-hidden="true">
-      {WATERFALL_STEPS.map((step, i) => {
-        const isLast = i === WATERFALL_STEPS.length - 1
-        const isCut = step.amount.startsWith('−')
-        return (
+    <div ref={ref} className="lp-deplat">
+      {/* Cases */}
+      <div className="lp-deplat-list">
+        {DEPLATFORM_CASES.map((c, i) => (
           <motion.div
-            key={step.label}
-            className={`lp-wf-row ${isLast ? 'lp-wf-row-result' : ''}`}
-            initial={prefersReduced ? {} : { opacity: 0, x: -16 }}
-            animate={inView || prefersReduced ? { opacity: 1, x: 0 } : {}}
-            transition={{ type: 'spring', damping: 14, stiffness: 140, delay: i * 0.12 }}
+            key={c.entity}
+            className="lp-deplat-row"
+            initial={prefersReduced ? {} : { opacity: 0, x: -10 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ type: 'spring', damping: 16, stiffness: 160, delay: i * 0.08 }}
           >
-            {/* Proportional background bar */}
-            <motion.div
-              className="lp-wf-bg-bar"
-              initial={{ scaleX: 0 }}
-              animate={inView || prefersReduced ? { scaleX: step.pct / 100 } : { scaleX: 0 }}
-              transition={{ type: 'spring', damping: 16, stiffness: 100, delay: i * 0.12 + 0.05 }}
-              style={{ transformOrigin: 'left' }}
-            />
-            {/* Red slice showing removed portion */}
-            {isCut && (
-              <motion.div
-                className="lp-wf-red-slice"
-                initial={{ scaleX: 0, opacity: 0 }}
-                animate={inView || prefersReduced ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
-                transition={{ type: 'spring', damping: 16, stiffness: 100, delay: i * 0.12 + 0.15 }}
-                style={{ transformOrigin: 'right', left: `${step.pct}%`, width: `${prevPcts[i] - step.pct}%` }}
-              />
-            )}
-            <span className="lp-wf-label">{step.label}</span>
-            <span className={`lp-wf-amount ${isCut ? 'lp-wf-cut' : ''} ${isLast ? 'lp-wf-final' : ''}`}>
-              {isLast ? (
-                <AnimatedAmount value={8.61} prefix="" inView={inView} prefersReduced={prefersReduced} delay={i * 0.12} />
-              ) : (
-                step.amount
-              )}
-            </span>
+            <div className="lp-deplat-row-head">
+              <span className="lp-deplat-entity">{c.entity}</span>
+              <span className="lp-deplat-year">{c.year}</span>
+            </div>
+            <div className="lp-deplat-event">{c.event}</div>
+            <div className="lp-deplat-source">{c.source}</div>
           </motion.div>
-        )
-      })}
-      {/* AutoPay alternative */}
+        ))}
+      </div>
+
+      <div className="lp-deplat-point">
+        Every one of these was legal. Every one was a policy decision by a third party that controlled the payment rail.
+      </div>
+
+      {/* AutoPay contrast */}
       <motion.div
-        className="lp-wf-alt"
+        className="lp-deplat-fix"
         initial={prefersReduced ? {} : { opacity: 0, y: 12 }}
-        animate={inView || prefersReduced ? { opacity: 1, y: 0 } : {}}
-        transition={{ type: 'spring', damping: 14, stiffness: 140, delay: 0.6 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ type: 'spring', damping: 14, stiffness: 140, delay: 0.4 }}
       >
-        <span className="lp-wf-alt-label">With AutoPay (2.5% flat)</span>
-        <span className="lp-wf-alt-amount-wrap">
-          <span className="lp-wf-alt-amount">
-            <AnimatedAmount value={9.75} prefix="" inView={inView} prefersReduced={prefersReduced} delay={0.65} />
-          </span>
-          <span className="lp-wf-savings">+$1.14/mo</span>
-        </span>
+        <div className="lp-deplat-fix-icon"><Check size={18} strokeWidth={3} /></div>
+        <div className="lp-deplat-fix-text">
+          <span className="lp-deplat-fix-title">Smart contracts don't have policy departments</span>
+          <span className="lp-deplat-fix-desc">Once deployed, your subscription logic runs until you decide otherwise. No one can change the terms.</span>
+        </div>
       </motion.div>
     </div>
   )
@@ -567,8 +640,8 @@ function generateFallingBlocks() {
     falls.push({
       x: rand() * 98 + 1,
       s: 8 + Math.round(rand() * 14),
-      d: 2.4 + rand() * 2.0,
-      dl: rand() * 3.0,
+      d: 3.5 + rand() * 3.0,
+      dl: rand() * 4.0,
     })
   }
   return falls
@@ -607,8 +680,8 @@ function generateEdgeFalls() {
     falls.push({
       x: Math.round(x * 10) / 10,
       s: 8 + Math.round(rand() * 16),
-      d: 3.5 + rand() * 3.5,
-      dl: rand() * 4.0,
+      d: 6.0 + rand() * 5.5,
+      dl: rand() * 6.0,
     })
   }
   return falls
@@ -622,11 +695,11 @@ function generateTearBlocks() {
   const rand = seededRandom(137)
   // uniform dense band across full width
   const rows = [
-    { yMin: -5, yMax: 20, count: 80, sMin: 6, sMax: 20, lightP: 0.35 },
-    { yMin: 12, yMax: 42, count: 140, sMin: 10, sMax: 32, lightP: 0.45 },
-    { yMin: 30, yMax: 70, count: 200, sMin: 14, sMax: 44, lightP: 0.5 },
-    { yMin: 58, yMax: 88, count: 140, sMin: 10, sMax: 32, lightP: 0.45 },
-    { yMin: 80, yMax: 105, count: 80, sMin: 6, sMax: 20, lightP: 0.35 },
+    { yMin: -5, yMax: 20, count: 30, sMin: 6, sMax: 18, lightP: 0.35 },
+    { yMin: 12, yMax: 42, count: 50, sMin: 10, sMax: 28, lightP: 0.45 },
+    { yMin: 30, yMax: 70, count: 180, sMin: 12, sMax: 36, lightP: 0.5 },
+    { yMin: 58, yMax: 88, count: 50, sMin: 10, sMax: 28, lightP: 0.45 },
+    { yMin: 80, yMax: 105, count: 30, sMin: 6, sMax: 18, lightP: 0.35 },
   ]
   for (const row of rows) {
     for (let i = 0; i < row.count; i++) {
@@ -639,7 +712,7 @@ function generateTearBlocks() {
     }
   }
   // side drip — extra blocks on left/right that extend above and below
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 25; i++) {
     const side = rand() < 0.5
     const x = side ? rand() * 18 - 2 : 84 + rand() * 18
     const y = 80 + rand() * 60
@@ -649,7 +722,7 @@ function generateTearBlocks() {
     blocks.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, s: Math.round(s), t })
   }
   // side rise — extra blocks on left/right extending above the main band
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 25; i++) {
     const side = rand() < 0.5
     const x = side ? rand() * 18 - 2 : 84 + rand() * 18
     const y = -60 + rand() * 60
@@ -844,79 +917,39 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             </div>
           </TiltCard>
 
-          {/* ── Two-column case studies ── */}
+          {/* ── Two interactive case studies ── */}
           <motion.div className="lp-cases" variants={containerVariants}>
-            {/* Left: Fee waterfall */}
+            {/* Left: Interactive fee calculator */}
             <motion.div className="lp-case-card lp-case-fee" variants={cardVariants}>
-              <div className="lp-case-head">
-                <BadgePercent size={16} strokeWidth={2.5} className="lp-case-icon" />
-                <span className="lp-case-tag">CASE STUDY</span>
+              <div className="lp-case-card-inner">
+                <div className="lp-case-head">
+                  <div className="lp-case-icon-wrap lp-case-icon-wrap--blue">
+                    <BadgePercent size={14} strokeWidth={2.5} />
+                  </div>
+                  <span className="lp-case-tag">INTERACTIVE</span>
+                </div>
+                <h3 className="lp-case-title">
+                  How much are you <em>really</em> losing to fees?
+                </h3>
+                <FeeCalculator />
               </div>
-              <h3 className="lp-case-title">
-                1,000 subscribers on Patreon or Discord?<br />
-                You're leaving <em>$13,680/yr</em> on the table.
-              </h3>
-              <FeeWaterfall />
-              <p className="lp-case-note">
-                At 1,000 subs × $10/mo, Patreon or Discord + Stripe keeps $8.61 per subscriber.
-                AutoPay keeps $9.75. That's <strong>$1,140/mo more</strong> — or
-                $13,680 per year back in your pocket.
-              </p>
             </motion.div>
 
-            {/* Right: Geography exclusion */}
-            <motion.div className="lp-case-card lp-case-geo" variants={cardVariants}>
-              <div className="lp-case-head">
-                <Globe size={16} strokeWidth={2.5} className="lp-case-icon lp-case-icon-geo" />
-                <span className="lp-case-tag lp-case-tag-geo">CASE STUDY</span>
-              </div>
-              <h3 className="lp-case-title">
-                Creators in Lagos, Bogotá, and Dhaka<br />
-                <em>can't even access</em> Stripe.
-              </h3>
-              <div className="lp-geo-grid" aria-hidden="true">
-                {([
-                  { city: 'Lagos', status: 'Restricted', color: '#DC2626' },
-                  { city: 'Bogotá', status: 'Restricted', color: '#DC2626' },
-                  { city: 'Dhaka', status: 'Unavailable', color: '#DC2626' },
-                  { city: 'Nairobi', status: 'Limited', color: '#D97706' },
-                ] as const).map((c) => (
-                  <div key={c.city} className="lp-geo-item" style={{ borderLeftColor: c.color }}>
-                    <span className="lp-geo-dot" style={{ background: c.color }} />
-                    <span className="lp-geo-city">{c.city}</span>
-                    <span className="lp-geo-status-pill" style={{ background: c.color === '#D97706' ? 'rgba(217,119,6,0.12)' : 'rgba(220,38,38,0.10)', color: c.color }}>
-                      {c.status}
-                    </span>
+            {/* Right: Deplatforming */}
+            <motion.div className="lp-case-card lp-case-deplat" variants={cardVariants}>
+              <div className="lp-case-card-inner">
+                <div className="lp-case-head">
+                  <div className="lp-case-icon-wrap lp-case-icon-wrap--red">
+                    <ShieldCheck size={14} strokeWidth={2.5} />
                   </div>
-                ))}
-              </div>
-              <div className="lp-geo-vs">
-                <div className="lp-geo-vs-card lp-geo-vs-stripe">
-                  <div className="lp-geo-vs-card-head">
-                    <X size={14} strokeWidth={2.5} />
-                    <span>Stripe</span>
-                  </div>
-                  <span className="lp-geo-vs-card-line lp-geo-vs-strike">Bank account required</span>
-                  <span className="lp-geo-vs-card-line lp-geo-vs-strike">Geography-gated</span>
-                  <span className="lp-geo-vs-card-line lp-geo-vs-strike">4–7% fees</span>
+                  <span className="lp-case-tag lp-case-tag-red">CASE STUDY</span>
                 </div>
-                <div className="lp-geo-vs-card lp-geo-vs-autopay">
-                  <div className="lp-geo-vs-card-head">
-                    <Check size={14} strokeWidth={3} />
-                    <span>AutoPay</span>
-                  </div>
-                  <span className="lp-geo-vs-card-line">Any wallet</span>
-                  <span className="lp-geo-vs-card-line">Any country</span>
-                  <span className="lp-geo-vs-card-line">2.5% flat</span>
-                </div>
+                <h3 className="lp-case-title">
+                  Your revenue depends on someone else's{' '}
+                  <em className="lp-case-em-red">policy decision</em>.
+                </h3>
+                <DeplatformCases />
               </div>
-              <div className="lp-geo-stat-callout">
-                <span className="lp-geo-stat-num">195+</span>
-                <span className="lp-geo-stat-text">countries with crypto wallet access — vs 46 with full Stripe support</span>
-              </div>
-              <p className="lp-case-note">
-                Any wallet. Any country. Same rate.
-              </p>
             </motion.div>
           </motion.div>
         </SectionReveal>
@@ -991,7 +1024,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               Half the cost.{' '}
               <em>None of the risk.</em>
             </motion.h2>
-            {/* Terminal diff comparison */}
+            {/* Terminal diff comparison — split layout */}
             <motion.div className="lp-diff" variants={containerVariants}>
               <div className="lp-diff-chrome">
                 <div className="lp-diff-dots">
@@ -1001,7 +1034,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                 </div>
                 <span className="lp-diff-title">compare --autopay --traditional</span>
               </div>
-              <div className="lp-diff-body">
+              <div className="lp-diff-body lp-diff-body--split">
                 {ROWS.map((r) => (
                   <motion.div key={r.label} variants={revealVariants} className="lp-diff-block">
                     <div className="lp-diff-comment"><span className="lp-diff-slashes">{'//'}</span> {r.label}</div>
@@ -1009,6 +1042,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                     <div className="lp-diff-del"><span className="lp-diff-sign">−</span> <span className="lp-diff-struck">{r.them}</span></div>
                   </motion.div>
                 ))}
+              </div>
+              <div className="lp-diff-footer">
                 <motion.div variants={revealVariants} className="lp-diff-result">
                   <span className="lp-diff-caret">{'>'}</span> autopay wins on <span className="lp-diff-count">8/8</span> criteria
                   <span className="lp-diff-cursor" />
@@ -1867,223 +1902,299 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
 
         /* ── case studies (two-column) ── */
         .lp-cases {
-          display: grid; grid-template-columns: 1fr; gap: 16px;
+          display: grid; grid-template-columns: 1fr; gap: 20px;
           max-width: 100%; overflow: hidden;
         }
         @media (min-width: 768px) { .lp-cases { grid-template-columns: repeat(2, 1fr); } }
 
         .lp-case-card {
-          background: #fff;
+          position: relative;
           border-radius: 20px;
-          border: 1px solid rgba(0,0,0,0.06);
+          padding: 2px;
+          overflow: hidden;
+          min-width: 0;
+          transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), box-shadow 0.35s cubic-bezier(0.22,1,0.36,1);
+        }
+        .lp-case-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04);
+        }
+        .lp-case-fee {
+          background: linear-gradient(135deg, var(--blue) 0%, rgba(0,82,255,0.3) 50%, rgba(0,82,255,0.08) 100%);
+        }
+        .lp-case-deplat {
+          background: linear-gradient(135deg, var(--red) 0%, rgba(239,68,68,0.3) 50%, rgba(239,68,68,0.08) 100%);
+        }
+        .lp-case-card-inner {
+          background: #fff;
+          border-radius: 18px;
           padding: 32px 28px;
           display: flex;
           flex-direction: column;
-          border-top: 2px solid var(--blue);
-          transition: box-shadow 0.3s ease;
-          overflow: hidden;
-          min-width: 0;
+          height: 100%;
+          position: relative;
+          z-index: 1;
         }
-        .lp-case-fee { border-top-color: var(--blue); }
-        .lp-case-geo { border-top-color: var(--green); }
         .lp-case-head {
-          display: flex; align-items: center; gap: 8px;
-          margin-bottom: 16px;
+          display: flex; align-items: center; gap: 10px;
+          margin-bottom: 20px;
         }
-        .lp-case-icon { color: var(--blue); }
-        .lp-case-icon-geo { color: var(--green); }
+        .lp-case-icon-wrap {
+          width: 28px; height: 28px; border-radius: 8px;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .lp-case-icon-wrap--blue {
+          background: rgba(0,82,255,0.08); color: var(--blue);
+        }
+        .lp-case-icon-wrap--green {
+          background: rgba(22,163,74,0.08); color: var(--green);
+        }
+        .lp-case-icon-wrap--red {
+          background: rgba(220,38,38,0.08); color: var(--red);
+        }
         .lp-case-tag {
           font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
-          color: var(--blue); opacity: 0.6;
+          color: var(--blue); opacity: 0.7;
         }
         .lp-case-tag-geo { color: var(--green); }
+        .lp-case-tag-red { color: var(--red); }
         .lp-case-title {
-          font-size: 20px; font-weight: 660; letter-spacing: -0.02em;
-          line-height: 1.35; margin: 0 0 24px; color: var(--fg);
+          font-size: 21px; font-weight: 660; letter-spacing: -0.025em;
+          line-height: 1.35; margin: 0 0 28px; color: var(--fg);
         }
         .lp-case-title em {
           font-family: var(--serif); font-style: italic;
           font-weight: 400; color: var(--blue);
         }
+        .lp-case-title-geo em { color: var(--fg); }
+        .lp-case-em-red {
+          font-family: var(--serif) !important; font-style: italic !important;
+          font-weight: 400 !important; color: #DC2626 !important;
+          text-decoration: underline;
+          text-decoration-color: rgba(220,38,38,0.25);
+          text-underline-offset: 3px;
+          text-decoration-thickness: 2px;
+        }
         .lp-case-note {
-          font-size: 13px; line-height: 1.6; color: var(--muted); margin: 0;
-          margin-top: auto; padding-top: 16px;
+          font-size: 13px; line-height: 1.65; color: var(--muted); margin: 0;
+          margin-top: auto; padding-top: 20px;
         }
         .lp-case-note strong { color: var(--blue); font-weight: 650; }
+        .lp-case-note-geo strong { color: var(--green); }
 
-        /* ── fee waterfall visual ── */
-        .lp-waterfall {
-          display: flex; flex-direction: column; gap: 0;
-          margin-bottom: 20px;
+        /* ── Interactive Fee Calculator ── */
+        .lp-calc { display: flex; flex-direction: column; gap: 20px; }
+        .lp-calc-controls { display: flex; flex-direction: column; gap: 12px; }
+        .lp-calc-label {
+          display: flex; justify-content: space-between; align-items: baseline;
         }
-        .lp-wf-row {
-          display: grid;
-          grid-template-columns: 1fr auto;
-          align-items: center;
-          padding: 10px 12px;
-          border-bottom: 1px solid rgba(0,0,0,0.04);
+        .lp-calc-label-text {
+          font-size: 12px; font-weight: 600; color: var(--muted);
+          text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .lp-calc-label-val {
+          font-size: 28px; font-weight: 780; color: var(--fg);
+          letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+          line-height: 1;
+        }
+        .lp-calc-slider-wrap {
+          position: relative; height: 6px;
+          background: rgba(0,0,0,0.06); border-radius: 3px;
+          cursor: pointer;
+        }
+        .lp-calc-slider {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          opacity: 0; cursor: pointer; z-index: 2; margin: 0;
+          -webkit-appearance: none; appearance: none;
+        }
+        .lp-calc-slider-fill {
+          position: absolute; top: 0; left: 0; bottom: 0;
+          background: var(--blue); border-radius: 3px;
+          pointer-events: none;
+          transition: width 0.08s ease-out;
+        }
+        .lp-calc-slider-fill::after {
+          content: '';
+          position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+          width: 14px; height: 14px; border-radius: 50%;
+          background: var(--blue);
+          box-shadow: 0 0 0 3px rgba(0,82,255,0.2), 0 2px 8px rgba(0,82,255,0.3);
+          transition: transform 0.15s;
+        }
+        .lp-calc-slider-wrap:hover .lp-calc-slider-fill::after {
+          transform: translateY(-50%) scale(1.2);
+        }
+        .lp-calc-presets {
+          display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .lp-calc-preset {
+          padding: 4px 12px; border-radius: 20px;
+          font-size: 11px; font-weight: 650;
+          background: rgba(0,0,0,0.04); color: var(--muted);
+          border: 1px solid transparent;
+          cursor: pointer; transition: all 0.15s;
+          letter-spacing: -0.01em;
+        }
+        .lp-calc-preset:hover {
+          background: rgba(0,82,255,0.06); color: var(--blue);
+          border-color: rgba(0,82,255,0.12);
+        }
+        .lp-calc-preset--active {
+          background: rgba(0,82,255,0.10); color: var(--blue);
+          border-color: rgba(0,82,255,0.2);
+        }
+
+        .lp-calc-race { display: flex; flex-direction: column; gap: 16px; }
+        .lp-calc-race-label {
+          font-size: 11px; font-weight: 600; color: var(--muted);
+          text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .lp-calc-bar-group { display: flex; flex-direction: column; gap: 6px; }
+        .lp-calc-bar-label {
+          display: flex; justify-content: space-between; align-items: baseline;
+          font-size: 13px; font-weight: 580; color: var(--fg);
+        }
+        .lp-calc-bar-amount {
+          font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums;
+          letter-spacing: -0.02em;
+        }
+        .lp-calc-bar-amount--trad { color: var(--muted); }
+        .lp-calc-bar-amount--auto { color: var(--blue); }
+        .lp-calc-bar-track {
+          position: relative; height: 28px;
+          background: rgba(0,0,0,0.04); border-radius: 8px;
+          overflow: hidden;
+        }
+        .lp-calc-bar-fill {
+          position: absolute; top: 0; left: 0; bottom: 0;
+          border-radius: 8px;
+        }
+        .lp-calc-bar-fill--trad {
+          background: linear-gradient(90deg, rgba(124,124,130,0.15) 0%, rgba(124,124,130,0.25) 100%);
+        }
+        .lp-calc-bar-fill--auto {
+          background: linear-gradient(90deg, rgba(0,82,255,0.15) 0%, rgba(0,82,255,0.3) 100%);
+        }
+        .lp-calc-bar-drain {
+          position: absolute; top: 0; bottom: 0;
+          background: repeating-linear-gradient(
+            -45deg,
+            transparent 0, transparent 4px,
+            rgba(220,38,38,0.06) 4px, rgba(220,38,38,0.06) 8px
+          );
+        }
+        .lp-calc-bar-fees {
+          display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .lp-calc-fee-chip {
+          font-size: 10px; font-weight: 600;
+          color: var(--red); opacity: 0.7;
+          background: rgba(220,38,38,0.06);
+          padding: 2px 8px; border-radius: 10px;
+        }
+        .lp-calc-fee-chip--blue {
+          color: var(--blue); opacity: 0.7;
+          background: rgba(0,82,255,0.06);
+        }
+
+        .lp-calc-savings {
+          text-align: center;
+          padding: 20px 16px;
+          background: linear-gradient(135deg, rgba(0,82,255,0.06) 0%, rgba(22,163,74,0.06) 100%);
+          border: 1px solid rgba(0,82,255,0.10);
+          border-radius: 14px;
           position: relative;
           overflow: hidden;
-          z-index: 0;
         }
-        .lp-wf-bg-bar {
-          position: absolute;
-          top: 0; left: 0; bottom: 0;
-          width: 100%;
-          background: rgba(0,0,0,0.03);
-          z-index: -1;
-          border-radius: 0 4px 4px 0;
-        }
-        .lp-wf-red-slice {
-          position: absolute;
-          top: 0; bottom: 0;
-          background: rgba(220,38,38,0.08);
-          z-index: -1;
-          border-radius: 0 4px 4px 0;
-        }
-        .lp-wf-row-result {
-          border-bottom: none;
-          padding-top: 14px;
-          border-top: 2px solid rgba(0,0,0,0.08);
-        }
-        .lp-wf-label {
-          font-size: 12.5px; font-weight: 500; color: var(--muted);
-          position: relative; z-index: 1;
-        }
-        .lp-wf-amount {
-          font-size: 13px; font-weight: 650; color: var(--fg);
-          font-variant-numeric: tabular-nums;
-          letter-spacing: -0.01em;
-          position: relative; z-index: 1;
-        }
-        .lp-wf-cut { color: var(--red); }
-        .lp-wf-final { font-size: 15px; }
-        .lp-wf-alt {
-          margin-top: 12px;
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 14px 16px;
-          background: rgba(0,82,255,0.04);
-          border-left: 3px solid var(--blue);
-          border-radius: 10px;
-          border-top: 1px solid rgba(0,82,255,0.08);
-          border-right: 1px solid rgba(0,82,255,0.08);
-          border-bottom: 1px solid rgba(0,82,255,0.08);
-        }
-        .lp-wf-alt-label {
-          font-size: 12.5px; font-weight: 600; color: var(--blue);
-        }
-        .lp-wf-alt-amount-wrap {
-          display: flex; align-items: center; gap: 8px;
-        }
-        .lp-wf-alt-amount {
-          font-size: 20px; font-weight: 750; color: var(--blue);
-          letter-spacing: -0.02em;
-          font-variant-numeric: tabular-nums;
-        }
-        .lp-wf-savings {
-          font-size: 11px; font-weight: 650;
-          color: var(--green);
-          background: rgba(22,163,74,0.08);
-          padding: 2px 8px;
-          border-radius: 20px;
-          letter-spacing: -0.01em;
-          white-space: nowrap;
-        }
-
-        /* ── geography grid ── */
-        .lp-geo-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
-          margin-bottom: 20px;
-        }
-        .lp-geo-item {
-          display: flex; align-items: center; gap: 8px;
-          padding: 10px 12px;
-          background: rgba(0,0,0,0.015);
-          border-radius: 10px;
-          border: 1px solid rgba(0,0,0,0.04);
-          border-left: 3px solid #DC2626;
-        }
-        .lp-geo-dot {
-          width: 7px; height: 7px; border-radius: 50%;
-          flex-shrink: 0;
-        }
-        .lp-geo-city {
-          font-size: 13px; font-weight: 600; color: var(--fg);
-          flex: 1;
-        }
-        .lp-geo-status-pill {
-          font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
-          text-transform: uppercase;
-          padding: 2px 7px;
-          border-radius: 20px;
-          white-space: nowrap;
-        }
-
-        .lp-geo-vs {
-          display: flex; gap: 8px;
-          margin-bottom: 16px;
-        }
-        @media (max-width: 639px) { .lp-geo-vs { flex-direction: column; } }
-        .lp-geo-vs-card {
-          flex: 1;
-          padding: 14px;
-          border-radius: 10px;
-          display: flex; flex-direction: column; gap: 4px;
-        }
-        .lp-geo-vs-stripe {
-          background: rgba(220,38,38,0.035);
-          border: 1px solid rgba(220,38,38,0.12);
-        }
-        .lp-geo-vs-autopay {
-          background: rgba(0,82,255,0.035);
-          border: 1px solid rgba(0,82,255,0.12);
-        }
-        .lp-geo-vs-card-head {
-          display: flex; align-items: center; gap: 6px;
-          font-size: 12px; font-weight: 700; margin-bottom: 4px;
-        }
-        .lp-geo-vs-stripe .lp-geo-vs-card-head { color: var(--red); }
-        .lp-geo-vs-stripe .lp-geo-vs-card-head svg { color: var(--red); }
-        .lp-geo-vs-autopay .lp-geo-vs-card-head { color: var(--blue); }
-        .lp-geo-vs-autopay .lp-geo-vs-card-head svg { color: var(--blue); }
-        .lp-geo-vs-card-line {
-          font-size: 12px; line-height: 1.5; color: var(--fg);
-          font-weight: 500;
-        }
-        .lp-geo-vs-strike {
-          text-decoration: line-through;
-          color: var(--muted);
-        }
-        .lp-geo-vs-autopay .lp-geo-vs-card-line { font-weight: 600; }
-
-        .lp-geo-stat-callout {
-          display: flex; align-items: baseline; gap: 10px;
-          padding: 14px 16px;
-          background: rgba(22,163,74,0.04);
-          border: 1px solid rgba(22,163,74,0.08);
-          border-radius: 10px;
-          margin-bottom: 12px;
-        }
-        .lp-geo-stat-num {
-          font-size: 34px; font-weight: 750; color: var(--green);
-          letter-spacing: -0.03em;
-          flex-shrink: 0;
-          position: relative;
-        }
-        .lp-geo-stat-num::after {
+        .lp-calc-savings::before {
           content: '';
-          position: absolute;
-          bottom: -2px; left: 0;
-          width: 40px; height: 2px;
-          background: var(--green);
-          border-radius: 1px;
-          opacity: 0.5;
+          position: absolute; inset: 0;
+          background: radial-gradient(ellipse at 50% 0%, rgba(0,82,255,0.08) 0%, transparent 70%);
+          pointer-events: none;
         }
-        .lp-geo-stat-text {
-          font-size: 13px; line-height: 1.45; color: var(--muted);
-          font-weight: 500;
+        .lp-calc-savings-top {
+          display: flex; align-items: baseline; justify-content: center; gap: 2px;
+          position: relative; z-index: 1;
+        }
+        .lp-calc-savings-plus {
+          font-size: 20px; font-weight: 700; color: var(--green);
+        }
+        .lp-calc-savings-amount {
+          font-size: 36px; font-weight: 800; color: var(--blue);
+          letter-spacing: -0.04em; font-variant-numeric: tabular-nums;
+          line-height: 1;
+        }
+        .lp-calc-savings-per {
+          font-size: 16px; font-weight: 600; color: var(--muted);
+          margin-left: 2px;
+        }
+        .lp-calc-savings-yearly {
+          font-size: 13px; color: var(--muted); margin-top: 6px;
+          position: relative; z-index: 1;
+        }
+        .lp-calc-savings-yearly strong {
+          color: var(--green); font-weight: 700;
+        }
+
+        /* ── Deplatforming Cases ── */
+        .lp-deplat { display: flex; flex-direction: column; gap: 16px; }
+
+        .lp-deplat-list {
+          display: flex; flex-direction: column; gap: 8px;
+        }
+        .lp-deplat-row {
+          padding: 12px 14px;
+          background: rgba(220,38,38,0.03);
+          border: 1px solid rgba(220,38,38,0.06);
+          border-radius: 10px;
+        }
+        .lp-deplat-row-head {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 4px;
+        }
+        .lp-deplat-entity {
+          font-size: 13px; font-weight: 750; color: var(--fg);
+        }
+        .lp-deplat-year {
+          font-size: 11px; font-weight: 600; color: var(--muted);
+          font-variant-numeric: tabular-nums;
+        }
+        .lp-deplat-event {
+          font-size: 12px; font-weight: 500; color: var(--fg);
+          line-height: 1.45; opacity: 0.85;
+        }
+        .lp-deplat-source {
+          font-size: 10px; font-weight: 500; color: var(--muted);
+          margin-top: 4px; opacity: 0.5;
+        }
+
+        .lp-deplat-point {
+          font-size: 13px; font-weight: 600; color: var(--fg);
+          line-height: 1.45; text-align: center;
+          padding: 0 8px;
+        }
+
+        .lp-deplat-fix {
+          display: flex; align-items: center; gap: 12px;
+          padding: 14px 16px;
+          background: linear-gradient(135deg, rgba(22,163,74,0.06) 0%, rgba(0,82,255,0.04) 100%);
+          border: 1px solid rgba(22,163,74,0.12);
+          border-radius: 12px;
+        }
+        .lp-deplat-fix-icon {
+          width: 36px; height: 36px; border-radius: 10px;
+          background: rgba(22,163,74,0.10); color: var(--green);
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .lp-deplat-fix-text {
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .lp-deplat-fix-title {
+          font-size: 14px; font-weight: 700; color: var(--green);
+        }
+        .lp-deplat-fix-desc {
+          font-size: 12px; font-weight: 500; color: var(--muted);
         }
 
         /* ── partners / integrations ticker ── */
@@ -2651,21 +2762,22 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
 
         /* ── comparison: terminal diff ── */
         .lp-diff {
-          max-width: 680px;
+          max-width: 900px;
           margin: 0 auto;
           border-radius: 12px;
           overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(0,0,0,0.4);
+          border: 1px solid rgba(0,0,0,0.08);
+          background: #f0eee9;
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
           position: relative;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.06);
         }
         .lp-diff::before {
           content: '';
           position: absolute; inset: 0;
           background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
           background-size: 200px 200px;
-          opacity: 0.02;
+          opacity: 0.03;
           pointer-events: none; z-index: 0;
           border-radius: inherit;
         }
@@ -2676,8 +2788,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           align-items: center;
           gap: 12px;
           padding: 12px 18px;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-          background: rgba(255,255,255,0.02);
+          border-bottom: 1px solid rgba(0,0,0,0.06);
+          background: rgba(0,0,0,0.03);
         }
         .lp-diff-dots {
           display: flex; gap: 6px;
@@ -2690,12 +2802,21 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-diff-dot--g { background: #28c840; }
         .lp-diff-title {
           font-size: 11px;
-          color: rgba(255,255,255,0.3);
+          color: rgba(0,0,0,0.35);
           letter-spacing: 0.02em;
         }
 
         .lp-diff-body {
           padding: 20px 24px;
+        }
+        .lp-diff-body--split {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4px 32px;
+        }
+        .lp-diff-footer {
+          padding: 12px 24px 16px;
+          border-top: 1px solid rgba(0,0,0,0.06);
         }
         .lp-diff-block {
           margin-bottom: 6px;
@@ -2703,28 +2824,28 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-diff-comment {
           font-size: 12px;
           line-height: 2;
-          color: rgba(255,255,255,0.2);
+          color: rgba(0,0,0,0.28);
         }
         .lp-diff-slashes {
-          color: rgba(255,255,255,0.12);
+          color: rgba(0,0,0,0.18);
         }
         .lp-diff-add {
           font-size: 13.5px;
           line-height: 2;
-          color: #4ade80;
+          color: #15803d;
           font-weight: 500;
           padding-left: 4px;
           border-radius: 3px;
-          background: rgba(74,222,128,0.04);
+          background: rgba(22,163,74,0.08);
         }
         .lp-diff-del {
           font-size: 12.5px;
           line-height: 2;
-          color: rgba(248,113,113,0.45);
+          color: rgba(185,28,28,0.5);
           font-weight: 400;
           padding-left: 4px;
           border-radius: 3px;
-          background: rgba(248,113,113,0.02);
+          background: rgba(220,38,38,0.04);
         }
         .lp-diff-sign {
           display: inline-block;
@@ -2733,16 +2854,16 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-diff-struck {
           text-decoration: line-through;
-          text-decoration-color: rgba(248,113,113,0.25);
+          text-decoration-color: rgba(185,28,28,0.3);
         }
 
         .lp-diff-result {
           margin-top: 16px;
           padding-top: 16px;
-          border-top: 1px solid rgba(255,255,255,0.06);
+          border-top: 1px solid rgba(0,0,0,0.06);
           font-size: 13px;
           line-height: 2;
-          color: rgba(255,255,255,0.4);
+          color: rgba(0,0,0,0.45);
         }
         .lp-diff-caret {
           color: var(--blue);
@@ -2750,7 +2871,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           margin-right: 6px;
         }
         .lp-diff-count {
-          color: #4ade80;
+          color: #15803d;
           font-weight: 700;
         }
         .lp-diff-cursor {
@@ -2771,6 +2892,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         @media (max-width: 768px) {
           .lp-diff { max-width: 100%; }
           .lp-diff-body { padding: 16px 18px; }
+          .lp-diff-body--split { grid-template-columns: 1fr; gap: 0; }
           .lp-diff-add { font-size: 13px; }
           .lp-diff-del { font-size: 12px; }
           .lp-step { min-height: 260px; }
@@ -2870,10 +2992,14 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-stat-val { font-size: 24px; }
           .lp-section { padding: 56px 16px; }
           .lp-h2 { font-size: 28px; }
-          .lp-case-card { padding: 24px 20px; }
+          .lp-case-card-inner { padding: 24px 18px; }
           .lp-case-title { font-size: 17px; }
-          .lp-wf-alt-amount { font-size: 18px; }
-          .lp-geo-stat-num { font-size: 28px; }
+          .lp-calc-label-val { font-size: 22px; }
+          .lp-calc-savings-amount { font-size: 28px; }
+          .lp-calc-bar-track { height: 22px; }
+          .lp-deplat-row { padding: 10px 12px; }
+          .lp-deplat-event { font-size: 11px; }
+          .lp-deplat-point { font-size: 12px; }
           /* steps: stack on mobile */
           .lp-step {
             grid-template-columns: 1fr;
@@ -2903,6 +3029,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             box-sizing: border-box;
           }
           .lp-diff-body { padding: 14px 14px; overflow-x: auto; }
+          .lp-diff-body--split { grid-template-columns: 1fr; gap: 0; }
+          .lp-diff-footer { padding: 10px 14px 14px; }
           .lp-diff-chrome { padding: 10px 14px; }
           .lp-diff-title { font-size: 10px; }
           .lp-diff-comment { font-size: 11px; }
