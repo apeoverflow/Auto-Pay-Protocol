@@ -581,10 +581,10 @@ const DISSOLVE_FALLS = generateFallingBlocks()
 function generateSideFalls() {
   const falls: { x: number; s: number; d: number; dl: number }[] = []
   const rand = seededRandom(55)
-  for (let i = 0; i < 28; i++) {
-    // alternate left gutter (0-10%) and right gutter (90-100%)
+  for (let i = 0; i < 36; i++) {
+    // alternate left gutter (0-22%) and right gutter (78-100%)
     const side = i % 2 === 0
-    const x = side ? rand() * 10 : 90 + rand() * 10
+    const x = side ? rand() * 22 : 78 + rand() * 22
     falls.push({
       x: Math.round(x * 10) / 10,
       s: 6 + Math.round(rand() * 12),
@@ -595,6 +595,72 @@ function generateSideFalls() {
   return falls
 }
 const CMP_SIDE_FALLS = generateSideFalls()
+
+/* falling edge blocks that cascade from the dissolve into the dark section */
+function generateEdgeFalls() {
+  const falls: { x: number; s: number; d: number; dl: number }[] = []
+  const rand = seededRandom(77)
+  for (let i = 0; i < 32; i++) {
+    const side = i % 2 === 0
+    // left side 0-18%, right side 82-100%
+    const x = side ? rand() * 18 : 82 + rand() * 18
+    falls.push({
+      x: Math.round(x * 10) / 10,
+      s: 8 + Math.round(rand() * 16),
+      d: 3.5 + rand() * 3.5,
+      dl: rand() * 4.0,
+    })
+  }
+  return falls
+}
+const EDGE_FALLS = generateEdgeFalls()
+
+/* pixel tear: horizontal band of chunky white + blue blocks */
+type TearType = 'light' | 'blue-fill' | 'blue-outline'
+function generateTearBlocks() {
+  const blocks: { x: number; y: number; s: number; t: TearType }[] = []
+  const rand = seededRandom(137)
+  // uniform dense band across full width
+  const rows = [
+    { yMin: -5, yMax: 20, count: 80, sMin: 6, sMax: 20, lightP: 0.35 },
+    { yMin: 12, yMax: 42, count: 140, sMin: 10, sMax: 32, lightP: 0.45 },
+    { yMin: 30, yMax: 70, count: 200, sMin: 14, sMax: 44, lightP: 0.5 },
+    { yMin: 58, yMax: 88, count: 140, sMin: 10, sMax: 32, lightP: 0.45 },
+    { yMin: 80, yMax: 105, count: 80, sMin: 6, sMax: 20, lightP: 0.35 },
+  ]
+  for (const row of rows) {
+    for (let i = 0; i < row.count; i++) {
+      const x = rand() * 104 - 2
+      const y = row.yMin + rand() * (row.yMax - row.yMin)
+      const s = row.sMin + rand() * (row.sMax - row.sMin)
+      const r = rand()
+      const t: TearType = r < row.lightP ? 'light' : r < row.lightP + 0.25 ? 'blue-fill' : 'blue-outline'
+      blocks.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, s: Math.round(s), t })
+    }
+  }
+  // side drip — extra blocks on left/right that extend above and below
+  for (let i = 0; i < 60; i++) {
+    const side = rand() < 0.5
+    const x = side ? rand() * 18 - 2 : 84 + rand() * 18
+    const y = 80 + rand() * 60
+    const s = 5 + rand() * 18
+    const r = rand()
+    const t: TearType = r < 0.3 ? 'light' : r < 0.55 ? 'blue-fill' : 'blue-outline'
+    blocks.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, s: Math.round(s), t })
+  }
+  // side rise — extra blocks on left/right extending above the main band
+  for (let i = 0; i < 60; i++) {
+    const side = rand() < 0.5
+    const x = side ? rand() * 18 - 2 : 84 + rand() * 18
+    const y = -60 + rand() * 60
+    const s = 5 + rand() * 18
+    const r = rand()
+    const t: TearType = r < 0.3 ? 'light' : r < 0.55 ? 'blue-fill' : 'blue-outline'
+    blocks.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, s: Math.round(s), t })
+  }
+  return blocks
+}
+const TEAR_BLOCKS = generateTearBlocks()
 
 /* exit dissolve: dark → light at bottom of dark section */
 function generateExitBlocks() {
@@ -875,6 +941,12 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           <div className="lp-dark-orb lp-dark-orb--3" />
           <div className="lp-dark-grain" />
         </div>
+        {/* falling blue edge blocks cascading into the dark section */}
+        <div className="lp-edge-falls" aria-hidden="true">
+          {EDGE_FALLS.map((f, i) => (
+            <div key={i} className="lp-edge-fall" style={{ left:`${f.x}%`, width:f.s, height:f.s, animationDuration:`${f.d}s`, animationDelay:`${f.dl}s` }} />
+          ))}
+        </div>
         {/* steps: full-width, no container */}
         <SectionReveal className="lp-steps-wrap">
           <motion.div className="lp-hiw-header lp-contain" variants={revealVariants}>
@@ -899,6 +971,13 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             ))}
           </motion.div>
         </SectionReveal>
+
+        {/* pixel tear — chunky white + blue blocks like a buffer glitch */}
+        <div className="lp-px-tear" aria-hidden="true">
+          {TEAR_BLOCKS.map((b, i) => (
+            <div key={i} className={`lp-px-tear-blk lp-px-tear-blk--${b.t}`} style={{ left:`${b.x}%`, top:`${b.y}%`, width:b.s, height:b.s }} />
+          ))}
+        </div>
 
         <SectionReveal className="lp-cmp-wrap">
           <div className="lp-cmp-falls" aria-hidden="true">
@@ -2164,6 +2243,60 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           padding-bottom: 8px;
         }
 
+        /* ── pixel tear: horizontal band of chunky blocks ── */
+        .lp-px-tear {
+          position: relative;
+          height: clamp(120px, 16vw, 220px);
+          margin: 140px 0 20px;
+          z-index: 3;
+          overflow: visible;
+        }
+        .lp-px-tear-blk {
+          position: absolute;
+        }
+        .lp-px-tear-blk--light {
+          background: var(--bg);
+          background-image: radial-gradient(circle, rgba(0,0,0,0.06) 0.8px, transparent 0.8px);
+          background-size: 12px 12px;
+        }
+        .lp-px-tear-blk--blue-fill {
+          background: rgba(0,82,255,0.12);
+          border: 2px solid rgba(0,82,255,0.4);
+        }
+        .lp-px-tear-blk--blue-outline {
+          background: transparent;
+          border: 2px solid rgba(0,82,255,0.35);
+        }
+
+        /* ── edge falls: blue squares cascading down both sides ── */
+        .lp-edge-falls {
+          position: absolute;
+          top: -450px;
+          left: 0;
+          right: 0;
+          height: 1400px;
+          pointer-events: none;
+          z-index: 0;
+          overflow: hidden;
+        }
+        .lp-edge-fall {
+          position: absolute;
+          top: -10%;
+          background: rgba(0,82,255,0.06);
+          border: 1.5px solid rgba(0,82,255,0.4);
+          opacity: 0;
+          animation: edgeFall 8s ease-in infinite;
+        }
+        @keyframes edgeFall {
+          0% { top: -8%; opacity: 0; }
+          5% { opacity: 0.55; }
+          35% { opacity: 0.3; }
+          100% { top: 100%; opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .lp-edge-fall { animation: none; }
+        }
+
         /* ── comparison wrapper inside unified dark section ── */
         .lp-cmp-wrap {
           padding-top: 80px;
@@ -2467,6 +2600,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-section-dark {
           background: var(--dark); color: #fff;
           position: relative; overflow: hidden;
+          margin-top: -120px;
+          padding-top: 120px;
         }
 
         /* aurora orbs */
@@ -2509,7 +2644,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           pointer-events: none;
         }
 
-        .lp-section-dark > *:not(.lp-dark-aurora) { position: relative; z-index: 1; }
+        .lp-section-dark > *:not(.lp-dark-aurora):not(.lp-edge-falls) { position: relative; z-index: 1; }
 
         .lp-eyebrow-dim { color: rgba(255,255,255,0.35); }
         .lp-cmp-block { padding-top: 0; }
