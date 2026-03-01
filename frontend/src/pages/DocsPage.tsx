@@ -746,7 +746,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
               )}
             </div>
           )}
-          <div className="px-6 py-8 md:px-16 lg:px-24 xl:px-32">
+          <div className="max-w-full overflow-x-hidden px-4 py-8 md:px-16 lg:px-24 xl:px-32">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
               {currentDoc.content}
             </ReactMarkdown>

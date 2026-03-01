@@ -183,7 +183,7 @@ function App() {
   // Landing page
   if (activeRoute === '/') {
     return (
-      <div className="relative min-h-screen w-screen overflow-auto">
+      <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
         <div
           className={`route-layer ${animClass}`}
           onAnimationEnd={onAnimationEnd}

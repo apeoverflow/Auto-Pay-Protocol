@@ -373,7 +373,7 @@ function TiltCard({
 /* ── Fee Waterfall visual ── */
 const WATERFALL_STEPS = [
   { label: 'Subscriber pays', amount: '$10.00', pct: 100, color: 'var(--muted)' },
-  { label: 'Patreon takes 8% (Pro plan)', amount: '−$0.80', pct: 92, color: '#DC2626' },
+  { label: 'Patreon / Discord takes 8–10%', amount: '−$0.80', pct: 92, color: '#DC2626' },
   { label: 'Stripe takes 2.9% + 30¢', amount: '−$0.59', pct: 86.1, color: '#DC2626' },
   { label: 'Creator keeps', amount: '$8.61', pct: 86.1, color: 'var(--muted)' },
 ]
@@ -634,12 +634,12 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                 <span className="lp-case-tag">CASE STUDY</span>
               </div>
               <h3 className="lp-case-title">
-                1,000 subscribers on Patreon?<br />
+                1,000 subscribers on Patreon or Discord?<br />
                 You're leaving <em>$13,680/yr</em> on the table.
               </h3>
               <FeeWaterfall />
               <p className="lp-case-note">
-                At 1,000 subs × $10/mo, Patreon Pro + Stripe keeps $8.61 per subscriber.
+                At 1,000 subs × $10/mo, Patreon or Discord + Stripe keeps $8.61 per subscriber.
                 AutoPay keeps $9.75. That's <strong>$1,140/mo more</strong> — or
                 $13,680 per year back in your pocket.
               </p>
@@ -801,7 +801,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: var(--bg);
           color: var(--fg);
           font-family: var(--sans);
-          overflow-x: hidden;
+          overflow-x: clip;
           position: relative;
         }
 
@@ -1122,7 +1122,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-nav-brand { display: flex; align-items: center; }
         .lp-nav-logo {
           height: 44px; width: auto;
-          filter: brightness(0); opacity: 0.7;
+          filter: brightness(0); opacity: 0.85;
           transition: opacity 0.2s;
         }
         .lp-nav-brand:hover .lp-nav-logo { opacity: 0.9; }
@@ -1946,21 +1946,23 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-h2 { font-size: 28px; }
           .lp-case-card { padding: 24px 20px; }
           .lp-case-title { font-size: 16px; }
+          .lp-compare { padding: 0 4px; }
           .lp-compare-head { display: none !important; }
           .lp-compare-row {
             grid-template-columns: 1fr;
-            gap: 6px;
-            padding: 16px 0;
+            gap: 4px;
+            padding: 18px 0;
           }
           .lp-compare-label {
-            font-size: 11px;
-            letter-spacing: 0.06em;
+            font-size: 10.5px;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            opacity: 0.5;
           }
-          .lp-compare-us { font-size: 14px; }
-          .lp-compare-them { font-size: 12px; }
-          .lp-compare-pill { padding: 3px 8px; }
+          .lp-compare-us { font-size: 15px; font-weight: 650; }
+          .lp-compare-them { font-size: 13px; margin-top: 2px; }
+          .lp-compare-pill { padding: 5px 12px; border-radius: 8px; }
           .lp-cta { padding: 64px 20px; }
           .lp-cta-inner h2 { font-size: 28px; }
           .lp-timeline-circle { width: 44px; height: 44px; font-size: 12px; }
