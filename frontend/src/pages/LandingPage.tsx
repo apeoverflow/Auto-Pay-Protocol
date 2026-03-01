@@ -976,7 +976,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         <div className="lp-footer-inner">
           <div className="lp-footer-top">
             <div className="lp-footer-brand">
-              <img src="/icon.png" alt="" className="lp-footer-icon" />
+              <img src="/favicon-512.png" alt="" className="lp-footer-icon" />
               <div>
                 <div className="lp-footer-name">AutoPay Protocol</div>
                 <div className="lp-footer-tagline">Non-custodial crypto subscriptions</div>
@@ -997,9 +997,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           </div>
           <div className="lp-footer-bottom">
             <span className="lp-footer-copy">&copy; {new Date().getFullYear()} AutoPay Protocol</span>
-            <div className="lp-footer-bottom-links">
-              <a href="https://github.com/apeoverflow/auto-pay-protocol" target="_blank" rel="noopener noreferrer" className="lp-footer-social"><Github size={16} /></a>
-            </div>
+            <div className="lp-footer-bottom-links" />
           </div>
         </div>
       </footer>
