@@ -13,6 +13,10 @@ import {
   Link2,
   Wallet,
   Webhook,
+  Zap,
+  Database,
+  Cpu,
+  Bot,
 } from 'lucide-react'
 import {
   motion,
@@ -409,7 +413,7 @@ function FeeCalculator() {
       </div>
 
       <div className="lp-calc-race">
-        <div className="lp-calc-race-label">At ${price}/mo each — who keeps more?</div>
+        <div className="lp-calc-race-label">At ${price}/mo each</div>
         <div className="lp-calc-bar-group">
           <div className="lp-calc-bar-label">
             <span>Patreon + Stripe</span>
@@ -760,6 +764,10 @@ function generateExitBlocks() {
 }
 const EXIT_BLOCKS = generateExitBlocks()
 
+/* agent entry dissolve: light → agent-dark (var(--dark))
+   Sparse small blocks at top, increasingly dense + large toward bottom.
+   Bottom 40% is solid dark base — blocks only need to cover y 0–65%. */
+
 const STEPS: { num: string; title: string; desc: string; icon: typeof LayoutDashboard; visual: 'dashboard' | 'link' | 'wallet' | 'webhook' }[] = [
   { num: '01', title: 'Create a Plan', desc: 'Set up a subscription plan in the merchant dashboard — name, price, interval. Takes 30 seconds.', icon: LayoutDashboard, visual: 'dashboard' },
   { num: '02', title: 'Share the Link', desc: 'Copy your checkout link and drop it anywhere — your website, a button, or just send the URL directly.', icon: Link2, visual: 'link' },
@@ -805,7 +813,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               <em>no one can shut off</em>
             </motion.h1>
             <motion.p variants={heroTextVariants} className="lp-hero-sub">
-              Non-custodial USDC subscriptions across 30+ chains.
+              Non-custodial USDC subscriptions across 30+ chains — built for humans and AI agents alike.
               No deplatforming. 50% cheaper than Stripe. Two lines of code.
             </motion.p>
             <motion.div variants={heroTextVariants} className="lp-hero-actions">
@@ -926,7 +934,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                   <div className="lp-case-icon-wrap lp-case-icon-wrap--blue">
                     <BadgePercent size={14} strokeWidth={2.5} />
                   </div>
-                  <span className="lp-case-tag">INTERACTIVE</span>
+                  <span className="lp-case-tag">SAVINGS CALCULATOR</span>
                 </div>
                 <h3 className="lp-case-title">
                   How much are you <em>really</em> losing to fees?
@@ -1054,7 +1062,112 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         </SectionReveal>
       </section>
 
-      {/* ── pixel dissolve exit: dark → light ── */}
+      {/* ── crossover between dark sections ── */}
+      <div className="lp-sf-crossover" aria-hidden="true">
+        <div className="lp-sf-beam" />
+      </div>
+
+      {/* ── AGENT ECONOMY ── */}
+      <section className="lp-section lp-agent-section">
+        {/* sci-fi background layers */}
+        <div className="lp-sf-grid" aria-hidden="true" />
+        <div className="lp-sf-scanline" aria-hidden="true" />
+        <div className="lp-sf-glow" aria-hidden="true" />
+        <div className="lp-sf-glow lp-sf-glow--2" aria-hidden="true" />
+
+        <SectionReveal className="lp-contain lp-agent-wrap">
+          <motion.div variants={revealVariants} className="lp-sf-badge">
+            <span className="lp-sf-badge-dot" />
+            <span className="lp-sf-badge-label">AGENT SUBSCRIPTIONS</span>
+            <span className="lp-sf-badge-status">ONLINE</span>
+          </motion.div>
+          <motion.h2 variants={revealVariants} className="lp-h2 lp-agent-h2">
+            The subscription layer<br />for <em>autonomous agents.</em>
+          </motion.h2>
+          <motion.p variants={revealVariants} className="lp-agent-lead">
+            x402 handles one-off payments. AutoPay handles recurring ones.
+            One transaction to subscribe. Auto-renewal by the relayer. No human in the loop.
+          </motion.p>
+
+          {/* Two integration paths side by side */}
+          <motion.div className="lp-agent-paths" variants={containerVariants}>
+            {/* Path 1: SDK */}
+            <motion.div className="lp-agent-path" variants={cardVariants}>
+              <div className="lp-path-label">
+                <span className="lp-path-label-tag">SDK</span>
+                <span className="lp-path-label-text">PROGRAMMATIC AGENTS</span>
+              </div>
+              <div className="lp-agent-code">
+                <div className="lp-agent-code-chrome">
+                  <div className="lp-agent-code-dots">
+                    <span className="lp-sf-term-dot" />
+                    <span className="lp-sf-term-dot" />
+                    <span className="lp-sf-term-dot" />
+                  </div>
+                  <span className="lp-agent-code-file">agent.ts</span>
+                  <span className="lp-sf-term-status">RUNNING</span>
+                </div>
+                <pre className="lp-agent-code-body"><code><span className="lp-ac-kw">const</span> <span className="lp-ac-var">agent</span> = <span className="lp-ac-kw">new</span> <span className="lp-ac-cls">AutoPayAgent</span>({'{'}<br />{'  '}<span className="lp-ac-prop">privateKey</span>: process.env.<span className="lp-ac-var">AGENT_KEY</span>,<br />{'  '}<span className="lp-ac-prop">chain</span>: <span className="lp-ac-str">'base'</span>,<br />{'\u007D'})<br /><br /><span className="lp-ac-comment">{'// Wrap fetch — 402 discovery + subscribe is automatic'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">fetchWithPay</span> = <span className="lp-ac-fn">wrapFetchWithSubscription</span>(<span className="lp-ac-var">fetch</span>, <span className="lp-ac-var">agent</span>)<br /><br /><span className="lp-ac-comment">{'// Just fetch — handles 402, subscribes, retries'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">data</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">fetchWithPay</span>(<span className="lp-ac-str">'https://api.service.com/feed'</span>)<br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">json</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">data</span>.<span className="lp-ac-fn">json</span>()</code></pre>
+                <div className="lp-agent-code-footer">
+                  Wrap <code>fetch</code> once. 402 discovery, subscription, and retry are transparent.
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Path 2: MCP */}
+            <motion.div className="lp-agent-path" variants={cardVariants}>
+              <div className="lp-path-label">
+                <span className="lp-path-label-tag">MCP</span>
+                <span className="lp-path-label-text">CLAUDE CODE &middot; CURSOR &middot; ANY MCP CLIENT</span>
+              </div>
+              <div className="lp-agent-code">
+                <div className="lp-agent-code-chrome">
+                  <div className="lp-agent-code-dots">
+                    <span className="lp-sf-term-dot" />
+                    <span className="lp-sf-term-dot" />
+                    <span className="lp-sf-term-dot" />
+                  </div>
+                  <span className="lp-agent-code-file">mcp_config.json</span>
+                </div>
+                <pre className="lp-agent-code-body"><code>{'{'}<br />{'  '}<span className="lp-ac-prop">"mcpServers"</span>: {'{'}<br />{'    '}<span className="lp-ac-prop">"autopay"</span>: {'{'}<br />{'      '}<span className="lp-ac-prop">"command"</span>: <span className="lp-ac-str">"npx"</span>,<br />{'      '}<span className="lp-ac-prop">"args"</span>: [<span className="lp-ac-str">"@autopayprotocol/mcp"</span>],<br />{'      '}<span className="lp-ac-prop">"env"</span>: {'{'}<br />{'        '}<span className="lp-ac-prop">"AUTOPAY_PRIVATE_KEY"</span>: <span className="lp-ac-str">"0x..."</span>,<br />{'        '}<span className="lp-ac-prop">"AUTOPAY_CHAIN"</span>: <span className="lp-ac-str">"base"</span><br />{'      '}{'}'}<br />{'    '}{'}'}<br />{'  '}{'}'}<br />{'}'}</code></pre>
+                <div className="lp-agent-code-footer lp-mcp-tools-footer">
+                  {['autopay_balance', 'autopay_subscribe', 'autopay_unsubscribe', 'autopay_get_policy', 'autopay_fetch', 'autopay_approve_usdc', 'autopay_bridge_usdc'].map((tool) => (
+                    <span key={tool} className="lp-mcp-tool">{tool}</span>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Feature strip */}
+          <motion.div className="lp-agent-features" variants={revealVariants}>
+            {[
+              { icon: <Zap size={18} strokeWidth={2} />, title: 'One Transaction', desc: 'Subscribe and pay in a single call. First charge is immediate.', id: '01' },
+              { icon: <Bot size={18} strokeWidth={2} />, title: 'Zero Identity', desc: 'No KYC, no accounts. A wallet address is all an agent needs.', id: '02' },
+              { icon: <Database size={18} strokeWidth={2} />, title: 'Auto-Renewal', desc: 'Relayer charges on schedule. No payment logic in the agent.', id: '03' },
+              { icon: <Cpu size={18} strokeWidth={2} />, title: 'Spending Caps', desc: 'On-chain caps limit total spend. Set a budget and walk away.', id: '04' },
+            ].map((f) => (
+              <div key={f.id} className="lp-agent-feat">
+                <div className="lp-sf-feat-id">{f.id}</div>
+                <div className="lp-agent-feat-icon">{f.icon}</div>
+                <h4 className="lp-agent-feat-title">{f.title}</h4>
+                <p className="lp-agent-feat-desc">{f.desc}</p>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Use case pills */}
+          <motion.div variants={revealVariants} className="lp-agent-pills">
+            {['Data Feeds', 'LLM APIs', 'Compute Clusters', 'Vector DBs', 'Trading Signals', 'Multi-Agent Swarms'].map((label) => (
+              <span key={label} className="lp-agent-pill">
+                <span className="lp-sf-pill-dot" />{label}
+              </span>
+            ))}
+          </motion.div>
+        </SectionReveal>
+      </section>
+
+      {/* ── pixel dissolve: agent dark → light ── */}
       <div className="lp-dissolve lp-dissolve-exit" aria-hidden="true">
         <div className="lp-dissolve-exit-base" />
         {EXIT_BLOCKS.map((b, i) => (
@@ -1461,7 +1574,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-nav-brand { display: flex; align-items: center; }
         .lp-nav-logo {
           height: 44px; width: auto;
-          filter: brightness(0); opacity: 0.65;
+          filter: brightness(0); opacity: 0.75;
           transition: opacity 0.2s;
         }
         .lp-nav-brand:hover .lp-nav-logo { opacity: 0.9; }
@@ -1582,7 +1695,6 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             0 4px 16px rgba(0,0,0,0.06),
             0 16px 48px rgba(0,0,0,0.09),
             0 0 0 1px rgba(0,82,255,0.04);
-          animation: heroFloat1 6s ease-in-out infinite;
           overflow: hidden;
         }
 
@@ -2099,10 +2211,11 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
 
         .lp-calc-savings {
           text-align: center;
-          padding: 20px 16px;
+          padding: 24px 16px 28px;
           background: linear-gradient(135deg, rgba(0,82,255,0.06) 0%, rgba(22,163,74,0.06) 100%);
           border: 1px solid rgba(0,82,255,0.10);
           border-radius: 14px;
+          margin-bottom: 4px;
           position: relative;
           overflow: hidden;
         }
@@ -2331,9 +2444,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           position: absolute;
           left: 0; right: 0; top: 0;
           height: 50%;
-          background: var(--dark);
+          background: hsl(228 28% 6%);
         }
-        .lp-blk-exit-dark { background: var(--dark); }
+        .lp-blk-exit-dark { background: hsl(228 28% 6%); }
         .lp-blk-exit-outline {
           background: transparent;
           border: 2px solid rgba(0,82,255,0.45);
@@ -2342,6 +2455,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: rgba(0,82,255,0.12);
           border: 2px solid rgba(0,82,255,0.35);
         }
+
 
         /* ── unified dark section (HIW + comparison) ── */
         .lp-section-unified {
@@ -3048,6 +3162,406 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-footer { padding: 32px 20px 24px; }
           .lp-footer-top { flex-direction: column; gap: 32px; }
           .lp-footer-cols { gap: 40px; }
+
+          .lp-agent-paths { grid-template-columns: 1fr; }
+          .lp-agent-lead { font-size: 16px; }
+          .lp-agent-pills { gap: 8px; }
+
+          /* agent section mobile */
+          .lp-agent-section {
+            padding-top: 48px;
+            padding-bottom: 48px;
+          }
+          .lp-agent-section::before { display: none; }
+          .lp-agent-h2 { font-size: 24px; }
+          .lp-agent-code-body { font-size: 11px; }
+          .lp-agent-features { grid-template-columns: 1fr; gap: 12px; }
+          .lp-agent-pills { flex-wrap: wrap; justify-content: center; }
+        }
+
+        /* ── Agent Subscriptions (sci-fi) ── */
+        .lp-agent-section {
+          background: var(--dark);
+          color: #fff;
+          position: relative;
+          overflow: hidden;
+          padding-top: 96px;
+          padding-bottom: 96px;
+        }
+
+        /* sci-fi grid lines */
+        .lp-sf-grid {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(0,82,255,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,82,255,0.04) 1px, transparent 1px);
+          background-size: 60px 60px;
+          mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
+          -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
+          pointer-events: none;
+        }
+        /* horizontal scan line */
+        .lp-sf-scanline {
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            to bottom,
+            transparent 0px,
+            transparent 3px,
+            rgba(0,82,255,0.015) 3px,
+            rgba(0,82,255,0.015) 4px
+          );
+          pointer-events: none;
+          z-index: 0;
+        }
+        /* glowing orbs */
+        .lp-sf-glow {
+          position: absolute;
+          top: 10%;
+          left: 30%;
+          width: 500px;
+          height: 500px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(0,82,255,0.08) 0%, transparent 70%);
+          filter: blur(60px);
+          pointer-events: none;
+          animation: lp-sf-pulse 8s ease-in-out infinite alternate;
+        }
+        .lp-sf-glow--2 {
+          top: auto;
+          bottom: 5%;
+          left: auto;
+          right: 20%;
+          width: 400px;
+          height: 400px;
+          background: radial-gradient(circle, rgba(0,200,255,0.05) 0%, transparent 70%);
+          animation-delay: -4s;
+          animation-duration: 10s;
+        }
+        @keyframes lp-sf-pulse {
+          0% { opacity: 0.6; transform: scale(1); }
+          100% { opacity: 1; transform: scale(1.12); }
+        }
+        /* ── crossover: blue beam between dark sections ── */
+        .lp-sf-crossover {
+          background: var(--dark);
+          position: relative;
+          height: 4px;
+          overflow: visible;
+        }
+        .lp-sf-beam {
+          position: absolute;
+          left: 0; right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          height: 2px;
+          background: linear-gradient(90deg, transparent 0%, rgba(0,120,255,0.6) 15%, rgba(0,160,255,0.9) 35%, #3db8ff 50%, rgba(0,160,255,0.9) 65%, rgba(0,120,255,0.6) 85%, transparent 100%);
+          box-shadow:
+            0 0 8px rgba(0,140,255,0.6),
+            0 0 24px rgba(0,120,255,0.4),
+            0 0 60px rgba(0,100,255,0.2);
+        }
+        .lp-agent-wrap {
+          text-align: center;
+          position: relative;
+          z-index: 1;
+        }
+
+        /* sci-fi badge */
+        .lp-sf-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 28px;
+          padding: 6px 16px 6px 12px;
+          border-radius: 2px;
+          border: 1px solid rgba(0,82,255,0.25);
+          background: rgba(0,82,255,0.06);
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+        }
+        .lp-sf-badge-dot {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #00d4ff;
+          box-shadow: 0 0 8px rgba(0,212,255,0.7);
+          animation: lp-sf-dot-pulse 2s ease-in-out infinite;
+        }
+        @keyframes lp-sf-dot-pulse {
+          0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(0,212,255,0.7); }
+          50% { opacity: 0.5; box-shadow: 0 0 16px rgba(0,212,255,0.4); }
+        }
+        .lp-sf-badge-label {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          color: rgba(255,255,255,0.5);
+        }
+        .lp-sf-badge-status {
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          color: #00d4ff;
+          padding: 2px 8px;
+          border: 1px solid rgba(0,212,255,0.3);
+          border-radius: 2px;
+          background: rgba(0,212,255,0.08);
+        }
+        .lp-agent-h2 {
+          color: #fff;
+        }
+        .lp-agent-h2 em {
+          color: var(--blue);
+        }
+        .lp-agent-lead {
+          font-size: 18px;
+          color: rgba(255,255,255,0.45);
+          max-width: 560px;
+          margin: 0 auto 56px;
+          line-height: 1.65;
+        }
+
+        /* two integration paths */
+        .lp-agent-paths {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr;
+          gap: 24px;
+          margin-bottom: 40px;
+          text-align: left;
+        }
+        .lp-agent-path {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .lp-agent-path .lp-agent-code {
+          flex: 1;
+        }
+        .lp-path-label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .lp-path-label-tag {
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          color: #00d4ff;
+          padding: 3px 8px;
+          border: 1px solid rgba(0,212,255,0.3);
+          border-radius: 2px;
+          background: rgba(0,212,255,0.08);
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+        }
+        .lp-path-label-text {
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          color: rgba(255,255,255,0.3);
+        }
+        /* code block (sci-fi terminal) */
+        .lp-agent-code {
+          border-radius: 4px;
+          overflow: hidden;
+          border: 1px solid rgba(0,82,255,0.15);
+          background: rgba(0,10,30,0.6);
+          box-shadow: 0 0 40px rgba(0,82,255,0.06), inset 0 1px 0 rgba(0,82,255,0.1);
+          backdrop-filter: blur(12px);
+          display: flex;
+          flex-direction: column;
+        }
+        .lp-agent-code-chrome {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 16px;
+          border-bottom: 1px solid rgba(0,82,255,0.12);
+          background: rgba(0,82,255,0.04);
+        }
+        .lp-agent-code-dots {
+          display: flex; gap: 4px;
+        }
+        .lp-sf-term-dot {
+          width: 7px; height: 7px; border-radius: 1px;
+          background: rgba(0,82,255,0.3);
+        }
+        .lp-agent-code-file {
+          font-size: 11px;
+          color: rgba(0,212,255,0.5);
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          letter-spacing: 0.04em;
+        }
+        .lp-sf-term-status {
+          margin-left: auto;
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: #00d4ff;
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          animation: lp-sf-blink 3s step-end infinite;
+        }
+        @keyframes lp-sf-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        .lp-agent-code-body {
+          padding: 20px 22px;
+          font-size: 12.5px;
+          line-height: 1.7;
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          color: rgba(255,255,255,0.55);
+          margin: 0;
+          overflow-x: auto;
+          flex: 1;
+        }
+        .lp-ac-kw { color: #c678dd; font-weight: 600; }
+        .lp-ac-var { color: #e5c07b; }
+        .lp-ac-cls { color: #61afef; font-weight: 600; }
+        .lp-ac-fn { color: #61afef; }
+        .lp-ac-str { color: #98c379; }
+        .lp-ac-num { color: #d19a66; }
+        .lp-ac-prop { color: #e06c75; }
+        .lp-ac-comment { color: rgba(255,255,255,0.2); font-style: italic; }
+        .lp-agent-code-footer {
+          padding: 14px 22px;
+          border-top: 1px solid rgba(0,82,255,0.1);
+          font-size: 12.5px;
+          line-height: 1.55;
+          color: rgba(255,255,255,0.3);
+        }
+        .lp-agent-code-footer code {
+          color: rgba(0,212,255,0.5);
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          font-size: 11.5px;
+        }
+        .lp-mcp-tools-footer {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        /* feature cards (horizontal strip) */
+        .lp-agent-features {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+          margin-bottom: 40px;
+        }
+        .lp-agent-feat {
+          padding: 20px 18px;
+          border-radius: 3px;
+          border: 1px solid rgba(0,82,255,0.1);
+          background: rgba(0,10,30,0.4);
+          transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+          position: relative;
+          text-align: left;
+        }
+        .lp-agent-feat:hover {
+          background: rgba(0,82,255,0.06);
+          border-color: rgba(0,82,255,0.3);
+          box-shadow: 0 0 20px rgba(0,82,255,0.08);
+        }
+        .lp-sf-feat-id {
+          position: absolute;
+          top: 8px;
+          right: 12px;
+          font-size: 9px;
+          font-weight: 700;
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          color: rgba(0,82,255,0.3);
+          letter-spacing: 0.08em;
+        }
+        .lp-agent-feat-icon {
+          width: 32px; height: 32px;
+          border-radius: 3px;
+          background: rgba(0,82,255,0.12);
+          border: 1px solid rgba(0,82,255,0.2);
+          color: #00d4ff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          margin-bottom: 12px;
+        }
+        .lp-agent-feat-title {
+          font-size: 13px;
+          font-weight: 650;
+          color: #fff;
+          margin: 0 0 4px;
+          letter-spacing: 0.02em;
+        }
+        .lp-agent-feat-desc {
+          font-size: 13px;
+          line-height: 1.5;
+          color: rgba(255,255,255,0.35);
+          margin: 0;
+        }
+
+        /* use-case pills (sci-fi) */
+        .lp-agent-pills {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 10px;
+        }
+        .lp-agent-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          padding: 8px 16px;
+          border-radius: 2px;
+          border: 1px solid rgba(0,82,255,0.12);
+          color: rgba(255,255,255,0.45);
+          background: rgba(0,10,30,0.4);
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .lp-agent-pill:hover {
+          border-color: rgba(0,212,255,0.4);
+          color: rgba(0,212,255,0.9);
+          box-shadow: 0 0 12px rgba(0,82,255,0.1);
+        }
+        .lp-sf-pill-dot {
+          width: 4px; height: 4px;
+          border-radius: 50%;
+          background: rgba(0,82,255,0.4);
+          transition: background 0.2s;
+        }
+        .lp-agent-pill:hover .lp-sf-pill-dot {
+          background: #00d4ff;
+          box-shadow: 0 0 6px rgba(0,212,255,0.5);
+        }
+
+        /* MCP tool chips */
+        .lp-mcp-tool {
+          font-size: 10px;
+          font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+          letter-spacing: 0.02em;
+          color: rgba(0,212,255,0.5);
+          padding: 4px 10px;
+          border: 1px solid rgba(0,82,255,0.12);
+          border-radius: 2px;
+          background: rgba(0,82,255,0.04);
+          transition: border-color 0.2s, color 0.2s;
+        }
+        .lp-mcp-tool:hover {
+          border-color: rgba(0,212,255,0.35);
+          color: rgba(0,212,255,0.85);
+        }
+
+        @media (max-width: 767px) {
+          .lp-agent-paths { grid-template-columns: 1fr; }
+          .lp-agent-features { grid-template-columns: 1fr 1fr; }
+          .lp-agent-code-body { font-size: 11px; }
+          .lp-agent-pills { gap: 8px; }
+          .lp-agent-pill { font-size: 11px; padding: 6px 14px; }
+        }
+        @media (max-width: 480px) {
+          .lp-agent-features { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>
