@@ -2,6 +2,8 @@
 
 How AI agents discover, subscribe to, and use services through AutoPay.
 
+> Per-request payment protocols require merchants to answer a fundamentally different question: *"what is a single API call worth?"* Most businesses haven't thought about that and don't want to. AutoPay lets merchants keep their existing subscription pricing — same tiers, same model — and accept payments from autonomous agents. It's a different payment rail, not a different business model.
+
 ---
 
 ## Table of Contents
@@ -23,42 +25,47 @@ How AI agents discover, subscribe to, and use services through AutoPay.
 
 AutoPay is a non-custodial recurring payment protocol. An AI agent subscribes once and gets ongoing access — the relayer handles renewals automatically. No payment logic in the agent's hot path.
 
+#### Phase 1: Subscribe (once)
+
 ```mermaid
-graph TB
-    subgraph "Agent Side"
-        A[AI Agent<br/>EOA Wallet]
-    end
-
-    subgraph "On-Chain (Flow EVM / Base)"
-        U[USDC Contract]
-        P[PolicyManager<br/>Contract]
-    end
-
-    subgraph "Off-Chain"
-        R[AutoPay Relayer<br/>Charge Executor]
-        S[Service / API<br/>Merchant]
-    end
-
-    A -->|"1. approve()"| U
-    A -->|"2. createPolicy()"| P
-    P -->|"3. First charge<br/>(same tx)"| U
-    U -->|"USDC transfer"| S
-
-    R -->|"4. charge() on schedule"| P
-    P -->|"USDC transfer"| U
-    U -->|"Recurring payment"| S
-
-    A -->|"5. Bearer policyId"| S
-    S -->|"6. policies() read"| P
-    S -->|"200 OK + data"| A
-
-    A -->|"7. revokePolicy()"| P
+graph LR
+    A[AI Agent] -->|"1. approve(USDC)"| U[USDC Contract]
+    A -->|"2. createPolicy()"| P[PolicyManager]
+    P -->|"3. First charge — same tx"| U
+    U -->|"USDC transfer"| M[Merchant]
 
     style A fill:#1a1a2e,color:#fff
+    style U fill:#2775CA,color:#fff
+    style P fill:#0052FF,color:#fff
+    style M fill:#86868B,color:#fff
+```
+
+#### Phase 2: Use the Service (ongoing)
+
+```mermaid
+graph LR
+    A[AI Agent] -->|"Bearer {policyId}.{expiry}.{sig}"| S[Service / Merchant]
+    S -->|"recover signer + policies()"| P[PolicyManager]
+    P -->|"signer == payer, active"| S
+    S -->|"200 OK + data"| A
+
+    style A fill:#1a1a2e,color:#fff
+    style S fill:#86868B,color:#fff
+    style P fill:#0052FF,color:#fff
+```
+
+#### Phase 3: Auto-Renewal (agent does nothing)
+
+```mermaid
+graph LR
+    R[AutoPay Relayer] -->|"charge() on schedule"| P[PolicyManager]
+    P -->|"USDC transfer"| U[USDC Contract]
+    U -->|"Recurring payment"| M[Merchant]
+
+    style R fill:#16A34A,color:#fff
     style P fill:#0052FF,color:#fff
     style U fill:#2775CA,color:#fff
-    style R fill:#16A34A,color:#fff
-    style S fill:#86868B,color:#fff
+    style M fill:#86868B,color:#fff
 ```
 
 ### Key Properties
@@ -118,13 +125,13 @@ graph LR
 | **PolicyManager contract** | Deployed | `createPolicy()`, `revokePolicy()`, `charge()`, `canCharge()`, `policies()` getter | `contracts/src/ArcPolicyManager.sol` |
 | **Relayer** | Running | Indexes events, executes charges on schedule, sends webhooks | `relayer/src/` |
 | **Merchant SDK** | Published on npm | Checkout URLs, webhook verification, fee calculations | `packages/sdk/` |
-| **Agent SDK** | Built | `AutoPayAgent` class — subscribe, unsubscribe, getPolicy, balance checks, typed errors | `packages/agent-sdk/` |
+| **Agent SDK** | Built | `AutoPayAgent` class — subscribe, unsubscribe, getPolicy, createBearerToken, balance checks, typed errors | `packages/agent-sdk/` |
 | **MCP server** | Built | 7 tools for AI agents (balance, subscribe, unsubscribe, get_policy, fetch, approve, bridge_usdc) | `packages/mcp/` |
-| **`wrapFetchWithSubscription`** | Built | Transparent HTTP 402 → subscribe → retry wrapper, with optional auto-bridge | `packages/agent-sdk/src/fetch.ts` |
+| **`wrapFetchWithSubscription`** | Built | Transparent HTTP 402 → subscribe → retry wrapper, with optional auto-bridge, persistent subscription store, and relayer recovery | `packages/agent-sdk/src/fetch.ts` |
 | **Cross-chain bridging** | Built | `bridgeUsdc()` on `AutoPayAgent`, LiFi REST API, auto-bridge in fetch wrapper | `packages/agent-sdk/src/bridge.ts` |
 | **Agent examples** | Working | Manual flow (`agent.js`) + zero-boilerplate flow (`agent-wrapped.js`) + bridge flow (`agent-with-bridge.js`) + service | `examples/agent-subscription/` |
 | **Relayer payer endpoint** | Built | `GET /payers/:address/policies?chain_id=N` — agents can list their subscriptions | `relayer/src/api/index.ts` |
-| **Middleware package** | Built | `@autopayprotocol/middleware` — `requireSubscription()` Express middleware + core verifier | `packages/middleware/` |
+| **Middleware package** | Built | `@autopayprotocol/middleware` — signed Bearer token verification, Express middleware, 402 discovery builder | `packages/middleware/` |
 
 ---
 
@@ -134,46 +141,25 @@ The full flow from first contact to cancellation.
 
 ```mermaid
 sequenceDiagram
-    participant Agent as AI Agent
-    participant Service as Data Service
-    participant USDC as USDC Contract
+    participant A as AI Agent
+    participant S as Service
     participant PM as PolicyManager
-    participant Relayer as AutoPay Relayer
 
-    Note over Agent,Service: Step 1: Discovery
-    Agent->>Service: GET /api/data
-    Service-->>Agent: 402 Payment Required<br/>{ accepts: ["autopay"], autopay: { plans, networks } }
+    A->>S: GET /api/data
+    S-->>A: 402 + { plans, merchant, networks }
 
-    Note over Agent,PM: Step 2: Subscribe (auto-approves if needed)
-    Agent->>USDC: approve(PolicyManager, amount) [if needed]
-    USDC-->>Agent: tx confirmed
-    Agent->>PM: createPolicy(merchant, 10 USDC, monthly, 120 USDC cap)
-    PM->>USDC: transferFrom(agent → merchant) [first charge]
-    PM-->>Agent: PolicyCreated event → policyId
+    A->>PM: approve() + createPolicy()
+    PM-->>A: policyId (first charge immediate)
 
-    Note over Agent,Service: Step 3: Use the Service
     loop Every request
-        Agent->>Service: GET /api/data<br/>Authorization: Bearer {policyId}
-        Service->>PM: policies(policyId) [free read]
-        PM-->>Service: { active: true, merchant: 0x... }
-        Service-->>Agent: 200 OK + data
+        A->>S: Bearer {policyId}.{expiry}.{sig}
+        S->>PM: recover signer + policies() read
+        S-->>A: 200 OK + data
     end
 
-    Note over Relayer,PM: Step 4: Auto-Renewal (agent does nothing)
-    loop Every billing period
-        Relayer->>PM: charge(policyId)
-        PM->>USDC: transferFrom(agent → merchant)
-        PM-->>Relayer: ChargeSucceeded event
-    end
+    Note right of PM: Relayer calls charge()<br/>on schedule — agent<br/>does nothing
 
-    Note over Agent,PM: Step 5: Cancel
-    Agent->>PM: revokePolicy(policyId)
-    PM-->>Agent: PolicyRevoked event
-
-    Agent->>Service: GET /api/data<br/>Authorization: Bearer {policyId}
-    Service->>PM: policies(policyId) [free read]
-    PM-->>Service: { active: false }
-    Service-->>Agent: 402 Payment Required
+    A->>PM: revokePolicy() → immediate stop
 ```
 
 ### On-Chain Operations (Agent Pays Gas)
@@ -235,18 +221,52 @@ The MCP server exposes 7 tools:
 For programmatic agents that use `fetch` — wrap it once, 402 handling is automatic:
 
 ```typescript
-import { AutoPayAgent, wrapFetchWithSubscription } from '@autopayprotocol/agent-sdk'
+import { AutoPayAgent, wrapFetchWithSubscription, FileStore } from '@autopayprotocol/agent-sdk'
 
 const agent = new AutoPayAgent({
   privateKey: process.env.KEY as `0x${string}`,
   chain: 'base',
 })
 
-const fetchWithPay = wrapFetchWithSubscription(fetch, agent)
+// FileStore persists subscriptions to disk — survives restarts
+const fetchWithPay = wrapFetchWithSubscription(fetch, agent, {
+  store: new FileStore('.autopay/subscriptions.json'),
+})
 
 // Just fetch — 402 → subscribe → retry is transparent
 const res = await fetchWithPay('https://api.service.com/data')
 ```
+
+#### Subscription Recovery Flow
+
+When the wrapper encounters a 402, it tries to recover an existing subscription before creating a new one:
+
+```mermaid
+flowchart LR
+    A[402] --> B{Local<br/>store?}
+    B -->|Hit| C{Try<br/>request}
+    C -->|200| D[Done]
+    C -->|402| E[Stale — remove]
+
+    B -->|Miss| F{Relayer?}
+    F -->|Found| G{Try<br/>request}
+    G -->|200| D
+    G -->|402| H[Stale]
+
+    F -->|None| I[Subscribe]
+    E --> I
+    H --> I
+    I --> D
+
+    style D fill:#16A34A,color:#fff
+    style I fill:#0052FF,color:#fff
+```
+
+| Step | Source | Trust | Cost |
+|------|--------|-------|------|
+| 1. Local store | Agent's own disk | Trusted (agent controls it) | Free |
+| 2. Relayer query | `relayerUrl` from 402 body | Verified — policyId is tested against the service before use | Free (one HTTP call) |
+| 3. Subscribe fresh | On-chain | Source of truth | Gas + first charge |
 
 > **Note:** The wrapper subscribes on the agent's configured chain. It does not read the `networks` array from the 402 body. Ensure the agent's chain matches what the service supports.
 
@@ -277,9 +297,10 @@ if (discovery.status === 402) {
     metadataUrl: plan.metadataUrl,
   })
 
-  // Step 3: Use the service with the subscription
+  // Step 3: Create a signed Bearer token and use the service
+  const token = await agent.createBearerToken(sub.policyId)
   const res = await fetch('https://api.service.com/data', {
-    headers: { Authorization: `Bearer ${sub.policyId}` },
+    headers: { Authorization: `Bearer ${token}` },
   })
 
   // Step 4: Cancel when done
@@ -291,33 +312,27 @@ if (discovery.status === 402) {
 
 ## Service-Side Verification
 
-How a service confirms an agent has a valid subscription.
+How a service confirms an agent has a valid, signed subscription token.
+
+Bearer tokens use the format `{policyId}.{expiry}.{signature}` where the signature is an EIP-191 signature of `{policyId}:{expiry}`, proving the agent owns the wallet that created the subscription.
 
 ```mermaid
-flowchart TD
-    A[Request arrives] --> B{Authorization<br/>header present?}
-    B -->|No| C[Return 402<br/>+ discovery payload]
-    B -->|Yes| D[Extract policyId<br/>from Bearer token]
-
-    D --> E{In cache<br/>and fresh?}
-    E -->|Yes| F{Cached as<br/>active?}
-    E -->|No| G[Read on-chain<br/>policies policyId]
-
-    G --> H{active == true?}
-    H -->|No| C
-    H -->|Yes| I{merchant matches<br/>our address?}
-
+flowchart LR
+    A[Request] --> B{Bearer<br/>token?}
+    B -->|No| C[402]
+    B -->|Yes| D{Expired or<br/>exceeds max TTL?}
+    D -->|Yes| C
+    D -->|No| E{Signer ==<br/>payer?}
+    E -->|No| C
+    E -->|Yes| F{Active +<br/>merchant match?}
     F -->|No| C
-    F -->|Yes| I
-
-    I -->|No| J[Return 403<br/>Wrong merchant]
-    I -->|Yes| K[Cache result<br/>TTL: 60s]
-    K --> L[Serve data<br/>200 OK]
+    F -->|Yes| G[200 OK]
 
     style C fill:#dc2626,color:#fff
-    style J fill:#dc2626,color:#fff
-    style L fill:#16A34A,color:#fff
+    style G fill:#16A34A,color:#fff
 ```
+
+> On-chain reads are cached (TTL: 60s). The signature recovery and expiry check happen locally (no RPC calls).
 
 ### Policy Struct Reference
 
@@ -340,30 +355,48 @@ Index  Field                  Type       Used For
 11     metadataUrl            string     Off-chain metadata
 ```
 
-### Verification with Agent SDK
+### Signed Bearer Tokens
 
-Services can import ABIs directly from the agent SDK:
+Agents create signed tokens that prove wallet ownership:
 
-```typescript
-import { createPublicClient, http } from 'viem'
-import { POLICY_MANAGER_ABI, chains } from '@autopayprotocol/agent-sdk'
-
-const chain = chains.base
-const client = createPublicClient({
-  transport: http(chain.rpcUrl),
-})
-
-async function isActiveSubscription(policyId: `0x${string}`): Promise<boolean> {
-  const policy = await client.readContract({
-    address: chain.policyManager,
-    abi: POLICY_MANAGER_ABI,
-    functionName: 'policies',
-    args: [policyId],
-  })
-  const [, merchant, , , , , , , , , active] = policy
-  return active && merchant.toLowerCase() === MERCHANT_ADDRESS.toLowerCase()
-}
 ```
+Format: {policyId}.{expiry}.{signature}
+  - policyId:  bytes32 hex (the on-chain subscription ID)
+  - expiry:    unix timestamp (token validity, default: 1 hour)
+  - signature: EIP-191 signature of "{policyId}:{expiry}"
+```
+
+**Why not just use policyId?** Policy IDs are public on-chain — anyone could read them from events and impersonate a subscriber. The signed token proves the requester owns the wallet that created the policy.
+
+Agent side:
+```typescript
+const token = await agent.createBearerToken(policyId) // signs with agent's wallet
+```
+
+> `wrapFetchWithSubscription` caches signed tokens and reuses them until 5 minutes before expiry — no re-signing on every request.
+
+Service side (using `@autopayprotocol/middleware`):
+```typescript
+import { requireSubscription } from '@autopayprotocol/middleware'
+
+const auth = requireSubscription({
+  merchant: MERCHANT_ADDRESS,
+  rpcUrl: chain.rpcUrl,
+  policyManager: chain.policyManager,
+  discovery: { merchant, plans, networks },
+  maxTokenAgeSeconds: 86_400,  // reject tokens valid for longer than 24h (default)
+  clockSkewSeconds: 30,        // tolerate 30s clock drift (default)
+})
+app.get('/api/data', auth, handler)
+```
+
+**Verification flow:** token format → expiry (with clock skew tolerance) → max lifetime check → recover signer from signature → read on-chain policy (cached 60s) → check `active`, `merchant` match, and `signer == payer`.
+
+| Security control | Default | Purpose |
+|-----------------|---------|---------|
+| `maxTokenAgeSeconds` | 86,400 (24h) | Prevents agents from creating tokens valid for years — limits damage if a token leaks |
+| `clockSkewSeconds` | 30 | Tolerates minor clock differences between agent and service |
+| `cacheTtlMs` | 60,000 (60s) | On-chain policy cache — balances freshness vs RPC costs |
 
 ---
 
@@ -375,20 +408,23 @@ When an agent hits a protected endpoint, the service responds with subscription 
 
 ```mermaid
 sequenceDiagram
-    participant Agent as AI Agent
-    participant Service as Protected API
+    participant A as AI Agent
+    participant S as Protected API
+    participant PM as PolicyManager
 
-    Agent->>Service: GET /api/data
-    Service-->>Agent: 402 Payment Required
+    A->>S: GET /api/data
+    S-->>A: 402 { merchant, plans, networks }
 
-    Note right of Agent: Agent parses 402 body:
-    Note right of Agent: {<br/>  "accepts": ["autopay"],<br/>  "autopay": {<br/>    "merchant": "0x...",<br/>    "plans": [...],<br/>    "networks": [...]<br/>  }<br/>}
+    A->>PM: approve() + createPolicy()
+    PM-->>A: policyId
 
-    Note right of Agent: wrapFetchWithSubscription<br/>handles this automatically
-
-    Agent->>Service: GET /api/data<br/>Authorization: Bearer {policyId}
-    Service-->>Agent: 200 OK + data
+    A->>S: GET /api/data + Bearer {policyId}.{expiry}.{sig}
+    S->>PM: recover signer + policies(policyId)
+    PM-->>S: signer == payer, active: true
+    S-->>A: 200 OK + data
 ```
+
+> `wrapFetchWithSubscription` handles steps 2-4 automatically — the agent just calls `fetch()`.
 
 ### 402 Response Schema
 
@@ -421,10 +457,18 @@ sequenceDiagram
         "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345",
         "usdc": "0xF1815bd50389c46847f0Bda824eC8da914045D14"
       }
-    ]
+    ],
+    "relayerUrl": "https://relayer.autopayprotocol.com"
   }
 }
 ```
+
+| Field&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Required | Description |
+|----------------------|----------|-------------|
+| merchant | Yes | Merchant's on-chain address |
+| plans | Yes | Available subscription plans (name, amount, interval) |
+| networks | Yes | Supported chains with contract addresses |
+| relayerUrl | No | Relayer API base URL for querying existing subscriptions. Self-hosted relayers should set this to their own URL. |
 
 ### MCP Tool Discovery
 
@@ -452,29 +496,37 @@ sequenceDiagram
 
 ### Architectural Difference
 
+**x402: Pay-Per-Request** — every request settles on-chain via a facilitator.
+
 ```mermaid
-graph TB
-    subgraph "x402: Pay-Per-Request"
-        A1[Agent] -->|"1. GET /data"| S1[Service]
-        S1 -->|"2. 402 + price"| A1
-        A1 -->|"3. Sign payment"| A1
-        A1 -->|"4. GET /data + PAYMENT-SIGNATURE"| S1
-        S1 -->|"5. Settle on-chain"| F1[Facilitator]
-        F1 -->|"6. Confirmed"| S1
-        S1 -->|"7. 200 + data"| A1
-    end
+sequenceDiagram
+    participant A as Agent
+    participant S as Service
+    participant F as Facilitator
 
-    subgraph "AutoPay: Subscribe Once"
-        A2[Agent] -->|"1. createPolicy() [one tx]"| P2[PolicyManager]
-        A2 -->|"2. GET /data + Bearer policyId"| S2[Service]
-        S2 -->|"3. policies() [free read]"| P2
-        S2 -->|"4. 200 + data"| A2
-        R2[Relayer] -->|"5. charge() monthly"| P2
-    end
+    A->>S: ① GET /data
+    S-->>A: ② Price required
+    A->>A: ③ Sign payment
+    A->>S: ④ GET /data + payment sig
+    S->>F: ⑤ Settle on-chain
+    F-->>S: ⑥ Confirmed
+    S-->>A: ⑦ Data
+```
 
-    style F1 fill:#7C3AED,color:#fff
-    style P2 fill:#0052FF,color:#fff
-    style R2 fill:#16A34A,color:#fff
+**AutoPay: Subscribe Once** — one on-chain tx, then free reads. Relayer charges on schedule.
+
+```mermaid
+sequenceDiagram
+    participant A as Agent
+    participant S as Service
+    participant PM as PolicyManager
+    participant R as Relayer
+
+    A->>PM: ① createPolicy()
+    A->>S: ② GET /data + signed token
+    S->>PM: ③ verify sig + policies()
+    S-->>A: ④ Data
+    R->>PM: ⑤ charge() monthly
 ```
 
 ### Comparison Table
@@ -498,15 +550,39 @@ graph TB
 
 ### Cost Comparison
 
-For an agent accessing a data API 1,000 times/month:
+Both protocols are valid — the right choice depends on the merchant's pricing model and how their customers use the service.
 
-| Scenario | x402 Cost | AutoPay Cost |
-|----------|----------|--------------|
-| API price: $0.001/request | $1.00 + gas * 1,000 | $10/month + gas * 1 |
-| API price: $0.01/request | $10.00 + gas * 1,000 | $10/month + gas * 1 |
-| API price: $0.05/request | $50.00 + gas * 1,000 | $10/month + gas * 1 |
+**Fee structure (as of early 2026, Base L2):**
 
-At ~1,000 requests, x402 gas costs alone ($0.01-0.05/tx on Base) can exceed the AutoPay subscription. The crossover point depends on per-request price and frequency — low-frequency casual use favors x402, high-frequency ongoing use favors AutoPay.
+| | x402 | AutoPay |
+|--|------|---------|
+| Settlement | Per-request on-chain | Once per billing cycle |
+| Gas per API call | ~$0.001 (on-chain settlement) | $0 (signed Bearer token, off-chain) |
+| Setup gas | $0 | ~$0.05 (approve + createPolicy) |
+| Protocol fee | Free first 1,000 tx/month, then $0.001/tx (Coinbase facilitator) | 2.5% on each charge |
+
+**Example: $10/month data service on Base**
+
+| Requests/month | x402 cost | AutoPay cost |
+|---------------|-----------|-------------|
+| 10 | $0.11 | $10.25 |
+| 100 | $1.10 | $10.25 |
+| 1,000 | $11.00 | $10.25 |
+| 10,000 | $110.00 | $10.25 |
+
+**When each model fits:**
+
+| x402 is a better fit | AutoPay is a better fit |
+|---------------------|------------------------|
+| Pay-per-use pricing (metered APIs) | Flat-rate or tiered subscriptions |
+| Infrequent or unpredictable usage | High-frequency, ongoing access |
+| One-off purchases or single queries | Recurring services (SaaS, data feeds) |
+| No commitment — agents pay as they go | Predictable revenue for merchants |
+| Simple integration (no relayer needed) | Lower per-request cost at scale |
+
+Merchants can support both — see [Using Both Together](#using-both-together) below.
+
+> **Why AutoPay exists:** Most services already have a subscription model — $10/month, $99/year, usage tiers. AutoPay lets merchants bring that exact pricing to crypto without rethinking their business model. No per-request pricing decisions, no metering infrastructure, no facilitator integration. Just replace Stripe with AutoPay and the same subscription tiers work for AI agents. Per-request settlement adds gas to every API call ($110 in gas at 10,000 requests/month on Base) — AutoPay moves settlement off the hot path: one on-chain charge per billing cycle, every request in between is a free signed token.
 
 ---
 
@@ -515,32 +591,23 @@ At ~1,000 requests, x402 gas costs alone ($0.01-0.05/tx on Base) can exceed the 
 A service can accept both x402 (one-off) and AutoPay (subscription) payments:
 
 ```mermaid
-flowchart TD
-    A[Request arrives] --> B{Has AutoPay<br/>Bearer token?}
-    B -->|Yes| C{Active<br/>subscription?}
-    C -->|Yes| D[Serve data<br/>200 OK]
-    C -->|No| E[Fall through]
+flowchart LR
+    A[Request] --> B{AutoPay<br/>token?}
+    B -->|Valid| C[200 OK]
+    B -->|No/Invalid| D{x402<br/>payment?}
+    D -->|Valid| C
+    D -->|No/Invalid| E[402]
 
-    B -->|No| E
-    E --> F{Has x402<br/>PAYMENT-SIGNATURE?}
-    F -->|Yes| G{Payment<br/>valid?}
-    G -->|Yes| D
-    G -->|No| H[402 with both options]
-
-    F -->|No| H
-
-    H --> I["402 body:<br/>{<br/>  accepts: [x402, autopay],<br/>  x402: { price, network },<br/>  autopay: { plans, networks }<br/>}"]
-
-    style D fill:#16A34A,color:#fff
-    style H fill:#dc2626,color:#fff
+    style C fill:#16A34A,color:#fff
+    style E fill:#dc2626,color:#fff
 ```
 
 ```typescript
 // Dual-protocol service middleware
 async function handleRequest(req, res) {
-  // Check AutoPay subscription first (cheaper for frequent users)
-  const policyId = req.headers.authorization?.replace('Bearer ', '')
-  if (policyId && await isActiveSubscription(policyId)) {
+  // Check AutoPay signed token first (cheaper for frequent users)
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (token && await verifySubscription(token)) {
     return serveRequest(req, res)
   }
 
@@ -611,7 +678,7 @@ What's been resolved and what's still open.
 | Nonce management | SDK sequences approve → createPolicy automatically |
 | Opaque errors | Typed errors: `InsufficientBalanceError`, `InsufficientGasError`, `PolicyNotFoundError`, etc. |
 | No transparent fetch wrapper | `wrapFetchWithSubscription` handles 402 → subscribe → retry automatically |
-| LLMs can't discover AutoPay | MCP server with 6 tools — Claude/other LLM agents can subscribe via tool calls |
+| LLMs can't discover AutoPay | MCP server with 7 tools — Claude/other LLM agents can subscribe via tool calls |
 | No balance/gas pre-checks | `subscribe()` checks USDC balance and gas before transacting |
 | 402 discovery not implemented | `wrapFetchWithSubscription` parses 402 bodies and auto-subscribes |
 | Cross-chain bridging | `bridgeUsdc()` on `AutoPayAgent` + `autopay_bridge_usdc` MCP tool + auto-bridge in `wrapFetchWithSubscription` — all via LiFi REST API |
@@ -620,8 +687,6 @@ What's been resolved and what's still open.
 
 | Friction | Severity | Note |
 |----------|----------|------|
-| Agent needs an EOA wallet | High | Fundamental requirement of any on-chain protocol. Could be mitigated with account abstraction or embedded wallets. |
-| Agent needs USDC | High | On-ramping is outside AutoPay's scope. Could integrate with fiat-to-USDC providers later. |
 | Agent framework integrations | Low | No LangChain tool, CrewAI integration, or OpenAI function schema yet. |
 
 ---
