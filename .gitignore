@@ -1,4 +1,8 @@
-# Compiler files
+# Dependencies
+node_modules/
+
+# Build output
+dist/
 cache/
 out/
 
@@ -20,7 +24,6 @@ docs/
 
 # OS files
 .DS_Store
-
 
 CLAUDE.md
 .vercel
