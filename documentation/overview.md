@@ -15,6 +15,7 @@ AutoPay is a non-custodial crypto subscription payment protocol. It lets users p
 | **Subscriber** (paying for services) | Subscriber Guide |
 | **Merchant / business owner** (accepting payments) | Merchant Guide |
 | **Backend developer** (handling webhook events) | SDK Integration Guide |
+| **AI agent developer** (building autonomous agents) | Agent Architecture |
 | **Relayer operator** (running the charge service) | Relayer Local Setup or Relayer Deployment |
 
 ---
@@ -137,6 +138,7 @@ Cross-chain funding is powered by [LiFi](https://li.fi). Subscribers can bridge 
 ### For Developers
 
 - [SDK Integration Guide](./sdk-backend.md) - Webhook events and signature verification
+- [Agent Architecture](./AGENT_ARCHITECTURE.md) - Agent SDK, MCP server, 402 discovery, and `wrapFetchWithSubscription`
 - [Relayer Operations](./relayer-operations.md) - CLI commands, metadata, merchant management
 - [Relayer Configuration](./relayer-configuration.md) - All environment variables and settings
 - [Relayer Deployment](./relayer-deployment.md) - Railway, Docker, and direct deployment
