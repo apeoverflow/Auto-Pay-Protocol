@@ -24,6 +24,7 @@ import relayerConfigMd from '../../../documentation/relayer-configuration.md?raw
 import relayerOperationsMd from '../../../documentation/relayer-operations.md?raw'
 import relayerDeploymentMd from '../../../documentation/relayer-deployment.md?raw'
 import merchantCheckoutExampleMd from '../../../documentation/merchant-checkout-example.md?raw'
+import agentArchitectureMd from '../../../documentation/AGENT_ARCHITECTURE.md?raw'
 
 SyntaxHighlighter.registerLanguage('typescript', typescript)
 SyntaxHighlighter.registerLanguage('ts', typescript)
@@ -195,6 +196,7 @@ type DocId =
   | 'relayer-operations'
   | 'relayer-deployment'
   | 'merchant-checkout-example'
+  | 'agent-architecture'
 
 interface DocEntry {
   id: DocId
@@ -230,6 +232,12 @@ const categories: DocCategory[] = [
       { id: 'relayer-config', label: 'Configuration', content: relayerConfigMd },
       { id: 'relayer-operations', label: 'Operations', content: relayerOperationsMd },
       { id: 'relayer-deployment', label: 'Deployment', content: relayerDeploymentMd },
+    ],
+  },
+  {
+    label: 'Agent Economy',
+    docs: [
+      { id: 'agent-architecture', label: 'Agent Architecture', content: agentArchitectureMd },
     ],
   },
 ]
@@ -316,6 +324,7 @@ const filenameToDocId: Record<string, DocId> = {
   'relayer-configuration.md': 'relayer-config',
   'relayer-operations.md': 'relayer-operations',
   'relayer-deployment.md': 'relayer-deployment',
+  'AGENT_ARCHITECTURE.md': 'agent-architecture',
 }
 
 function slugify(text: string): string {

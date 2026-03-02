@@ -1085,8 +1085,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             The subscription layer<br />for <em>autonomous agents.</em>
           </motion.h2>
           <motion.p variants={revealVariants} className="lp-agent-lead">
-            x402 handles one-off payments. AutoPay handles recurring ones.
-            One transaction to subscribe. Auto-renewal by the relayer. No human in the loop.
+            Per-request protocols ask merchants: <em>"what is a single API call worth?"</em>{' '}
+            Most businesses don't know and don't want to. AutoPay lets them keep their existing subscription pricing — same tiers, same model. One transaction to subscribe. Auto-renewal by the relayer. No human in the loop.
           </motion.p>
 
           {/* Two integration paths side by side */}
@@ -2095,7 +2095,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-case-note-geo strong { color: var(--green); }
 
         /* ── Interactive Fee Calculator ── */
-        .lp-calc { display: flex; flex-direction: column; gap: 20px; }
+        .lp-calc { display: flex; flex-direction: column; gap: 20px; flex: 1; }
         .lp-calc-controls { display: flex; flex-direction: column; gap: 12px; }
         .lp-calc-label {
           display: flex; justify-content: space-between; align-items: baseline;
@@ -2215,9 +2215,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: linear-gradient(135deg, rgba(0,82,255,0.06) 0%, rgba(22,163,74,0.06) 100%);
           border: 1px solid rgba(0,82,255,0.10);
           border-radius: 14px;
-          margin-bottom: 4px;
           position: relative;
           overflow: hidden;
+          flex: 1;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .lp-calc-savings::before {
           content: '';
@@ -2230,19 +2231,19 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           position: relative; z-index: 1;
         }
         .lp-calc-savings-plus {
-          font-size: 20px; font-weight: 700; color: var(--green);
+          font-size: 24px; font-weight: 700; color: var(--green);
         }
         .lp-calc-savings-amount {
-          font-size: 36px; font-weight: 800; color: var(--blue);
+          font-size: 44px; font-weight: 800; color: var(--blue);
           letter-spacing: -0.04em; font-variant-numeric: tabular-nums;
           line-height: 1;
         }
         .lp-calc-savings-per {
-          font-size: 16px; font-weight: 600; color: var(--muted);
+          font-size: 18px; font-weight: 600; color: var(--muted);
           margin-left: 2px;
         }
         .lp-calc-savings-yearly {
-          font-size: 13px; color: var(--muted); margin-top: 6px;
+          font-size: 15px; color: var(--muted); margin-top: 8px;
           position: relative; z-index: 1;
         }
         .lp-calc-savings-yearly strong {
