@@ -63,7 +63,7 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
 
     switch (filter) {
       case 'charges':
-        filtered = activity.filter(a => a.type === 'charge' || a.type === 'subscribe' || a.type === 'cancel')
+        filtered = activity.filter(a => a.type === 'charge' || a.type === 'subscribe' || a.type === 'cancel' || a.type === 'completed')
         break
       case 'transfers':
         filtered = activity.filter(a => a.type === 'transfer')

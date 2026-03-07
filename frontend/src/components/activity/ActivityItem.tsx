@@ -7,6 +7,7 @@ import {
   CreditCard,
   Plus,
   XCircle,
+  CheckCircle2,
   ArrowUpRight,
   ExternalLink,
   FileText,
@@ -44,6 +45,12 @@ const typeConfig: Record<ActivityItemType['type'], {
     label: 'Cancelled',
     color: 'text-red-600',
     bgColor: 'bg-red-500/10',
+  },
+  completed: {
+    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+    label: 'Completed',
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-500/10',
   },
   transfer: {
     icon: <ArrowUpRight className="h-3.5 w-3.5" />,
