@@ -282,6 +282,44 @@ export async function markPolicyCancelledByFailure(
   logger.info({ policyId, chainId }, 'Policy cancelled by consecutive failures')
 }
 
+export async function getPoliciesByPayer(
+  databaseUrl: string,
+  chainId: number,
+  payerAddress: string,
+  active: boolean | null,
+  page: number,
+  limit: number
+): Promise<{ policies: PolicyRow[]; total: number }> {
+  const db = getDb(databaseUrl)
+  const addr = payerAddress.toLowerCase()
+  const offset = (page - 1) * limit
+
+  const activeFilter = active === null
+    ? db``
+    : db`AND active = ${active}`
+
+  const [policies, countResult] = await Promise.all([
+    db<PolicyRow[]>`
+      SELECT *
+      FROM policies
+      WHERE payer = ${addr}
+        AND chain_id = ${chainId}
+        ${activeFilter}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db`
+      SELECT count(*)::int AS total
+      FROM policies
+      WHERE payer = ${addr}
+        AND chain_id = ${chainId}
+        ${activeFilter}
+    `,
+  ])
+
+  return { policies, total: countResult[0]?.total ?? 0 }
+}
+
 export async function markPolicyCompleted(
   databaseUrl: string,
   chainId: number,

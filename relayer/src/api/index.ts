@@ -1,5 +1,6 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http'
 import { getDb, getStatus } from '../db/index.js'
+import { getPoliciesByPayer } from '../db/policies.js'
 import { getChargesByMerchant, getChargesByIdsForMerchant, getChargesByIdsForPayer, setChargeReceiptCid } from '../db/charges.js'
 import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus, VALID_SUBSCRIBER_FIELDS } from '../db/metadata.js'
 import { insertSubscriberData, getSubscribersByMerchant } from '../db/subscribers.js'
@@ -18,6 +19,7 @@ import { handleNonceRequest, authenticateMerchant, destroyAuthStore } from './au
 import { getMerchant, clearMerchantWebhook, updateMerchantWebhook } from '../db/merchants.js'
 import { generateWebhookSecret } from '../webhooks/signer.js'
 import { SlidingWindowRateLimiter, type RateLimitResult } from './rate-limit.js'
+import { checkGeoblock, initGeoblock } from './geo-block.js'
 import { getLogoStorage } from '../lib/logo-storage.js'
 import sharp from 'sharp'
 
@@ -27,6 +29,7 @@ const AUTH_ENABLED = process.env.AUTH_ENABLED === 'true'
 const nonceRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 10 })
 const authRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
 const checkoutLinkRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
+const payerQueryRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 })
 
 // Valid image content types for logo uploads
 // SVG intentionally excluded — serving SVGs as image/svg+xml is an XSS vector
@@ -363,6 +366,9 @@ function reportToCsv(report: MonthlyReport): string {
 }
 
 export async function createApiServer(config: RelayerConfig): Promise<Server> {
+  // Pre-load GeoIP database for country-based request blocking
+  await initGeoblock()
+
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     setCorsHeaders(res)
 
@@ -372,6 +378,9 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
       res.end()
       return
     }
+
+    // Geoblock check — returns 451 for sanctioned/restricted countries
+    if (checkGeoblock(req, res)) return
 
     const { path, params } = parsePath(req.url || '/')
 
@@ -415,6 +424,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantApiKeys: '/merchants/:address/api-keys',
             merchantApiKeyCreate: 'POST /merchants/:address/api-keys',
             merchantApiKeyRevoke: 'DELETE /merchants/:address/api-keys/:id',
+            payerPolicies: '/payers/:address/policies?chain_id=N&active=true|false&page=1&limit=50',
             checkoutLinkResolve: '/checkout-links/:shortId',
             merchantCheckoutLinks: '/merchants/:address/checkout-links',
             merchantCheckoutLinkCreate: 'POST /merchants/:address/checkout-links',
@@ -546,6 +556,31 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           return
         }
         await handleReceiptUpload(config, address, chargeIds, chainId, res)
+        return
+      }
+
+      // Payer policies (public, no auth required)
+      const payerPoliciesMatch = path.match(/^\/payers\/([^/]+)\/policies$/)
+      if (payerPoliciesMatch && req.method === 'GET') {
+        const address = payerPoliciesMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid payer address' }))
+          return
+        }
+        const rateResult = payerQueryRateLimiter.check(address.toLowerCase())
+        if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+        const chainId = params.get('chain_id')
+        if (!chainId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
+          return
+        }
+        const activeParam = params.get('active')
+        const active = activeParam === null ? null : activeParam === 'true'
+        const page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1)
+        const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50', 10) || 50))
+        await handlePayerPolicies(config, address, parseInt(chainId, 10), active, page, limit, res)
         return
       }
 
@@ -2209,6 +2244,44 @@ async function handleMerchantCharges(
 
   res.writeHead(200, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify({ charges: response, total, page, limit }))
+}
+
+async function handlePayerPolicies(
+  config: RelayerConfig,
+  payerAddress: string,
+  chainId: number,
+  active: boolean | null,
+  page: number,
+  limit: number,
+  res: ServerResponse
+) {
+  const { policies, total } = await getPoliciesByPayer(
+    config.databaseUrl,
+    chainId,
+    payerAddress,
+    active,
+    page,
+    limit
+  )
+
+  const response = policies.map((p) => ({
+    policyId: p.id,
+    chainId: p.chain_id,
+    merchant: p.merchant,
+    chargeAmount: p.charge_amount,
+    spendingCap: p.spending_cap,
+    totalSpent: p.total_spent,
+    intervalSeconds: p.interval_seconds,
+    active: p.active,
+    chargeCount: p.charge_count,
+    consecutiveFailures: p.consecutive_failures,
+    metadataUrl: p.metadata_url,
+    createdAt: p.created_at,
+    nextChargeAt: p.next_charge_at,
+  }))
+
+  res.writeHead(200, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ policies: response, total, page, limit }))
 }
 
 async function processReceiptUploads(
