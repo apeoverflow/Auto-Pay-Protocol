@@ -32,15 +32,8 @@ export async function markChargeSuccess(
   const db = getDb(databaseUrl)
 
   // Check if a charge with this tx_hash already exists (duplicate from concurrent processing)
-  const existing = await db`
-    SELECT id FROM charges
-    WHERE tx_hash = ${txHash} AND status = 'success'
-    LIMIT 1
-  `
-
-  if (existing.length > 0) {
-    // Duplicate — delete the new charge record instead of creating a duplicate
-    logger.warn({ chargeId, txHash, existingId: existing[0].id }, 'Duplicate charge detected, removing')
+  if (await chargeExistsForTx(databaseUrl, txHash)) {
+    logger.warn({ chargeId, txHash }, 'Duplicate charge detected, removing')
     await db`DELETE FROM charges WHERE id = ${chargeId}`
     return
   }
