@@ -21,7 +21,7 @@ help:
 	@echo ""
 	@echo "\033[0;33mSync:\033[0m"
 	@echo "  make generate-abis              Generate ABI JSON files"
-	@echo "  make sync                       Sync ABIs and addresses to frontend, relayer + SDK"
+	@echo "  make sync                       Sync ABIs and addresses to all packages + examples"
 	@echo ""
 	@echo "\033[0;33mDatabase:\033[0m"
 	@echo "  make reset-indexer-db CHAIN=flowEvm  Reset indexer DB for a chain"

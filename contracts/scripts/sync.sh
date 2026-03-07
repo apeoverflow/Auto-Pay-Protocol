@@ -44,6 +44,17 @@ echo ""
 echo "SDK:"
 node scripts/generate-sdk-constants.js
 
+# ==================== Agent SDK ====================
+echo ""
+echo "Agent SDK:"
+node scripts/generate-agent-sdk-chains.js
+
+# ==================== Examples ====================
+echo ""
+echo "Examples:"
+node scripts/generate-lottery-config.js
+node scripts/generate-merchant-checkout-config.js
+
 # ==================== Relayer ====================
 echo ""
 echo "Relayer:"
