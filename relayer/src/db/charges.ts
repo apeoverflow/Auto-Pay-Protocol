@@ -30,10 +30,11 @@ export async function markChargeSuccess(
   protocolFee: string
 ) {
   const db = getDb(databaseUrl)
+  const normalizedHash = txHash.toLowerCase()
 
   // Check if a charge with this tx_hash already exists (duplicate from concurrent processing)
-  if (await chargeExistsForTx(databaseUrl, txHash)) {
-    logger.warn({ chargeId, txHash }, 'Duplicate charge detected, removing')
+  if (await chargeExistsForTx(databaseUrl, normalizedHash)) {
+    logger.warn({ chargeId, txHash: normalizedHash }, 'Duplicate charge detected, removing')
     await db`DELETE FROM charges WHERE id = ${chargeId}`
     return
   }
@@ -42,13 +43,13 @@ export async function markChargeSuccess(
     UPDATE charges
     SET
       status = 'success',
-      tx_hash = ${txHash},
+      tx_hash = ${normalizedHash},
       protocol_fee = ${protocolFee},
       completed_at = NOW()
     WHERE id = ${chargeId}
   `
 
-  logger.debug({ chargeId, txHash }, 'Marked charge as success')
+  logger.debug({ chargeId, txHash: normalizedHash }, 'Marked charge as success')
 }
 
 export async function markChargeFailed(
@@ -93,7 +94,7 @@ export async function chargeExistsForTx(
 
   const rows = await db`
     SELECT 1 FROM charges
-    WHERE tx_hash = ${txHash} AND status = 'success'
+    WHERE LOWER(tx_hash) = ${txHash.toLowerCase()} AND status = 'success'
     LIMIT 1
   `
 
@@ -118,7 +119,7 @@ export async function chargeHandledByExecutor(
     WHERE chain_id = ${chainId}
       AND policy_id = ${policyId}
       AND (
-        tx_hash = ${txHash}
+        LOWER(tx_hash) = ${txHash.toLowerCase()}
         OR (status = 'pending' AND tx_hash IS NULL)
       )
     LIMIT 1

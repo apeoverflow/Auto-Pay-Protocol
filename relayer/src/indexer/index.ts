@@ -162,6 +162,10 @@ export async function runIndexerOnce(
               txHash: parsed.event.transactionHash,
             }, '[CHARGE-TRACE] Indexer: skipping — executor already handled this charge')
           } else {
+            logger.debug({
+              policyId: parsed.event.policyId,
+              txHash: parsed.event.transactionHash,
+            }, '[CHARGE-TRACE] Indexer: charge NOT found in executor records — processing as external')
             // External charge (not from our executor) or backfill — update policy state
             const existingPolicy = await getPolicy(
               databaseUrl,
