@@ -1,0 +1,23 @@
+{
+  "name": "autopay-agent-subscription-example",
+  "version": "1.0.0",
+  "description": "Example: AI agent subscribes to a data service using AutoPay",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "service": "node --env-file=.env service.js",
+    "agent": "node --env-file=.env agent.js",
+    "agent:wrapped": "node --env-file=.env agent-wrapped.js",
+    "agent:bridge": "node --env-file=.env agent-with-bridge.js",
+    "demo": "node --env-file=.env demo.js",
+    "test": "node --env-file=.env test-agent.js"
+  },
+  "dependencies": {
+    "@autopayprotocol/agent-sdk": "file:../../packages/agent-sdk",
+    "@autopayprotocol/middleware": "file:../../packages/middleware",
+    "express": "^4.21.0",
+    "viem": "^2.21.0"
+  }
+}
