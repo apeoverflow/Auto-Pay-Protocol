@@ -8,25 +8,10 @@ import { createClient } from '@supabase/supabase-js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // ── Chain presets ──
+// Auto-generated from contracts/chains.json — run 'make sync' in contracts/ to update.
 // Set CHAIN=base, CHAIN=flowEvm, or CHAIN=baseSepolia to switch everything at once.
 // Individual env vars (RPC_URL, POLICY_MANAGER) override the preset.
-const CHAIN_PRESETS = {
-  flowEvm: {
-    rpcUrl: 'https://mainnet.evm.nodes.onflow.org',
-    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
-    checkoutUrl: 'https://flow.autopayprotocol.com/checkout',
-  },
-  base: {
-    rpcUrl: 'https://mainnet.base.org',
-    policyManager: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a',
-    checkoutUrl: 'https://autopayprotocol.com/checkout',
-  },
-  baseSepolia: {
-    rpcUrl: 'https://sepolia.base.org',
-    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
-    checkoutUrl: 'https://staging.autopayprotocol.com/checkout',
-  },
-}
+import { CHAIN_PRESETS } from './chains.js'
 
 const CHAIN = process.env.CHAIN || 'base'
 const preset = CHAIN_PRESETS[CHAIN] || CHAIN_PRESETS.base
