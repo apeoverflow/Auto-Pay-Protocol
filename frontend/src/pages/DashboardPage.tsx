@@ -51,6 +51,38 @@ function getRemainingTime(nextChargeTimestamp: number): string {
   return 'Soon'
 }
 
+function MobileChip({ logo, avatarLetters, gradient, onClick, children }: {
+  logo?: string
+  avatarLetters: string
+  gradient: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  const [logoFailed, setLogoFailed] = React.useState(false)
+  const showLogo = logo && !logoFailed
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex-shrink-0 flex items-center gap-2.5 rounded-xl bg-card border border-border/50 pl-2.5 pr-3.5 py-2.5 shadow-sm active:scale-[0.97] transition-all duration-150 hover:shadow-md"
+    >
+      {showLogo ? (
+        <img
+          src={logo}
+          alt={avatarLetters}
+          onError={() => setLogoFailed(true)}
+          className="h-8 w-8 flex-shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-black/5"
+        />
+      ) : (
+        <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${gradient} text-white text-[11px] font-bold shadow-sm`}>
+          {avatarLetters}
+        </div>
+      )}
+      {children}
+    </button>
+  )
+}
+
 /* ── Mobile: horizontally scrollable subscription chips ── */
 function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
   const { policies, isLoading } = usePolicies()
@@ -109,15 +141,15 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
             const avatarLetters = meta?.merchant?.name
               ? meta.merchant.name.slice(0, 2).toUpperCase()
               : policy.merchant.slice(2, 4).toUpperCase()
+            const merchantLogo = meta?.merchant?.logo
             return (
-              <button
+              <MobileChip
                 key={policy.policyId}
+                logo={merchantLogo}
+                avatarLetters={avatarLetters}
+                gradient={getMerchantGradient(policy.merchant)}
                 onClick={onNavigate}
-                className="flex-shrink-0 flex items-center gap-2.5 rounded-xl bg-card border border-border/50 pl-2.5 pr-3.5 py-2.5 shadow-sm active:scale-[0.97] transition-all duration-150 hover:shadow-md"
               >
-                <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${getMerchantGradient(policy.merchant)} text-white text-[11px] font-bold shadow-sm`}>
-                  {avatarLetters}
-                </div>
                 <div className="text-left">
                   <p className="text-[12px] font-semibold text-foreground leading-tight">
                     {displayName}
@@ -131,7 +163,7 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
                     </span>
                   </div>
                 </div>
-              </button>
+              </MobileChip>
             )
           })}
         </div>
