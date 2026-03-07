@@ -1,0 +1,16 @@
+{
+  "name": "@autopayprotocol/example-raffle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AutoRaffle — promotional raffle powered by AutoPay subscriptions",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/raffle.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^5.0.1"
+  }
+}

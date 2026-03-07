@@ -1,0 +1,4 @@
+node_modules/
+.env
+raffle.db
+lottery.db
