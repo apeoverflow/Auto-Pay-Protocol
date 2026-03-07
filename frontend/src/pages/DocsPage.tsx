@@ -25,6 +25,10 @@ import relayerOperationsMd from '../../../documentation/relayer-operations.md?ra
 import relayerDeploymentMd from '../../../documentation/relayer-deployment.md?raw'
 import merchantCheckoutExampleMd from '../../../documentation/merchant-checkout-example.md?raw'
 import agentArchitectureMd from '../../../documentation/AGENT_ARCHITECTURE.md?raw'
+import agentSdkQuickstartMd from '../../../documentation/agent-sdk-quickstart.md?raw'
+import agentSdkReferenceMd from '../../../documentation/agent-sdk-reference.md?raw'
+import mcpReferenceMd from '../../../documentation/mcp-reference.md?raw'
+import middlewareReferenceMd from '../../../documentation/middleware-reference.md?raw'
 
 SyntaxHighlighter.registerLanguage('typescript', typescript)
 SyntaxHighlighter.registerLanguage('ts', typescript)
@@ -197,6 +201,10 @@ type DocId =
   | 'relayer-deployment'
   | 'merchant-checkout-example'
   | 'agent-architecture'
+  | 'agent-sdk-quickstart'
+  | 'agent-sdk-reference'
+  | 'mcp-reference'
+  | 'middleware-reference'
 
 interface DocEntry {
   id: DocId
@@ -237,6 +245,10 @@ const categories: DocCategory[] = [
   {
     label: 'Agent Economy',
     docs: [
+      { id: 'agent-sdk-quickstart', label: 'Agent SDK Quickstart', content: agentSdkQuickstartMd },
+      { id: 'agent-sdk-reference', label: 'Agent SDK Reference', content: agentSdkReferenceMd },
+      { id: 'mcp-reference', label: 'MCP Server Reference', content: mcpReferenceMd },
+      { id: 'middleware-reference', label: 'Middleware Reference', content: middlewareReferenceMd },
       { id: 'agent-architecture', label: 'Agent Architecture', content: agentArchitectureMd },
     ],
   },
@@ -325,6 +337,10 @@ const filenameToDocId: Record<string, DocId> = {
   'relayer-operations.md': 'relayer-operations',
   'relayer-deployment.md': 'relayer-deployment',
   'AGENT_ARCHITECTURE.md': 'agent-architecture',
+  'agent-sdk-quickstart.md': 'agent-sdk-quickstart',
+  'agent-sdk-reference.md': 'agent-sdk-reference',
+  'mcp-reference.md': 'mcp-reference',
+  'middleware-reference.md': 'middleware-reference',
 }
 
 function slugify(text: string): string {
