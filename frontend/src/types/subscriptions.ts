@@ -24,7 +24,7 @@ export interface Subscription {
 
 export interface ActivityItem {
   id: string
-  type: 'charge' | 'subscribe' | 'cancel' | 'transfer'
+  type: 'charge' | 'subscribe' | 'cancel' | 'completed' | 'transfer'
   timestamp: Date
   amount?: bigint
   token?: string

@@ -33,6 +33,8 @@ export interface DbPolicy {
   ended_at: string | null
   created_block: number
   created_tx: string
+  cancelled_by_failure: boolean | null
+  cancelled_at: string | null
 }
 
 export interface DbCharge {
