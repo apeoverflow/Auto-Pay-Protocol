@@ -40,7 +40,14 @@ app.use((_req, res, next) => {
   next()
 })
 
-app.use(express.json())
+// Capture raw body for webhook signature verification.
+// JSON.stringify(req.body) may not match the original signed payload byte-for-byte,
+// so we store the raw buffer and use it for HMAC verification instead.
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf.toString('utf-8')
+  }
+}))
 app.use(express.static(join(__dirname, 'public')))
 
 // =====================================================================
@@ -164,10 +171,13 @@ app.post('/webhook', async (req, res) => {
   console.log(`\n📨 Webhook received at ${timestamp}`)
 
   // Step 1: Verify webhook signature using @autopayprotocol/sdk
+  // IMPORTANT: Use the raw body (req.rawBody) for signature verification,
+  // NOT JSON.stringify(req.body). The JSON round-trip (parse → stringify)
+  // can produce a different string than the original signed payload.
   let event, data
   if (WEBHOOK_SECRET) {
     try {
-      const payload = JSON.stringify(req.body)
+      const payload = req.rawBody || JSON.stringify(req.body)
       const signature = req.headers['x-autopay-signature']
       const verified = verifyWebhook(payload, signature, WEBHOOK_SECRET)
       event = verified.type
