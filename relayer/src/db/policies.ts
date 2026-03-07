@@ -134,6 +134,7 @@ export async function getPoliciesDueForCharge(
         AND merchant IN ${db(merchantAddresses)}
       ORDER BY next_charge_at ASC
       LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
     `
   }
 
@@ -146,6 +147,7 @@ export async function getPoliciesDueForCharge(
       AND next_charge_at <= NOW()
     ORDER BY next_charge_at ASC
     LIMIT ${limit}
+    FOR UPDATE SKIP LOCKED
   `
 }
 

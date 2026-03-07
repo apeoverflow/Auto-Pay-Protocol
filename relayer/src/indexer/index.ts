@@ -7,6 +7,7 @@ import {
   initializeIndexerState,
 } from '../db/indexer-state.js'
 import { insertPolicy, revokePolicy, updatePolicyAfterCharge, getPolicy, markPolicyCancelledByFailure } from '../db/policies.js'
+import { chargeExistsForTx } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { createLogger } from '../utils/logger.js'
 
@@ -138,28 +139,24 @@ export async function runIndexerOnce(
 
         case 'ChargeSucceeded':
           if (!isMerchantMatch(parsed.event.merchant)) break
-          // Update policy state - but only if this isn't the first charge
-          // (first charge is already counted when PolicyCreated is processed)
-          const existingPolicy = await getPolicy(
+          // Skip if the executor already processed this charge (prevents double-counting
+          // of charge_count and total_spent). The executor creates a charge record with
+          // the tx hash before the indexer sees the event.
+          const alreadyProcessed = await chargeExistsForTx(
             databaseUrl,
-            chainConfig.chainId,
-            parsed.event.policyId
+            parsed.event.transactionHash
           )
-          if (existingPolicy && existingPolicy.charge_count > 0) {
-            // Check if this charge was already processed (idempotency)
-            // The first charge happens in createPolicy, so charge_count starts at 1
-            // Only update if this is a subsequent charge
-            const expectedChargeTime = new Date(
-              existingPolicy.last_charged_at!.getTime() + existingPolicy.interval_seconds * 1000
+          if (!alreadyProcessed) {
+            // External charge (not from our executor) or backfill — update policy state
+            const existingPolicy = await getPolicy(
+              databaseUrl,
+              chainConfig.chainId,
+              parsed.event.policyId
             )
-            // If the event timestamp is close to or after expected charge time, it's a new charge
-            if (timestamp >= expectedChargeTime || existingPolicy.charge_count === 1) {
-              // Skip if this is likely the first charge (emitted with PolicyCreated)
-              // We detect this by checking if charge_count is 1 and the timestamps are very close
-              const policyCreatedAt = existingPolicy.created_at.getTime()
-              const eventTime = timestamp.getTime()
-              const isFirstCharge = existingPolicy.charge_count === 1 &&
-                Math.abs(eventTime - policyCreatedAt) < 60000 // Within 1 minute of creation
+            if (existingPolicy) {
+              // Skip the first charge (emitted with PolicyCreated, already counted at insert)
+              const isFirstCharge = existingPolicy.charge_count <= 1 &&
+                Math.abs(timestamp.getTime() - existingPolicy.created_at.getTime()) < 60000
 
               if (!isFirstCharge) {
                 await updatePolicyAfterCharge(
