@@ -1,0 +1,40 @@
+{
+  "name": "@autopayprotocol/middleware",
+  "version": "0.1.1",
+  "description": "Express middleware for verifying AutoPay subscriptions — drop-in 402-based access control",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apeoverflow/Auto-Pay-Protocol.git",
+    "directory": "packages/middleware"
+  },
+  "homepage": "https://github.com/apeoverflow/Auto-Pay-Protocol/tree/main/packages/middleware#readme",
+  "bugs": "https://github.com/apeoverflow/Auto-Pay-Protocol/issues",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "viem": "^2.21.0"
+  }
+}
