@@ -17,6 +17,13 @@ export async function deliverWebhook(
   timeoutMs: number
 ): Promise<DeliveryResult> {
   const signature = signWebhookPayload(payload, secret)
+  logger.debug({
+    url,
+    payloadType: typeof payload,
+    payloadLength: payload.length,
+    payloadPreview: payload.slice(0, 80),
+    signaturePrefix: signature.slice(0, 16),
+  }, 'Delivering webhook')
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)

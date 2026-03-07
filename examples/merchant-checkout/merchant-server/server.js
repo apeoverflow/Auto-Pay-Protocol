@@ -179,12 +179,16 @@ app.post('/webhook', async (req, res) => {
     try {
       const payload = req.rawBody || JSON.stringify(req.body)
       const signature = req.headers['x-autopay-signature']
+      console.log(`   rawBody available: ${!!req.rawBody}, payload length: ${payload.length}, sig: ${signature?.slice(0, 16)}...`)
       const verified = verifyWebhook(payload, signature, WEBHOOK_SECRET)
       event = verified.type
       data = verified.data
       console.log('✓ Signature verified')
     } catch (err) {
-      console.log('⚠️  Invalid signature — rejecting')
+      const payload = req.rawBody || JSON.stringify(req.body)
+      console.log(`⚠️  Invalid signature — rejecting (${err.message})`)
+      console.log(`   rawBody available: ${!!req.rawBody}, payload length: ${payload.length}`)
+      console.log(`   payload preview: ${payload.slice(0, 80)}...`)
       return res.status(401).json({ error: err.message })
     }
   } else {

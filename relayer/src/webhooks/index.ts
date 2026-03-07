@@ -1,4 +1,4 @@
-import type { RelayerConfig, WebhookRow, WebhookPayload } from '../types.js'
+import type { RelayerConfig, WebhookPayload } from '../types.js'
 import { getPendingWebhooks, markWebhookSent, markWebhookFailed } from '../db/webhooks.js'
 import { getMerchantWebhookConfig } from '../db/merchants.js'
 import { deliverWebhook } from './delivery.js'
@@ -20,10 +20,24 @@ async function processPendingWebhooks(config: RelayerConfig): Promise<{ sent: nu
   let failed = 0
 
   for (const webhook of pendingWebhooks) {
+    // Ensure payload is a string (postgres driver may auto-parse JSON-like TEXT columns)
+    const payloadStr = typeof webhook.payload === 'string'
+      ? webhook.payload
+      : JSON.stringify(webhook.payload)
+
+    if (typeof webhook.payload !== 'string') {
+      logger.warn(
+        { webhookId: webhook.id, payloadType: typeof webhook.payload },
+        'Webhook payload from DB was not a string — re-serializing'
+      )
+    }
+
     // Parse payload to get merchant address
     let payload: WebhookPayload
     try {
-      payload = JSON.parse(webhook.payload) as WebhookPayload
+      payload = typeof webhook.payload === 'string'
+        ? JSON.parse(webhook.payload) as WebhookPayload
+        : webhook.payload as unknown as WebhookPayload
     } catch {
       logger.error({ webhookId: webhook.id }, 'Failed to parse webhook payload')
       await markWebhookFailed(config.databaseUrl, webhook.id, config.webhooks.maxRetries)
@@ -48,10 +62,10 @@ async function processPendingWebhooks(config: RelayerConfig): Promise<{ sent: nu
       continue
     }
 
-    // Deliver webhook
+    // Deliver webhook (use payloadStr to guarantee string even if DB driver auto-parsed)
     const result = await deliverWebhook(
       merchantConfig.webhookUrl,
-      webhook.payload,
+      payloadStr,
       merchantConfig.webhookSecret,
       config.webhooks.timeoutMs
     )
