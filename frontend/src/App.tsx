@@ -1,4 +1,5 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useAuth, useWallet, useRoute } from './hooks'
 import type { Route } from './hooks/useRoute'
 import { getRouteLayout, navItemToRoute, routeToNavItem } from './hooks/useRoute'
@@ -65,6 +66,7 @@ function App() {
   const { isLoggedIn } = useAuth()
   const { address, isLoading } = useWallet()
   const { route, navigate } = useRoute()
+  const { openConnectModal } = useConnectModal()
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [displayedRoute, setDisplayedRoute] = useState<Route>(route)
@@ -78,6 +80,13 @@ function App() {
     if (wasLoggedIn.current && !isLoggedIn && getRouteLayout(routeRef.current) !== 'fullscreen') {
       navigate('/')
       setDisplayedRoute('/')
+      setPhase('idle')
+      pendingRoute.current = null
+    }
+    // Navigate to dashboard when user connects from the landing page
+    if (!wasLoggedIn.current && isLoggedIn && routeRef.current === '/') {
+      navigate('/dashboard')
+      setDisplayedRoute('/dashboard')
       setPhase('idle')
       pendingRoute.current = null
     }
@@ -189,7 +198,13 @@ function App() {
           onAnimationEnd={onAnimationEnd}
         >
           <LandingPage
-            onOpenApp={() => animatedNavigate('/app')}
+            onOpenApp={() => {
+              if (isLoggedIn) {
+                animatedNavigate('/dashboard')
+              } else {
+                openConnectModal?.()
+              }
+            }}
             onDocs={() => animatedNavigate('/docs')}
           />
         </div>
