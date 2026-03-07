@@ -155,6 +155,7 @@ app.post('/api/claim-policy', verifyAuth, async (req, res) => {
 //    charge.failed         → Payment failed (balance/allowance issue)
 //    policy.revoked        → Subscriber cancelled
 //    policy.cancelled_by_failure → Auto-cancelled after 3 consecutive failures
+//    policy.completed      → Spending cap reached (subscription naturally finished)
 // =====================================================================
 
 app.post('/webhook', async (req, res) => {
@@ -340,6 +341,25 @@ app.post('/webhook', async (req, res) => {
           await supabase.from('merchant_subscribers')
             .update({
               status: 'expired',
+              access_granted: false,
+              cancelled_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('policy_id', data.policyId)
+        }
+        break
+      }
+
+      // ── Spending cap reached ──
+      // The subscription fulfilled its full spending cap. No more charges possible.
+      // Revoke access (or offer renewal — your choice).
+      case 'policy.completed': {
+        console.log(`🏁 Subscription completed (spending cap reached): ${data.policyId}`)
+
+        if (supabase) {
+          await supabase.from('merchant_subscribers')
+            .update({
+              status: 'completed',
               access_granted: false,
               cancelled_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
