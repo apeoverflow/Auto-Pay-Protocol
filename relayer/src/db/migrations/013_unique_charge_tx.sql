@@ -1,8 +1,13 @@
 -- Prevent duplicate charge records with the same tx_hash.
--- The executor could create duplicates if two processes pick up the same
--- policy concurrently (before FOR UPDATE SKIP LOCKED was added).
+-- Run dedup + index creation in a single transaction to avoid races
+-- with the executor inserting new rows between the DELETE and CREATE INDEX.
 
--- First, clean up existing duplicates: keep the oldest charge per (policy_id, chain_id, tx_hash).
+BEGIN;
+
+-- Lock the charges table to prevent concurrent inserts during dedup
+LOCK TABLE charges IN EXCLUSIVE MODE;
+
+-- Clean up existing duplicates: keep the oldest charge per (policy_id, chain_id, tx_hash).
 -- Must delete referencing webhooks first (FK constraint).
 DELETE FROM webhooks
 WHERE charge_id IN (
@@ -28,3 +33,5 @@ WHERE tx_hash IS NOT NULL
 CREATE UNIQUE INDEX IF NOT EXISTS idx_charges_unique_tx
   ON charges (policy_id, chain_id, tx_hash)
   WHERE tx_hash IS NOT NULL;
+
+COMMIT;

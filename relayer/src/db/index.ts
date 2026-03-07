@@ -46,7 +46,7 @@ export async function getStatus(databaseUrl: string) {
   const webhookStats = await db`
     SELECT
       COUNT(*) FILTER (WHERE status = 'pending') as pending,
-      COUNT(*) FILTER (WHERE status = 'failed') as failed
+      COUNT(*) FILTER (WHERE status = 'failed' AND last_attempt_at > NOW() - INTERVAL '24 hours') as failed
     FROM webhooks
   `
 
