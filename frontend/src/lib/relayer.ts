@@ -148,6 +148,7 @@ export interface MerchantSubscribersResponse {
 
 export async function fetchMerchantSubscribers(
   address: string,
+  signMessage: SignMessageFn,
   chainId: number,
   planId?: string,
   page = 1,
@@ -155,15 +156,24 @@ export async function fetchMerchantSubscribers(
 ): Promise<MerchantSubscribersResponse> {
   const { baseUrl, apiKey } = resolveRelayer(address)
 
-  const headers: Record<string, string> = {}
-  if (apiKey) headers['X-API-Key'] = apiKey
-
   const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/subscribers`)
   url.searchParams.set('chain_id', String(chainId))
   if (planId) url.searchParams.set('plan_id', planId)
   url.searchParams.set('page', String(page))
   url.searchParams.set('limit', String(limit))
 
+  // Try API key first (custom/self-hosted relayer) — avoids wallet prompt
+  if (apiKey) {
+    const res = await fetch(url.toString(), { headers: { 'X-API-Key': apiKey } })
+    if (res.ok) return (await res.json()) as MerchantSubscribersResponse
+    if (res.status !== 401) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error((err as { error?: string }).error || 'Failed to fetch subscribers')
+    }
+  }
+
+  // Fall back to signature auth (default AutoPay relayer)
+  const headers = await getAuthHeaders(address, signMessage)
   const res = await fetch(url.toString(), { headers })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
