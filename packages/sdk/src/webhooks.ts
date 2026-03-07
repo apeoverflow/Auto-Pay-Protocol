@@ -8,6 +8,7 @@ const VALID_EVENT_TYPES: WebhookEventType[] = [
   'policy.created',
   'policy.revoked',
   'policy.cancelled_by_failure',
+  'policy.completed',
 ]
 
 /**
