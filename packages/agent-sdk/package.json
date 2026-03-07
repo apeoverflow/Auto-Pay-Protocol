@@ -1,0 +1,54 @@
+{
+  "name": "@autopayprotocol/agent-sdk",
+  "version": "0.1.2",
+  "description": "Agent SDK for AutoPay Protocol — subscribe, cancel, and manage on-chain subscriptions from autonomous agents",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apeoverflow/Auto-Pay-Protocol.git",
+    "directory": "packages/agent-sdk"
+  },
+  "homepage": "https://github.com/apeoverflow/Auto-Pay-Protocol/tree/main/packages/agent-sdk#readme",
+  "bugs": "https://github.com/apeoverflow/Auto-Pay-Protocol/issues",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:unit": "vitest run --exclude 'src/__tests__/integration.test.ts'",
+    "test:integration": "vitest run src/__tests__/integration.test.ts",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "viem": "^2.21.0",
+    "vitest": "^4.0.18"
+  }
+}
