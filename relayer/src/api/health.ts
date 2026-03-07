@@ -67,7 +67,7 @@ export async function createHealthServer(
           response.status = 'degraded'
         }
 
-        res.writeHead(response.status === 'healthy' ? 200 : 503, {
+        res.writeHead(200, {
           'Content-Type': 'application/json',
         })
         res.end(JSON.stringify(response, null, 2))
