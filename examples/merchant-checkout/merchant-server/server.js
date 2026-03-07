@@ -401,11 +401,11 @@ app.get('/api/check-access', async (req, res) => {
       const token = authHeader.slice(7)
       const { data: { user }, error } = await supabase.auth.getUser(token)
       if (!error && user) {
+        // Fetch the most recent subscription for this user (regardless of status)
         const { data: sub } = await supabase
           .from('merchant_subscribers')
           .select('policy_id, status, access_granted, payer_address, plan_id, total_charges, last_charge_at, next_charge_expected_at')
           .eq('user_id', user.id)
-          .eq('access_granted', true)
           .order('subscribed_at', { ascending: false })
           .limit(1)
           .single()
@@ -414,6 +414,7 @@ app.get('/api/check-access', async (req, res) => {
           return res.json({
             access: sub.access_granted,
             status: sub.status,
+            reason: sub.access_granted ? undefined : sub.status,
             subscriber: sub.payer_address,
             plan: sub.plan_id,
             policyId: sub.policy_id,

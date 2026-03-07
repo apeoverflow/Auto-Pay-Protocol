@@ -191,7 +191,9 @@
         ? 'Your subscription has been cancelled. Resubscribe to regain access.'
         : reason === 'expired'
           ? 'Your subscription expired due to payment failures. Please resubscribe.'
-          : 'You need an active subscription to access this content.'
+          : reason === 'completed'
+            ? 'Your subscription has ended (spending cap reached). Resubscribe to continue.'
+            : 'You need an active subscription to access this content.'
       container.innerHTML = `
         <div class="locked">
           <div class="lock-icon">&#128274;</div>
