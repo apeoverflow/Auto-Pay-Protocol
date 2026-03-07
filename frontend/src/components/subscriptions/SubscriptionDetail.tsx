@@ -17,7 +17,7 @@ import {
   DialogClose,
 } from '../ui/dialog'
 import { formatUSDC, formatInterval } from '../../types/subscriptions'
-import type { OnChainPolicy } from '../../types/policy'
+import { getPolicyStatus, type OnChainPolicy } from '../../types/policy'
 import type { PolicyMetadata } from '../../hooks'
 import { useChain } from '../../hooks'
 import { USDC_DECIMALS } from '../../config'
@@ -144,7 +144,7 @@ function DetailContent({
   const features = metadata?.plan?.features
   const accentColor = metadata?.display?.color
 
-  const status = policy.active ? 'active' : 'cancelled'
+  const status = getPolicyStatus(policy)
   const nextChargeTime = policy.lastCharged + policy.interval
   const merchantExplorerUrl = `${chainConfig.explorer}/address/${policy.merchant}`
   const policyExplorerUrl = `${chainConfig.explorer}/address/${chainConfig.policyManager}`
@@ -187,10 +187,10 @@ function DetailContent({
             <div className="flex items-center gap-2.5 mb-1">
               <Title className="text-[17px] font-semibold truncate leading-tight">{displayName}</Title>
               <Badge
-                variant={status === 'active' ? 'success' : 'secondary'}
+                variant={status === 'active' ? 'success' : status === 'completed' ? 'default' : 'secondary'}
                 className="text-[10px] px-2 py-0.5 font-medium flex-shrink-0"
               >
-                {status === 'active' ? 'Active' : 'Cancelled'}
+                {status === 'active' ? 'Active' : status === 'completed' ? 'Completed' : 'Cancelled'}
               </Badge>
             </div>
             <Description className="text-[13px] text-muted-foreground">

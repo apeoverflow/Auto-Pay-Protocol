@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { formatUSDC, formatInterval } from '../../types/subscriptions'
-import type { OnChainPolicy } from '../../types/policy'
+import { getPolicyStatus, type OnChainPolicy } from '../../types/policy'
 import type { PolicyMetadata } from '../../hooks'
 import { useChain } from '../../hooks'
 import { Clock, ExternalLink, Loader2 } from 'lucide-react'
@@ -70,8 +70,8 @@ function getRemainingTime(nextChargeTimestamp: number): string {
 export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, compact = false, onClick }: SubscriptionCardProps) {
   const { chainConfig } = useChain()
   const theme = getMerchantTheme(policy.merchant)
-  const status = policy.active ? 'active' : 'cancelled'
-  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1)
+  const status = getPolicyStatus(policy)
+  const statusLabel = status === 'active' ? 'Active' : status === 'completed' ? 'Completed' : 'Cancelled'
   const inactive = !policy.active
 
   const [logoFailed, setLogoFailed] = useState(false)
@@ -114,7 +114,7 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
               <span className="font-semibold text-[13px] md:text-sm truncate">
                 {displayName}
               </span>
-              <Badge variant={status === 'active' ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
+              <Badge variant={status === 'active' ? 'success' : status === 'completed' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
                 {statusLabel}
               </Badge>
             </div>
@@ -181,7 +181,7 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
             >
               {displayName}
             </span>
-            <Badge variant={status === 'active' ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
+            <Badge variant={status === 'active' ? 'success' : status === 'completed' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
               {statusLabel}
             </Badge>
             <a

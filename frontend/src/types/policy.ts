@@ -30,6 +30,16 @@ export interface PolicyChargeBreakdown {
   protocolFee: bigint
 }
 
+// Derive the display status for an inactive policy
+export type PolicyStatus = 'active' | 'completed' | 'cancelled'
+
+export function getPolicyStatus(policy: OnChainPolicy): PolicyStatus {
+  if (policy.active) return 'active'
+  // Completed = spending cap reached (totalSpent >= spendingCap, cap > 0)
+  if (policy.spendingCap > 0n && policy.totalSpent >= policy.spendingCap) return 'completed'
+  return 'cancelled'
+}
+
 // Contract error messages mapped to user-friendly messages
 export const POLICY_ERROR_MESSAGES: Record<string, string> = {
   InsufficientAllowance: 'Please approve more USDC',
