@@ -101,11 +101,16 @@ function dbToActivityItems(
       status: 'confirmed',
     })
 
-    // Add cancel events if policy was revoked
+    // Add end-of-life events for inactive policies
     if (!policy.active && policy.ended_at) {
+      // Determine if completed (spending cap reached) vs cancelled
+      const totalSpent = BigInt(policy.total_spent || '0')
+      const spendingCap = BigInt(policy.spending_cap || '0')
+      const isCompleted = !policy.cancelled_by_failure && !policy.cancelled_at && totalSpent >= spendingCap
+
       items.push({
-        id: `cancel-${policy.id}`,
-        type: 'cancel',
+        id: `${isCompleted ? 'completed' : 'cancel'}-${policy.id}`,
+        type: isCompleted ? 'completed' : 'cancel',
         timestamp: new Date(policy.ended_at),
         merchant: formatAddress(policy.merchant),
         metadataUrl: policy.metadata_url || undefined,
