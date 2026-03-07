@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Example webhook receiver for AutoPay merchant integration",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"

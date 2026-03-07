@@ -1,27 +1,28 @@
 import { createServer } from 'http'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 
-// Configuration
-const PORT = 3500
-const WEBHOOK_SECRET = 'test-secret-123' // Must match what's in relayer's merchants table
+// Configuration — override via env vars
+const PORT = Number(process.env.PORT) || 3500
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || ''
 
-// Verify webhook signature
+// Verify webhook signature (constant-time comparison)
 function verifySignature(payload, signature, secret) {
   const expected = createHmac('sha256', secret)
     .update(payload)
     .digest('hex')
-  return expected === signature
+  if (expected.length !== signature.length) return false
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
 }
 
 // Handle webhook events
 function handleWebhook(event, data) {
   console.log('\n' + '='.repeat(60))
-  console.log(`📥 WEBHOOK RECEIVED: ${event}`)
+  console.log(`WEBHOOK RECEIVED: ${event}`)
   console.log('='.repeat(60))
 
   switch (event) {
     case 'charge.succeeded':
-      console.log('✅ Payment collected!')
+      console.log('Payment collected!')
       console.log(`   Policy ID: ${data.policyId}`)
       console.log(`   Payer: ${data.payer}`)
       console.log(`   Amount: ${data.amount} (${Number(data.amount) / 1e6} USDC)`)
@@ -31,7 +32,7 @@ function handleWebhook(event, data) {
       break
 
     case 'charge.failed':
-      console.log('❌ Payment failed!')
+      console.log('Payment failed!')
       console.log(`   Policy ID: ${data.policyId}`)
       console.log(`   Payer: ${data.payer}`)
       console.log(`   Reason: ${data.reason}`)
@@ -39,7 +40,7 @@ function handleWebhook(event, data) {
       break
 
     case 'policy.created':
-      console.log('🆕 New subscription!')
+      console.log('New subscription!')
       console.log(`   Policy ID: ${data.policyId}`)
       console.log(`   Payer: ${data.payer}`)
       console.log(`   Amount: ${data.chargeAmount} (${Number(data.chargeAmount) / 1e6} USDC)`)
@@ -48,14 +49,30 @@ function handleWebhook(event, data) {
       break
 
     case 'policy.revoked':
-      console.log('🚫 Subscription cancelled!')
+      console.log('Subscription cancelled!')
       console.log(`   Policy ID: ${data.policyId}`)
       console.log(`   Payer: ${data.payer}`)
       // TODO: Revoke access at end of billing period
       break
 
+    case 'policy.cancelled_by_failure':
+      console.log('Subscription auto-cancelled after repeated failures!')
+      console.log(`   Policy ID: ${data.policyId}`)
+      console.log(`   Payer: ${data.payer}`)
+      console.log(`   Reason: ${data.reason || 'Max consecutive failures reached'}`)
+      // TODO: Revoke access, notify user their payment method failed
+      break
+
+    case 'policy.completed':
+      console.log('Subscription completed (spending cap reached)!')
+      console.log(`   Policy ID: ${data.policyId}`)
+      console.log(`   Payer: ${data.payer}`)
+      console.log(`   Reason: ${data.reason || 'Spending cap exceeded'}`)
+      // TODO: Prompt user to renew subscription
+      break
+
     default:
-      console.log('❓ Unknown event type')
+      console.log(`Unknown event type: ${event}`)
       console.log(data)
   }
 
@@ -84,19 +101,19 @@ const server = createServer((req, res) => {
       const signature = req.headers['x-autopay-signature']
       const timestamp = req.headers['x-autopay-timestamp']
 
-      console.log(`\n📨 Incoming webhook at ${timestamp}`)
+      console.log(`\nIncoming webhook at ${timestamp}`)
 
-      // Verify signature (optional but recommended)
-      if (WEBHOOK_SECRET !== 'your-webhook-secret-here') {
+      // Verify signature if a secret is configured
+      if (WEBHOOK_SECRET) {
         if (!signature || !verifySignature(body, signature, WEBHOOK_SECRET)) {
-          console.log('⚠️  Invalid signature - rejecting webhook')
+          console.log('Invalid signature - rejecting webhook')
           res.writeHead(401, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'Invalid signature' }))
           return
         }
-        console.log('✓ Signature verified')
+        console.log('Signature verified')
       } else {
-        console.log('⚠️  Signature verification skipped (no secret configured)')
+        console.log('Signature verification skipped (set WEBHOOK_SECRET to enable)')
       }
 
       // Parse payload
@@ -108,7 +125,7 @@ const server = createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ received: true }))
       } catch (err) {
-        console.error('❌ Failed to parse webhook payload:', err.message)
+        console.error('Failed to parse webhook payload:', err.message)
         res.writeHead(400, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ error: 'Invalid JSON' }))
       }
@@ -124,15 +141,12 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`
-╔════════════════════════════════════════════════════════════╗
-║           AutoPay Webhook Receiver Started                 ║
-╠════════════════════════════════════════════════════════════╣
-║                                                            ║
-║  Webhook URL: http://localhost:${PORT}/webhook                ║
-║  Health:      http://localhost:${PORT}/health                 ║
-║                                                            ║
-║  Waiting for webhooks from the relayer...                  ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
+AutoPay Webhook Receiver Started
+─────────────────────────────────
+  Webhook URL: http://localhost:${PORT}/webhook
+  Health:      http://localhost:${PORT}/health
+  Secret:      ${WEBHOOK_SECRET ? 'configured' : 'not set (verification disabled)'}
+
+  Waiting for webhooks from the relayer...
   `)
 })
