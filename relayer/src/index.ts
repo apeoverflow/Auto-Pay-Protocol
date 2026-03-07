@@ -8,6 +8,7 @@ import { createApiServer, startApiServer, stopApiServer } from './api/index.js'
 import { isStorachaEnabled } from './lib/storacha.js'
 import { createLogger } from './utils/logger.js'
 import { privateKeyToAccount } from 'viem/accounts'
+import { setMaxListeners } from 'node:events'
 
 const logger = createLogger('relayer')
 
@@ -48,14 +49,16 @@ export async function startRelayer() {
   const apiServer = await createApiServer(config)
   await startApiServer(apiServer, config.port)
 
+  // Start services for each enabled chain
+  const enabledChains = getEnabledChains(config)
+
   // Create abort controller for graceful shutdown
   const abortController = new AbortController()
+  // Each service loop adds a listener; raise the limit to avoid the Node warning
+  setMaxListeners(enabledChains.length + 10, abortController.signal)
 
   // Track if shutdown is in progress
   let shuttingDown = false
-
-  // Start services for each enabled chain
-  const enabledChains = getEnabledChains(config)
   logger.info(
     { chains: enabledChains.map((c) => c.name) },
     'Starting services for enabled chains'
