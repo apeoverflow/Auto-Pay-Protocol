@@ -1,0 +1,17 @@
+{
+  "name": "protocol-labs-demo",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Demo: Funding common goods projects with AutoPay subscriptions",
+  "scripts": {
+    "start": "node demo.js",
+    "registry": "node project-registry.js",
+    "agent": "node sponsor-agent.js",
+    "dao": "node dao-funder.js"
+  },
+  "dependencies": {
+    "@autopayprotocol/agent-sdk": "file:../../packages/agent-sdk",
+    "@autopayprotocol/middleware": "file:../../packages/middleware",
+    "express": "^4.18.0"
+  }
+}
