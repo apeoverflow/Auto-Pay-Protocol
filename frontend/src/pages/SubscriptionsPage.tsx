@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard'
+import { SubscriptionDetail } from '../components/subscriptions/SubscriptionDetail'
 import { usePolicies, useRevokePolicy, useChain, useMetadataBatch, invalidateActivity } from '../hooks'
 import type { OnChainPolicy } from '../types/policy'
 import { Search, CreditCard, Loader2, ExternalLink } from 'lucide-react'
@@ -23,6 +24,7 @@ export function SubscriptionsPage() {
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [search, setSearch] = React.useState('')
   const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
+  const [selectedPolicy, setSelectedPolicy] = React.useState<OnChainPolicy | null>(null)
 
   const handleCancel = async (policyId: `0x${string}`) => {
     try {
@@ -31,6 +33,7 @@ export function SubscriptionsPage() {
       // Refresh policy state from contract (don't wait for indexer)
       await refreshPolicyFromContract(policyId)
       invalidateActivity()
+      setSelectedPolicy(null)
     } catch (err) {
       console.error('Failed to cancel subscription:', err)
     } finally {
@@ -171,9 +174,21 @@ export function SubscriptionsPage() {
               metadata={policy.metadataUrl ? metadataMap.get(policy.metadataUrl) : null}
               onCancel={handleCancel}
               isCancelling={revokingId === policy.policyId && isRevoking}
+              onClick={() => setSelectedPolicy(policy)}
             />
           ))}
         </div>
+      )}
+
+      {selectedPolicy && (
+        <SubscriptionDetail
+          policy={selectedPolicy}
+          metadata={selectedPolicy.metadataUrl ? metadataMap.get(selectedPolicy.metadataUrl) : null}
+          open={!!selectedPolicy}
+          onOpenChange={(open) => { if (!open) setSelectedPolicy(null) }}
+          onCancel={handleCancel}
+          isCancelling={revokingId === selectedPolicy.policyId && isRevoking}
+        />
       )}
     </div>
   )

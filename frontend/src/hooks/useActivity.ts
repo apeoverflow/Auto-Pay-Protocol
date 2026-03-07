@@ -60,8 +60,17 @@ function dbToActivityItems(
 ): ActivityItem[] {
   const items: ActivityItem[] = []
 
+  // Deduplicate charges by tx_hash (the relayer can sometimes index the same charge twice)
+  const seenTxHashes = new Set<string>()
+  const uniqueCharges = charges.filter(c => {
+    if (!c.tx_hash) return true
+    if (seenTxHashes.has(c.tx_hash)) return false
+    seenTxHashes.add(c.tx_hash)
+    return true
+  })
+
   // Add charge events
-  for (const charge of charges) {
+  for (const charge of uniqueCharges) {
     const policy = policies.find(p => p.id === charge.policy_id)
     items.push({
       id: `charge-${charge.tx_hash || charge.id}`,

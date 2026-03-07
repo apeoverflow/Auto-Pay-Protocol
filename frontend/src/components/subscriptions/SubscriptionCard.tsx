@@ -89,7 +89,6 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
 
   // Build explorer links
   const policyExplorerUrl = `${chainConfig.explorer}/address/${chainConfig.policyManager}`
-  const merchantExplorerUrl = `${chainConfig.explorer}/address/${policy.merchant}`
 
   if (compact) {
     return (
@@ -112,14 +111,9 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
           )}
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 md:gap-2">
-              <a
-                href={merchantExplorerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-[13px] md:text-sm truncate hover:underline"
-              >
+              <span className="font-semibold text-[13px] md:text-sm truncate">
                 {displayName}
-              </a>
+              </span>
               <Badge variant={status === 'active' ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
                 {statusLabel}
               </Badge>
@@ -181,15 +175,12 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <a
-              href={merchantExplorerUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-[13px] md:text-[14px] truncate hover:underline"
+            <span
+              className="font-semibold text-[13px] md:text-[14px] truncate"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               {displayName}
-            </a>
+            </span>
             <Badge variant={status === 'active' ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0 font-medium flex-shrink-0">
               {statusLabel}
             </Badge>
@@ -198,6 +189,7 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted-foreground hover:text-foreground"
+              onClick={(e) => e.stopPropagation()}
             >
               <ExternalLink className="h-3 w-3" />
             </a>
