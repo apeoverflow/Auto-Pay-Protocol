@@ -29,6 +29,14 @@ import {
 } from 'framer-motion'
 import type { Variants, HTMLMotionProps } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import { DEFAULT_CHAIN } from '../config/chains'
+
+/** Brand color per chain — RGB triplet for use in rgba() */
+const CHAIN_BRAND: Record<string, { rgb: string; hex: string; hexHover: string; accentRgb: string; icon: string; name: string }> = {
+  flowEvm: { rgb: '0,180,108', hex: '#00B46C', hexHover: '#009D5E', accentRgb: '0,210,130', icon: '/flow-icon.svg', name: 'Flow' },
+  base:    { rgb: '0,82,255',  hex: '#0052FF', hexHover: '#0047E0', accentRgb: '0,212,255', icon: '/base-icon.svg', name: 'Base' },
+}
+const brand = CHAIN_BRAND[DEFAULT_CHAIN] ?? CHAIN_BRAND.base
 
 interface LandingPageProps {
   onOpenApp: () => void
@@ -275,9 +283,9 @@ function HeroCards() {
         className="lp-hero-card lp-hero-card-1"
         animate={prefersReduced ? {} : {
           boxShadow: [
-            '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,82,255,0.04)',
-            '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.09), 0 0 24px rgba(0,82,255,0.12)',
-            '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,82,255,0.04)',
+            '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.09), 0 0 0 1px rgba(var(--brand-rgb),0.04)',
+            '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.09), 0 0 24px rgba(var(--brand-rgb),0.12)',
+            '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.09), 0 0 0 1px rgba(var(--brand-rgb),0.04)',
           ],
         }}
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -296,7 +304,7 @@ function HeroCards() {
               <rect x="20" y="12" width="3" height="2" rx="1" fill="var(--blue)" opacity="0.6" />
             </svg>
           </div>
-          <span className="lp-hc-name">NexusAI Pro</span>
+          <span className="lp-hc-name">AI Trading Signals Pro</span>
           <span className="lp-hc-badge"><span className="lp-hc-badge-dot" />Active</span>
         </div>
         <div className="lp-hc-amount-xl">$49.00 <span className="lp-hc-period">/ month</span></div>
@@ -467,19 +475,19 @@ const DEPLATFORM_CASES = [
   {
     entity: 'OnlyFans',
     year: '2021',
-    event: 'Mastercard forced a ban on explicit content. 2M creators, $5B+ in annual earnings threatened. Reversed in 6 days — but the power was demonstrated.',
+    event: 'Mastercard forced a ban on explicit content. 2M creators, $5B+ in annual earnings threatened. Reversed in 6 days, but the power was demonstrated.',
     source: 'OnlyFans public statement, Aug 2021',
   },
   {
     entity: 'Patreon',
     year: '2018',
-    event: 'Banned a creator for speech on a different platform. Sam Harris left in protest — walking away from $100K+/mo in recurring revenue.',
+    event: 'Banned a creator for speech on a different platform. Sam Harris left in protest, walking away from $100K+/mo in recurring revenue.',
     source: 'Sam Harris public statement, Dec 2018',
   },
   {
     entity: 'PayPal',
     year: '2022',
-    event: 'Published a policy allowing $2,500 fines for "misinformation." Retracted after backlash — but it was in the official terms.',
+    event: 'Published a policy allowing $2,500 fines for "misinformation." Retracted after backlash, but it was in the official terms.',
     source: 'PayPal AUP update, Oct 2022',
   },
 ]
@@ -790,6 +798,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
             <img src="/logo.png" alt="AutoPay" className="lp-nav-logo" />
+            <span className="lp-nav-chain-badge">
+              <img src={brand.icon} alt={brand.name} className="lp-nav-chain-icon" />
+              {brand.name}
+            </span>
           </div>
           <div className="lp-nav-links">
             <button onClick={onDocs} className="lp-nav-link">Docs</button>
@@ -813,7 +825,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               <em>no one can shut off</em>
             </motion.h1>
             <motion.p variants={heroTextVariants} className="lp-hero-sub">
-              Non-custodial USDC subscriptions across 30+ chains — built for humans and AI agents alike.
+              Non-custodial USDC subscriptions across 30+ chains. Built for humans and AI agents alike.
               No deplatforming. 50% cheaper than Stripe. Two lines of code.
             </motion.p>
             <motion.div variants={heroTextVariants} className="lp-hero-actions">
@@ -1085,8 +1097,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             The subscription layer<br />for <em>autonomous agents.</em>
           </motion.h2>
           <motion.p variants={revealVariants} className="lp-agent-lead">
-            Per-request protocols ask merchants: <em>"what is a single API call worth?"</em>{' '}
-            Most businesses don't know and don't want to. AutoPay lets them keep their existing subscription pricing — same tiers, same model. One transaction to subscribe. Auto-renewal by the relayer. No human in the loop.
+            Your tiered pricing already works. <em>Don't refit it into a pay-per-request model.</em>
+            <br />AutoPay lets agents subscribe to your existing plans. Same pricing. No human in the loop.
           </motion.p>
 
           {/* Two integration paths side by side */}
@@ -1107,7 +1119,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                   <span className="lp-agent-code-file">agent.ts</span>
                   <span className="lp-sf-term-status">RUNNING</span>
                 </div>
-                <pre className="lp-agent-code-body"><code><span className="lp-ac-kw">const</span> <span className="lp-ac-var">agent</span> = <span className="lp-ac-kw">new</span> <span className="lp-ac-cls">AutoPayAgent</span>({'{'}<br />{'  '}<span className="lp-ac-prop">privateKey</span>: process.env.<span className="lp-ac-var">AGENT_KEY</span>,<br />{'  '}<span className="lp-ac-prop">chain</span>: <span className="lp-ac-str">'base'</span>,<br />{'\u007D'})<br /><br /><span className="lp-ac-comment">{'// Wrap fetch — 402 discovery + subscribe is automatic'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">fetchWithPay</span> = <span className="lp-ac-fn">wrapFetchWithSubscription</span>(<span className="lp-ac-var">fetch</span>, <span className="lp-ac-var">agent</span>)<br /><br /><span className="lp-ac-comment">{'// Just fetch — handles 402, subscribes, retries'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">data</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">fetchWithPay</span>(<span className="lp-ac-str">'https://api.service.com/feed'</span>)<br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">json</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">data</span>.<span className="lp-ac-fn">json</span>()</code></pre>
+                <pre className="lp-agent-code-body"><code><span className="lp-ac-kw">const</span> <span className="lp-ac-var">agent</span> = <span className="lp-ac-kw">new</span> <span className="lp-ac-cls">AutoPayAgent</span>({'{'}<br />{'  '}<span className="lp-ac-prop">privateKey</span>: process.env.<span className="lp-ac-var">AGENT_KEY</span>,<br />{'  '}<span className="lp-ac-prop">chain</span>: <span className="lp-ac-str">'{DEFAULT_CHAIN}'</span>,<br />{'\u007D'})<br /><br /><span className="lp-ac-comment">{'// Wrap fetch — 402 discovery + subscribe is automatic'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">fetchWithPay</span> = <span className="lp-ac-fn">wrapFetchWithSubscription</span>(<span className="lp-ac-var">fetch</span>, <span className="lp-ac-var">agent</span>)<br /><br /><span className="lp-ac-comment">{'// Just fetch — handles 402, subscribes, retries'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">data</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">fetchWithPay</span>(<span className="lp-ac-str">'https://api.service.com/feed'</span>)<br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">json</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">data</span>.<span className="lp-ac-fn">json</span>()</code></pre>
                 <div className="lp-agent-code-footer">
                   Wrap <code>fetch</code> once. 402 discovery, subscription, and retry are transparent.
                 </div>
@@ -1129,9 +1141,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                   </div>
                   <span className="lp-agent-code-file">mcp_config.json</span>
                 </div>
-                <pre className="lp-agent-code-body"><code>{'{'}<br />{'  '}<span className="lp-ac-prop">"mcpServers"</span>: {'{'}<br />{'    '}<span className="lp-ac-prop">"autopay"</span>: {'{'}<br />{'      '}<span className="lp-ac-prop">"command"</span>: <span className="lp-ac-str">"npx"</span>,<br />{'      '}<span className="lp-ac-prop">"args"</span>: [<span className="lp-ac-str">"@autopayprotocol/mcp"</span>],<br />{'      '}<span className="lp-ac-prop">"env"</span>: {'{'}<br />{'        '}<span className="lp-ac-prop">"AUTOPAY_PRIVATE_KEY"</span>: <span className="lp-ac-str">"0x..."</span>,<br />{'        '}<span className="lp-ac-prop">"AUTOPAY_CHAIN"</span>: <span className="lp-ac-str">"base"</span><br />{'      '}{'}'}<br />{'    '}{'}'}<br />{'  '}{'}'}<br />{'}'}</code></pre>
+                <pre className="lp-agent-code-body"><code>{'{'}<br />{'  '}<span className="lp-ac-prop">"mcpServers"</span>: {'{'}<br />{'    '}<span className="lp-ac-prop">"autopay"</span>: {'{'}<br />{'      '}<span className="lp-ac-prop">"command"</span>: <span className="lp-ac-str">"npx"</span>,<br />{'      '}<span className="lp-ac-prop">"args"</span>: [<span className="lp-ac-str">"@autopayprotocol/mcp"</span>],<br />{'      '}<span className="lp-ac-prop">"env"</span>: {'{'}<br />{'        '}<span className="lp-ac-prop">"AUTOPAY_PRIVATE_KEY"</span>: <span className="lp-ac-str">"0x..."</span>,<br />{'        '}<span className="lp-ac-prop">"AUTOPAY_CHAIN"</span>: <span className="lp-ac-str">"{DEFAULT_CHAIN}"</span><br />{'      '}{'}'}<br />{'    '}{'}'}<br />{'  '}{'}'}<br />{'}'}</code></pre>
                 <div className="lp-agent-code-footer lp-mcp-tools-footer">
-                  {['autopay_balance', 'autopay_subscribe', 'autopay_unsubscribe', 'autopay_get_policy', 'autopay_fetch', 'autopay_approve_usdc', 'autopay_bridge_usdc'].map((tool) => (
+                  {['autopay_balance', 'autopay_subscribe', 'autopay_unsubscribe', 'autopay_get_policy', 'autopay_fetch', 'autopay_approve_usdc', 'autopay_bridge_usdc', 'autopay_swap_native_to_usdc'].map((tool) => (
                     <span key={tool} className="lp-mcp-tool">{tool}</span>
                   ))}
                 </div>
@@ -1218,7 +1230,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               <div className="lp-footer-col">
                 <div className="lp-footer-col-title">Developers</div>
                 <a href="https://github.com/apeoverflow/auto-pay-protocol" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Github size={13} /> GitHub</a>
-                <a href="https://www.npmjs.com/package/@autopayprotocol/sdk" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> npm SDK</a>
+                <a href="https://www.npmjs.com/package/@autopayprotocol/sdk" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> Merchant SDK</a>
+                <a href="https://www.npmjs.com/package/@autopayprotocol/agent-sdk" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> Agent SDK</a>
+                <a href="https://www.npmjs.com/package/@autopayprotocol/mcp" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> MCP Server</a>
+                <a href="https://www.npmjs.com/package/@autopayprotocol/middleware" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> Middleware</a>
               </div>
             </div>
           </div>
@@ -1237,8 +1252,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           --bg: #F5F5F7;
           --fg: #111113;
           --muted: #7C7C82;
-          --blue: #0052FF;
-          --blue-hover: #0047E0;
+          --brand-rgb: ${brand.rgb};
+          --accent-rgb: ${brand.accentRgb};
+          --blue: ${brand.hex};
+          --blue-hover: ${brand.hexHover};
           --dark: hsl(228 28% 7%);
           --green: #16A34A;
           --red: #DC2626;
@@ -1275,7 +1292,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           width: 700px;
           height: 500px;
           border-radius: 50%;
-          background: radial-gradient(ellipse at center, rgba(0,82,255,0.08) 0%, rgba(120,80,220,0.04) 40%, transparent 70%);
+          background: radial-gradient(ellipse at center, rgba(var(--brand-rgb),0.08) 0%, rgba(120,80,220,0.04) 40%, transparent 70%);
           filter: blur(60px);
           pointer-events: none;
           z-index: 0;
@@ -1578,6 +1595,25 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           transition: opacity 0.2s;
         }
         .lp-nav-brand:hover .lp-nav-logo { opacity: 0.9; }
+        .lp-nav-chain-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          margin-left: 10px;
+          padding: 3px 10px 3px 6px;
+          border-radius: 20px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: rgba(0,0,0,0.03);
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.02em;
+          color: var(--muted);
+        }
+        .lp-nav-chain-icon {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+        }
         .lp-nav-links { display: flex; align-items: center; gap: 24px; }
         .lp-nav-link {
           background: none; border: none; font-family: var(--sans);
@@ -1694,7 +1730,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             0 1px 2px rgba(0,0,0,0.03),
             0 4px 16px rgba(0,0,0,0.06),
             0 16px 48px rgba(0,0,0,0.09),
-            0 0 0 1px rgba(0,82,255,0.04);
+            0 0 0 1px rgba(var(--brand-rgb),0.04);
           overflow: hidden;
         }
 
@@ -1716,7 +1752,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           top: 0; left: 0; bottom: 0;
           width: 4px;
           border-radius: 16px 0 0 16px;
-          background: linear-gradient(to bottom, var(--blue), rgba(0,82,255,0.4));
+          background: linear-gradient(to bottom, var(--blue), rgba(var(--brand-rgb),0.4));
         }
 
         .lp-hc-header {
@@ -1748,7 +1784,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           display: inline-flex; align-items: center; gap: 5px;
           font-size: 11px; font-weight: 640;
           padding: 4px 11px; border-radius: 20px;
-          background: rgba(0,82,255,0.07); color: var(--blue);
+          background: rgba(var(--brand-rgb),0.07); color: var(--blue);
           letter-spacing: 0.01em;
         }
         .lp-hc-badge-dot {
@@ -1896,7 +1932,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: var(--blue); color: #fff;
           font-family: var(--sans); font-size: 15px; font-weight: 600;
           cursor: pointer;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 24px rgba(0,82,255,0.16);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 24px rgba(var(--brand-rgb),0.16);
         }
         .lp-btn-lg { padding: 16px 32px; font-size: 16px; }
         .lp-btn-ghost {
@@ -1956,7 +1992,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: var(--blue); color: #fff;
           display: flex; align-items: center; justify-content: center;
           margin-bottom: 28px;
-          box-shadow: 0 4px 20px rgba(0,82,255,0.3);
+          box-shadow: 0 4px 20px rgba(var(--brand-rgb),0.3);
         }
         .lp-story-quote {
           font-family: var(--serif);
@@ -2032,7 +2068,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04);
         }
         .lp-case-fee {
-          background: linear-gradient(135deg, var(--blue) 0%, rgba(0,82,255,0.3) 50%, rgba(0,82,255,0.08) 100%);
+          background: linear-gradient(135deg, var(--blue) 0%, rgba(var(--brand-rgb),0.3) 50%, rgba(var(--brand-rgb),0.08) 100%);
         }
         .lp-case-deplat {
           background: linear-gradient(135deg, var(--red) 0%, rgba(239,68,68,0.3) 50%, rgba(239,68,68,0.08) 100%);
@@ -2056,7 +2092,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           display: flex; align-items: center; justify-content: center;
         }
         .lp-case-icon-wrap--blue {
-          background: rgba(0,82,255,0.08); color: var(--blue);
+          background: rgba(var(--brand-rgb),0.08); color: var(--blue);
         }
         .lp-case-icon-wrap--green {
           background: rgba(22,163,74,0.08); color: var(--green);
@@ -2130,7 +2166,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
           width: 14px; height: 14px; border-radius: 50%;
           background: var(--blue);
-          box-shadow: 0 0 0 3px rgba(0,82,255,0.2), 0 2px 8px rgba(0,82,255,0.3);
+          box-shadow: 0 0 0 3px rgba(var(--brand-rgb),0.2), 0 2px 8px rgba(var(--brand-rgb),0.3);
           transition: transform 0.15s;
         }
         .lp-calc-slider-wrap:hover .lp-calc-slider-fill::after {
@@ -2148,12 +2184,12 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           letter-spacing: -0.01em;
         }
         .lp-calc-preset:hover {
-          background: rgba(0,82,255,0.06); color: var(--blue);
-          border-color: rgba(0,82,255,0.12);
+          background: rgba(var(--brand-rgb),0.06); color: var(--blue);
+          border-color: rgba(var(--brand-rgb),0.12);
         }
         .lp-calc-preset--active {
-          background: rgba(0,82,255,0.10); color: var(--blue);
-          border-color: rgba(0,82,255,0.2);
+          background: rgba(var(--brand-rgb),0.10); color: var(--blue);
+          border-color: rgba(var(--brand-rgb),0.2);
         }
 
         .lp-calc-race { display: flex; flex-direction: column; gap: 16px; }
@@ -2185,7 +2221,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: linear-gradient(90deg, rgba(124,124,130,0.15) 0%, rgba(124,124,130,0.25) 100%);
         }
         .lp-calc-bar-fill--auto {
-          background: linear-gradient(90deg, rgba(0,82,255,0.15) 0%, rgba(0,82,255,0.3) 100%);
+          background: linear-gradient(90deg, rgba(var(--brand-rgb),0.15) 0%, rgba(var(--brand-rgb),0.3) 100%);
         }
         .lp-calc-bar-drain {
           position: absolute; top: 0; bottom: 0;
@@ -2206,14 +2242,14 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-calc-fee-chip--blue {
           color: var(--blue); opacity: 0.7;
-          background: rgba(0,82,255,0.06);
+          background: rgba(var(--brand-rgb),0.06);
         }
 
         .lp-calc-savings {
           text-align: center;
           padding: 24px 16px 28px;
-          background: linear-gradient(135deg, rgba(0,82,255,0.06) 0%, rgba(22,163,74,0.06) 100%);
-          border: 1px solid rgba(0,82,255,0.10);
+          background: linear-gradient(135deg, rgba(var(--brand-rgb),0.06) 0%, rgba(22,163,74,0.06) 100%);
+          border: 1px solid rgba(var(--brand-rgb),0.10);
           border-radius: 14px;
           position: relative;
           overflow: hidden;
@@ -2223,7 +2259,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-calc-savings::before {
           content: '';
           position: absolute; inset: 0;
-          background: radial-gradient(ellipse at 50% 0%, rgba(0,82,255,0.08) 0%, transparent 70%);
+          background: radial-gradient(ellipse at 50% 0%, rgba(var(--brand-rgb),0.08) 0%, transparent 70%);
           pointer-events: none;
         }
         .lp-calc-savings-top {
@@ -2291,7 +2327,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-deplat-fix {
           display: flex; align-items: center; gap: 12px;
           padding: 14px 16px;
-          background: linear-gradient(135deg, rgba(22,163,74,0.06) 0%, rgba(0,82,255,0.04) 100%);
+          background: linear-gradient(135deg, rgba(22,163,74,0.06) 0%, rgba(var(--brand-rgb),0.04) 100%);
           border: 1px solid rgba(22,163,74,0.12);
           border-radius: 12px;
         }
@@ -2409,18 +2445,18 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-blk-outline {
           background: transparent;
-          border: 2px solid rgba(0,82,255,0.45);
+          border: 2px solid rgba(var(--brand-rgb),0.45);
         }
         .lp-blk-fill {
-          background: rgba(0,82,255,0.12);
-          border: 2px solid rgba(0,82,255,0.35);
+          background: rgba(var(--brand-rgb),0.12);
+          border: 2px solid rgba(var(--brand-rgb),0.35);
         }
         /* falling blocks */
         .lp-blk-fall {
           position: absolute;
           top: -10%;
           background: var(--dark);
-          border: 1.5px solid rgba(0,82,255,0.3);
+          border: 1.5px solid rgba(var(--brand-rgb),0.3);
           opacity: 0;
           animation: blkFall 3.5s ease-in infinite;
         }
@@ -2450,11 +2486,11 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-blk-exit-dark { background: hsl(228 28% 6%); }
         .lp-blk-exit-outline {
           background: transparent;
-          border: 2px solid rgba(0,82,255,0.45);
+          border: 2px solid rgba(var(--brand-rgb),0.45);
         }
         .lp-blk-exit-fill {
-          background: rgba(0,82,255,0.12);
-          border: 2px solid rgba(0,82,255,0.35);
+          background: rgba(var(--brand-rgb),0.12);
+          border: 2px solid rgba(var(--brand-rgb),0.35);
         }
 
 
@@ -2486,12 +2522,12 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background-size: 12px 12px;
         }
         .lp-px-tear-blk--blue-fill {
-          background: rgba(0,82,255,0.12);
-          border: 2px solid rgba(0,82,255,0.4);
+          background: rgba(var(--brand-rgb),0.12);
+          border: 2px solid rgba(var(--brand-rgb),0.4);
         }
         .lp-px-tear-blk--blue-outline {
           background: transparent;
-          border: 2px solid rgba(0,82,255,0.35);
+          border: 2px solid rgba(var(--brand-rgb),0.35);
         }
 
         /* ── edge falls: blue squares cascading down both sides ── */
@@ -2508,8 +2544,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-edge-fall {
           position: absolute;
           top: -10%;
-          background: rgba(0,82,255,0.06);
-          border: 1.5px solid rgba(0,82,255,0.4);
+          background: rgba(var(--brand-rgb),0.06);
+          border: 1.5px solid rgba(var(--brand-rgb),0.4);
           opacity: 0;
           animation: edgeFall 8s ease-in infinite;
         }
@@ -2538,8 +2574,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-cmp-fall {
           position: absolute;
           top: -10%;
-          background: rgba(0,82,255,0.06);
-          border: 1.5px solid rgba(0,82,255,0.5);
+          background: rgba(var(--brand-rgb),0.06);
+          border: 1.5px solid rgba(var(--brand-rgb),0.5);
           opacity: 0;
           animation: blkFall 4s ease-in infinite;
         }
@@ -2592,7 +2628,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           width: 200px;
           height: 200px;
           border-radius: 50%;
-          background: radial-gradient(circle, rgba(0,82,255,0.06) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(var(--brand-rgb),0.06) 0%, transparent 70%);
           pointer-events: none;
           filter: blur(40px);
         }
@@ -2600,12 +2636,12 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
 
         .lp-step-text {
           padding: 56px 64px;
-          border-left: 1px solid rgba(0,82,255,0.08);
+          border-left: 1px solid rgba(var(--brand-rgb),0.08);
           position: relative;
         }
         .lp-step-flip .lp-step-text {
           border-left: none;
-          border-right: 1px solid rgba(0,82,255,0.08);
+          border-right: 1px solid rgba(var(--brand-rgb),0.08);
         }
         .lp-step-num {
           display: block;
@@ -2614,7 +2650,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           font-weight: 800;
           line-height: 1;
           letter-spacing: -0.04em;
-          background: linear-gradient(180deg, rgba(0,82,255,0.35) 0%, rgba(0,82,255,0.12) 100%);
+          background: linear-gradient(180deg, rgba(var(--brand-rgb),0.35) 0%, rgba(var(--brand-rgb),0.12) 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -2711,7 +2747,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           font-weight: 650;
           color: var(--blue);
           padding: 2px 8px;
-          background: rgba(0,82,255,0.15);
+          background: rgba(var(--brand-rgb),0.15);
           border-radius: 4px;
           cursor: default;
         }
@@ -2726,8 +2762,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
           font-size: 9.5px;
           color: var(--blue);
-          background: rgba(0,82,255,0.08);
-          border: 1px solid rgba(0,82,255,0.15);
+          background: rgba(var(--brand-rgb),0.08);
+          border: 1px solid rgba(var(--brand-rgb),0.15);
           border-radius: 6px;
           padding: 6px 10px;
           text-align: center;
@@ -2786,7 +2822,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-sv-wallet-chains span:last-child {
           color: var(--blue);
-          background: rgba(0,82,255,0.15);
+          background: rgba(var(--brand-rgb),0.15);
         }
         .lp-sv-wallet-btn {
           margin-top: 12px;
@@ -3030,7 +3066,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           width: 500px;
           height: 300px;
           border-radius: 50%;
-          background: radial-gradient(ellipse at center, rgba(0,82,255,0.06) 0%, transparent 70%);
+          background: radial-gradient(ellipse at center, rgba(var(--brand-rgb),0.06) 0%, transparent 70%);
           filter: blur(50px);
           pointer-events: none;
           animation: orbPulse 6s ease-in-out infinite;
@@ -3039,7 +3075,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-cta-rule {
           width: 48px; height: 3px; border-radius: 2px;
           background: var(--blue); margin-bottom: 40px;
-          box-shadow: 0 0 12px rgba(0,82,255,0.3);
+          box-shadow: 0 0 12px rgba(var(--brand-rgb),0.3);
         }
         .lp-cta-h2 {
           font-size: clamp(28px, 4.5vw, 44px);
@@ -3195,8 +3231,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           position: absolute;
           inset: 0;
           background-image:
-            linear-gradient(rgba(0,82,255,0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,82,255,0.04) 1px, transparent 1px);
+            linear-gradient(rgba(var(--brand-rgb),0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(var(--brand-rgb),0.04) 1px, transparent 1px);
           background-size: 60px 60px;
           mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
           -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
@@ -3210,8 +3246,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             to bottom,
             transparent 0px,
             transparent 3px,
-            rgba(0,82,255,0.015) 3px,
-            rgba(0,82,255,0.015) 4px
+            rgba(var(--brand-rgb),0.015) 3px,
+            rgba(var(--brand-rgb),0.015) 4px
           );
           pointer-events: none;
           z-index: 0;
@@ -3224,7 +3260,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           width: 500px;
           height: 500px;
           border-radius: 50%;
-          background: radial-gradient(circle, rgba(0,82,255,0.08) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(var(--brand-rgb),0.08) 0%, transparent 70%);
           filter: blur(60px);
           pointer-events: none;
           animation: lp-sf-pulse 8s ease-in-out infinite alternate;
@@ -3257,16 +3293,18 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           top: 50%;
           transform: translateY(-50%);
           height: 2px;
-          background: linear-gradient(90deg, transparent 0%, rgba(0,120,255,0.6) 15%, rgba(0,160,255,0.9) 35%, #3db8ff 50%, rgba(0,160,255,0.9) 65%, rgba(0,120,255,0.6) 85%, transparent 100%);
+          background: linear-gradient(90deg, transparent 0%, rgba(var(--brand-rgb),0.6) 15%, rgba(var(--accent-rgb),0.9) 35%, rgba(var(--accent-rgb),1) 50%, rgba(var(--accent-rgb),0.9) 65%, rgba(var(--brand-rgb),0.6) 85%, transparent 100%);
           box-shadow:
-            0 0 8px rgba(0,140,255,0.6),
-            0 0 24px rgba(0,120,255,0.4),
-            0 0 60px rgba(0,100,255,0.2);
+            0 0 8px rgba(var(--brand-rgb),0.6),
+            0 0 24px rgba(var(--brand-rgb),0.4),
+            0 0 60px rgba(var(--brand-rgb),0.2);
         }
         .lp-agent-wrap {
           text-align: center;
           position: relative;
           z-index: 1;
+          overflow: hidden;
+          max-width: 100%;
         }
 
         /* sci-fi badge */
@@ -3277,20 +3315,20 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           margin-bottom: 28px;
           padding: 6px 16px 6px 12px;
           border-radius: 2px;
-          border: 1px solid rgba(0,82,255,0.25);
-          background: rgba(0,82,255,0.06);
+          border: 1px solid rgba(var(--brand-rgb),0.25);
+          background: rgba(var(--brand-rgb),0.06);
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
         }
         .lp-sf-badge-dot {
           width: 6px; height: 6px;
           border-radius: 50%;
           background: #00d4ff;
-          box-shadow: 0 0 8px rgba(0,212,255,0.7);
+          box-shadow: 0 0 8px rgba(var(--accent-rgb),0.7);
           animation: lp-sf-dot-pulse 2s ease-in-out infinite;
         }
         @keyframes lp-sf-dot-pulse {
-          0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(0,212,255,0.7); }
-          50% { opacity: 0.5; box-shadow: 0 0 16px rgba(0,212,255,0.4); }
+          0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(var(--accent-rgb),0.7); }
+          50% { opacity: 0.5; box-shadow: 0 0 16px rgba(var(--accent-rgb),0.4); }
         }
         .lp-sf-badge-label {
           font-size: 10px;
@@ -3304,9 +3342,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           letter-spacing: 0.12em;
           color: #00d4ff;
           padding: 2px 8px;
-          border: 1px solid rgba(0,212,255,0.3);
+          border: 1px solid rgba(var(--accent-rgb),0.3);
           border-radius: 2px;
-          background: rgba(0,212,255,0.08);
+          background: rgba(var(--accent-rgb),0.08);
         }
         .lp-agent-h2 {
           color: #fff;
@@ -3316,10 +3354,14 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-agent-lead {
           font-size: 18px;
-          color: rgba(255,255,255,0.45);
-          max-width: 560px;
-          margin: 0 auto 56px;
+          color: rgba(255,255,255,0.55);
+          max-width: 900px;
+          margin: -8px auto 56px;
           line-height: 1.65;
+        }
+        .lp-agent-lead em {
+          color: rgba(255,255,255,0.85);
+          font-style: normal;
         }
 
         /* two integration paths */
@@ -3327,7 +3369,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           display: grid;
           grid-template-columns: 1.2fr 1fr;
           gap: 24px;
-          margin-bottom: 40px;
+          max-width: 1080px;
+          margin: 0 auto 40px;
           text-align: left;
         }
         .lp-agent-path {
@@ -3349,9 +3392,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           letter-spacing: 0.1em;
           color: #00d4ff;
           padding: 3px 8px;
-          border: 1px solid rgba(0,212,255,0.3);
+          border: 1px solid rgba(var(--accent-rgb),0.3);
           border-radius: 2px;
-          background: rgba(0,212,255,0.08);
+          background: rgba(var(--accent-rgb),0.08);
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
         }
         .lp-path-label-text {
@@ -3364,9 +3407,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-agent-code {
           border-radius: 4px;
           overflow: hidden;
-          border: 1px solid rgba(0,82,255,0.15);
+          border: 1px solid rgba(var(--brand-rgb),0.15);
           background: rgba(0,10,30,0.6);
-          box-shadow: 0 0 40px rgba(0,82,255,0.06), inset 0 1px 0 rgba(0,82,255,0.1);
+          box-shadow: 0 0 40px rgba(var(--brand-rgb),0.06), inset 0 1px 0 rgba(var(--brand-rgb),0.1);
           backdrop-filter: blur(12px);
           display: flex;
           flex-direction: column;
@@ -3376,19 +3419,19 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           align-items: center;
           gap: 12px;
           padding: 10px 16px;
-          border-bottom: 1px solid rgba(0,82,255,0.12);
-          background: rgba(0,82,255,0.04);
+          border-bottom: 1px solid rgba(var(--brand-rgb),0.12);
+          background: rgba(var(--brand-rgb),0.04);
         }
         .lp-agent-code-dots {
           display: flex; gap: 4px;
         }
         .lp-sf-term-dot {
           width: 7px; height: 7px; border-radius: 1px;
-          background: rgba(0,82,255,0.3);
+          background: rgba(var(--brand-rgb),0.3);
         }
         .lp-agent-code-file {
           font-size: 11px;
-          color: rgba(0,212,255,0.5);
+          color: rgba(var(--accent-rgb),0.5);
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
           letter-spacing: 0.04em;
         }
@@ -3425,13 +3468,13 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-ac-comment { color: rgba(255,255,255,0.2); font-style: italic; }
         .lp-agent-code-footer {
           padding: 14px 22px;
-          border-top: 1px solid rgba(0,82,255,0.1);
+          border-top: 1px solid rgba(var(--brand-rgb),0.1);
           font-size: 12.5px;
           line-height: 1.55;
           color: rgba(255,255,255,0.3);
         }
         .lp-agent-code-footer code {
-          color: rgba(0,212,255,0.5);
+          color: rgba(var(--accent-rgb),0.5);
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
           font-size: 11.5px;
         }
@@ -3446,21 +3489,22 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 12px;
-          margin-bottom: 40px;
+          max-width: 1080px;
+          margin: 0 auto 40px;
         }
         .lp-agent-feat {
           padding: 20px 18px;
           border-radius: 3px;
-          border: 1px solid rgba(0,82,255,0.1);
+          border: 1px solid rgba(var(--brand-rgb),0.1);
           background: rgba(0,10,30,0.4);
           transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
           position: relative;
           text-align: left;
         }
         .lp-agent-feat:hover {
-          background: rgba(0,82,255,0.06);
-          border-color: rgba(0,82,255,0.3);
-          box-shadow: 0 0 20px rgba(0,82,255,0.08);
+          background: rgba(var(--brand-rgb),0.06);
+          border-color: rgba(var(--brand-rgb),0.3);
+          box-shadow: 0 0 20px rgba(var(--brand-rgb),0.08);
         }
         .lp-sf-feat-id {
           position: absolute;
@@ -3469,14 +3513,14 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           font-size: 9px;
           font-weight: 700;
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
-          color: rgba(0,82,255,0.3);
+          color: rgba(var(--brand-rgb),0.3);
           letter-spacing: 0.08em;
         }
         .lp-agent-feat-icon {
           width: 32px; height: 32px;
           border-radius: 3px;
-          background: rgba(0,82,255,0.12);
-          border: 1px solid rgba(0,82,255,0.2);
+          background: rgba(var(--brand-rgb),0.12);
+          border: 1px solid rgba(var(--brand-rgb),0.2);
           color: #00d4ff;
           display: flex;
           align-items: center;
@@ -3515,26 +3559,26 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           text-transform: uppercase;
           padding: 8px 16px;
           border-radius: 2px;
-          border: 1px solid rgba(0,82,255,0.12);
+          border: 1px solid rgba(var(--brand-rgb),0.12);
           color: rgba(255,255,255,0.45);
           background: rgba(0,10,30,0.4);
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
           transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
         }
         .lp-agent-pill:hover {
-          border-color: rgba(0,212,255,0.4);
-          color: rgba(0,212,255,0.9);
-          box-shadow: 0 0 12px rgba(0,82,255,0.1);
+          border-color: rgba(var(--accent-rgb),0.4);
+          color: rgba(var(--accent-rgb),0.9);
+          box-shadow: 0 0 12px rgba(var(--brand-rgb),0.1);
         }
         .lp-sf-pill-dot {
           width: 4px; height: 4px;
           border-radius: 50%;
-          background: rgba(0,82,255,0.4);
+          background: rgba(var(--brand-rgb),0.4);
           transition: background 0.2s;
         }
         .lp-agent-pill:hover .lp-sf-pill-dot {
           background: #00d4ff;
-          box-shadow: 0 0 6px rgba(0,212,255,0.5);
+          box-shadow: 0 0 6px rgba(var(--accent-rgb),0.5);
         }
 
         /* MCP tool chips */
@@ -3542,22 +3586,29 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           font-size: 10px;
           font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
           letter-spacing: 0.02em;
-          color: rgba(0,212,255,0.5);
+          color: rgba(var(--accent-rgb),0.5);
           padding: 4px 10px;
-          border: 1px solid rgba(0,82,255,0.12);
+          border: 1px solid rgba(var(--brand-rgb),0.12);
           border-radius: 2px;
-          background: rgba(0,82,255,0.04);
+          background: rgba(var(--brand-rgb),0.04);
           transition: border-color 0.2s, color 0.2s;
         }
         .lp-mcp-tool:hover {
-          border-color: rgba(0,212,255,0.35);
-          color: rgba(0,212,255,0.85);
+          border-color: rgba(var(--accent-rgb),0.35);
+          color: rgba(var(--accent-rgb),0.85);
         }
 
-        @media (max-width: 767px) {
-          .lp-agent-paths { grid-template-columns: 1fr; }
+        @media (max-width: 1023px) {
+          .lp-agent-paths { grid-template-columns: 1fr; max-width: 560px; min-width: 0; }
+          .lp-agent-path { min-width: 0; }
+          .lp-agent-code { min-width: 0; max-width: 100%; }
           .lp-agent-features { grid-template-columns: 1fr 1fr; }
-          .lp-agent-code-body { font-size: 11px; }
+        }
+        @media (max-width: 767px) {
+          .lp-agent-code-body { font-size: 10.5px; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; word-break: break-all; }
+          .lp-agent-code-chrome { padding: 8px 12px; }
+          .lp-agent-code-footer { padding: 10px 12px; font-size: 11px; }
+          .lp-mcp-tools-footer { padding: 10px 12px; }
           .lp-agent-pills { gap: 8px; }
           .lp-agent-pill { font-size: 11px; padding: 6px 14px; }
         }
