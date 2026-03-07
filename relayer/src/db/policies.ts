@@ -100,6 +100,13 @@ export async function updatePolicyAfterCharge(
   const db = getDb(databaseUrl)
   const nextChargeAt = new Date(timestamp.getTime() + intervalSeconds * 1000)
 
+  // Read current state before updating for diagnostics
+  const before = await db`
+    SELECT charge_count, total_spent, spending_cap FROM policies
+    WHERE id = ${policyId} AND chain_id = ${chainId}
+  `
+  const prev = before[0]
+
   await db`
     UPDATE policies
     SET
@@ -111,7 +118,17 @@ export async function updatePolicyAfterCharge(
       AND active = true
   `
 
-  logger.debug({ policyId, chainId }, 'Updated policy after charge')
+  logger.debug({
+    policyId,
+    chainId,
+    chargeAmount: amount,
+    prevChargeCount: prev?.charge_count,
+    newChargeCount: prev ? prev.charge_count + 1 : '?',
+    prevTotalSpent: prev?.total_spent,
+    newTotalSpent: prev ? (BigInt(prev.total_spent) + BigInt(amount)).toString() : '?',
+    spendingCap: prev?.spending_cap,
+    nextChargeAt: nextChargeAt.toISOString(),
+  }, '[CHARGE-TRACE] Updated policy after charge')
 }
 
 export async function getPoliciesDueForCharge(

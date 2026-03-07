@@ -100,6 +100,33 @@ export async function chargeExistsForTx(
   return rows.length > 0
 }
 
+/**
+ * Check if a charge was recently handled by the executor for this policy.
+ * Returns true if a charge record exists that matches the tx_hash OR
+ * if there's a pending charge (executor is mid-flight).
+ */
+export async function chargeHandledByExecutor(
+  databaseUrl: string,
+  chainId: number,
+  policyId: string,
+  txHash: string
+): Promise<boolean> {
+  const db = getDb(databaseUrl)
+
+  const rows = await db`
+    SELECT 1 FROM charges
+    WHERE chain_id = ${chainId}
+      AND policy_id = ${policyId}
+      AND (
+        tx_hash = ${txHash}
+        OR (status = 'pending' AND tx_hash IS NULL)
+      )
+    LIMIT 1
+  `
+
+  return rows.length > 0
+}
+
 export async function incrementChargeAttempt(
   databaseUrl: string,
   chargeId: number

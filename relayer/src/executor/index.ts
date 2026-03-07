@@ -50,6 +50,17 @@ async function processChainCharges(
     const result = await chargePolicy(policy.id, config)
 
     if (result.success) {
+      logger.debug({
+        policyId: policy.id,
+        chargeId,
+        txHash: result.txHash,
+        amount: result.amount,
+        protocolFee: result.protocolFee,
+        currentChargeCount: policy.charge_count,
+        currentTotalSpent: policy.total_spent,
+        spendingCap: policy.spending_cap,
+      }, '[CHARGE-TRACE] Executor: charge succeeded, updating DB')
+
       // Update charge record
       await markChargeSuccess(
         config.databaseUrl,
@@ -107,10 +118,13 @@ async function processChainCharges(
       // Dispatch based on reason for correct DB state and webhook.
       const reason = result.error ?? ''
 
-      logger.info(
-        { policyId: policy.id, reason },
-        'Policy reached terminal state, deactivating'
-      )
+      logger.debug({
+        policyId: policy.id,
+        reason,
+        chargeCount: policy.charge_count,
+        totalSpent: policy.total_spent,
+        spendingCap: policy.spending_cap,
+      }, '[CHARGE-TRACE] Policy reached terminal state, deactivating')
 
       await markChargeFailed(
         config.databaseUrl,

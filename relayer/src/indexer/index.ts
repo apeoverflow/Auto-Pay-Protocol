@@ -7,7 +7,7 @@ import {
   initializeIndexerState,
 } from '../db/indexer-state.js'
 import { insertPolicy, revokePolicy, updatePolicyAfterCharge, getPolicy, markPolicyCancelledByFailure } from '../db/policies.js'
-import { chargeExistsForTx } from '../db/charges.js'
+import { chargeHandledByExecutor } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { createLogger } from '../utils/logger.js'
 
@@ -139,14 +139,29 @@ export async function runIndexerOnce(
 
         case 'ChargeSucceeded':
           if (!isMerchantMatch(parsed.event.merchant)) break
-          // Skip if the executor already processed this charge (prevents double-counting
-          // of charge_count and total_spent). The executor creates a charge record with
-          // the tx hash before the indexer sees the event.
-          const alreadyProcessed = await chargeExistsForTx(
+
+          logger.debug({
+            policyId: parsed.event.policyId,
+            txHash: parsed.event.transactionHash,
+            blockNumber: Number(parsed.event.blockNumber),
+          }, '[CHARGE-TRACE] Indexer: saw ChargeSucceeded event')
+
+          // Skip if the executor already processed (or is currently processing) this charge.
+          // Prevents double-counting of charge_count and total_spent.
+          // Checks both completed charges (by tx_hash) and in-flight charges (pending with no tx_hash).
+          const alreadyProcessed = await chargeHandledByExecutor(
             databaseUrl,
+            chainConfig.chainId,
+            parsed.event.policyId,
             parsed.event.transactionHash
           )
-          if (!alreadyProcessed) {
+
+          if (alreadyProcessed) {
+            logger.debug({
+              policyId: parsed.event.policyId,
+              txHash: parsed.event.transactionHash,
+            }, '[CHARGE-TRACE] Indexer: skipping — executor already handled this charge')
+          } else {
             // External charge (not from our executor) or backfill — update policy state
             const existingPolicy = await getPolicy(
               databaseUrl,
@@ -158,7 +173,19 @@ export async function runIndexerOnce(
               const isFirstCharge = existingPolicy.charge_count <= 1 &&
                 Math.abs(timestamp.getTime() - existingPolicy.created_at.getTime()) < 60000
 
-              if (!isFirstCharge) {
+              if (isFirstCharge) {
+                logger.debug({
+                  policyId: parsed.event.policyId,
+                  chargeCount: existingPolicy.charge_count,
+                }, '[CHARGE-TRACE] Indexer: skipping first charge (already counted at policy creation)')
+              } else {
+                logger.debug({
+                  policyId: parsed.event.policyId,
+                  chargeCount: existingPolicy.charge_count,
+                  totalSpent: existingPolicy.total_spent,
+                  spendingCap: existingPolicy.spending_cap,
+                }, '[CHARGE-TRACE] Indexer: external charge — updating policy state')
+
                 await updatePolicyAfterCharge(
                   databaseUrl,
                   chainConfig.chainId,
