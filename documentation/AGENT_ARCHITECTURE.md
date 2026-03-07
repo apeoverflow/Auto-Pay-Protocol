@@ -94,7 +94,6 @@ graph LR
         MCP[MCP Server<br/>@autopayprotocol/mcp]
         WF[wrapFetchWithSubscription<br/>Transparent 402 Handler]
         EX[Examples<br/>agent.js + agent-wrapped.js]
-        DOC[Docs<br/>AGENT_SUBSCRIPTIONS.md]
         PE[Relayer Payer<br/>Query Endpoint]
         MW[Middleware<br/>npm Package]
     end
@@ -113,25 +112,23 @@ graph LR
     style MCP fill:#16A34A,color:#fff
     style WF fill:#16A34A,color:#fff
     style EX fill:#16A34A,color:#fff
-    style DOC fill:#16A34A,color:#fff
     style PE fill:#16A34A,color:#fff
     style MW fill:#16A34A,color:#fff
 ```
 
 ### What's Live
 
-| Component | Status | What It Does | Code Location |
-|-----------|--------|--------------|---------------|
-| **PolicyManager contract** | Deployed | `createPolicy()`, `revokePolicy()`, `charge()`, `canCharge()`, `policies()` getter | `contracts/src/ArcPolicyManager.sol` |
-| **Relayer** | Running | Indexes events, executes charges on schedule, sends webhooks | `relayer/src/` |
-| **Merchant SDK** | Published on npm | Checkout URLs, webhook verification, fee calculations | `packages/sdk/` |
-| **Agent SDK** | Built | `AutoPayAgent` class — subscribe, unsubscribe, getPolicy, createBearerToken, balance checks, typed errors | `packages/agent-sdk/` |
-| **MCP server** | Built | 7 tools for AI agents (balance, subscribe, unsubscribe, get_policy, fetch, approve, bridge_usdc) | `packages/mcp/` |
-| **`wrapFetchWithSubscription`** | Built | Transparent HTTP 402 → subscribe → retry wrapper, with optional auto-bridge, persistent subscription store, and relayer recovery | `packages/agent-sdk/src/fetch.ts` |
-| **Cross-chain bridging** | Built | `bridgeUsdc()` on `AutoPayAgent`, LiFi REST API, auto-bridge in fetch wrapper | `packages/agent-sdk/src/bridge.ts` |
-| **Agent examples** | Working | Manual flow (`agent.js`) + zero-boilerplate flow (`agent-wrapped.js`) + bridge flow (`agent-with-bridge.js`) + service | `examples/agent-subscription/` |
-| **Relayer payer endpoint** | Built | `GET /payers/:address/policies?chain_id=N` — agents can list their subscriptions | `relayer/src/api/index.ts` |
-| **Middleware package** | Built | `@autopayprotocol/middleware` — signed Bearer token verification, Express middleware, 402 discovery builder | `packages/middleware/` |
+| Component | What It Does | Location |
+|-----------|--------------|----------|
+| **PolicyManager** | On-chain policy CRUD, spending caps, auto-cancel | `contracts/src/ArcPolicyManager.sol` |
+| **Relayer** | Event indexing, scheduled charges, webhooks | `relayer/src/` |
+| **Agent SDK** | `AutoPayAgent` class: subscribe, revoke, sign tokens, bridge USDC, balance checks | `packages/agent-sdk/` |
+| **Fetch wrapper** | Intercepts 402s, subscribes, retries, recovers existing policies, auto-bridges | `packages/agent-sdk/src/fetch.ts` |
+| **MCP server** | 8 tools for Claude and MCP-compatible agents | `packages/mcp/` |
+| **Middleware** | Express guard: Bearer token verification, 402 discovery responses | `packages/middleware/` |
+| **Merchant SDK** | Checkout URLs, webhook verification, fee math | `packages/sdk/` |
+| **Payer endpoint** | `GET /payers/:address/policies` for subscription lookups | `relayer/src/api/index.ts` |
+| **Examples** | Manual, zero-boilerplate, and bridge agent flows + test service | `examples/agent-subscription/` |
 
 ---
 
@@ -204,7 +201,7 @@ For AI agents using the Model Context Protocol — zero code required from the a
 }
 ```
 
-The MCP server exposes 7 tools:
+The MCP server exposes 8 tools:
 
 | Tool | Description |
 |------|-------------|
@@ -215,6 +212,7 @@ The MCP server exposes 7 tools:
 | `autopay_fetch` | Fetch URL with transparent 402 handling |
 | `autopay_approve_usdc` | Explicit USDC pre-approval |
 | `autopay_bridge_usdc` | Bridge USDC from another chain via LiFi |
+| `autopay_swap_native_to_usdc` | Swap native tokens to USDC on the same chain via LiFi |
 
 ### 2. `wrapFetchWithSubscription` (Zero-Boilerplate)
 
@@ -381,9 +379,8 @@ import { requireSubscription } from '@autopayprotocol/middleware'
 
 const auth = requireSubscription({
   merchant: MERCHANT_ADDRESS,
-  rpcUrl: chain.rpcUrl,
-  policyManager: chain.policyManager,
-  discovery: { merchant, plans, networks },
+  chain: 'base',
+  plans,
   maxTokenAgeSeconds: 86_400,  // reject tokens valid for longer than 24h (default)
   clockSkewSeconds: 30,        // tolerate 30s clock drift (default)
 })
@@ -481,7 +478,7 @@ sequenceDiagram
     participant Chain as Blockchain
 
     LLM->>MCP: list_tools()
-    MCP-->>LLM: [autopay_balance, autopay_subscribe,<br/>autopay_unsubscribe, autopay_get_policy,<br/>autopay_fetch, autopay_approve_usdc,<br/>autopay_bridge_usdc]
+    MCP-->>LLM: [autopay_balance, autopay_subscribe,<br/>autopay_unsubscribe, autopay_get_policy,<br/>autopay_fetch, autopay_approve_usdc,<br/>autopay_bridge_usdc, autopay_swap_native_to_usdc]
 
     LLM->>MCP: autopay_fetch({<br/>  url: "https://api.service.com/data"<br/>})
     Note right of MCP: Service returns 402<br/>MCP auto-subscribes<br/>and retries
@@ -544,7 +541,7 @@ sequenceDiagram
 | **Cancellation** | Stop paying | `revokePolicy()` — immediate |
 | **SDK** | `@x402/fetch`, `@x402/express` | `@autopayprotocol/agent-sdk`, `@autopayprotocol/mcp` |
 | **Transparent fetch wrapper** | `wrapFetchWithPayment` | `wrapFetchWithSubscription` |
-| **MCP server** | Via x402 MCP tools | `@autopayprotocol/mcp` (7 tools) |
+| **MCP server** | Via x402 MCP tools | `@autopayprotocol/mcp` (8 tools) |
 | **Supported chains** | Base, Ethereum, Optimism, Polygon, Arbitrum, Avalanche, Solana | Flow EVM, Base, Base Sepolia |
 | **Best for** | One-off lookups, unpredictable usage, micropayments | Ongoing access, predictable costs, high-frequency use |
 
@@ -648,7 +645,7 @@ async function handleRequest(req, res) {
 | **SDK** | `AutoPayAgent` class | Built | `packages/agent-sdk/src/agent.ts` |
 | **SDK** | Typed errors | Built | `packages/agent-sdk/src/errors.ts` |
 | **MCP** | MCP server (`@autopayprotocol/mcp`) | Built | `packages/mcp/` |
-| **MCP** | 7 tools (balance, subscribe, unsubscribe, get_policy, fetch, approve, bridge_usdc) | Built | `packages/mcp/src/index.ts` |
+| **MCP** | 8 tools (balance, subscribe, unsubscribe, get_policy, fetch, approve, bridge_usdc, swap_native_to_usdc) | Built | `packages/mcp/src/index.ts` |
 | **Middleware** | `@autopayprotocol/middleware` | Built | `packages/middleware/` |
 | **Middleware** | Express `requireSubscription` | Built | `packages/middleware/src/express.ts` |
 | **Example** | Manual agent flow | Working | `examples/agent-subscription/agent.js` |
@@ -659,35 +656,9 @@ async function handleRequest(req, res) {
 | Package | Version | Build | Peer Deps |
 |---------|---------|-------|-----------|
 | `@autopayprotocol/agent-sdk` | 0.1.0 | ESM + CJS via tsup | `viem ^2.0.0` |
-| `@autopayprotocol/mcp` | 0.1.0 | ESM + CJS via tsup (with shebang) | — |
+| `@autopayprotocol/mcp` | 0.1.0 | ESM + CJS via tsup (with shebang) | `@autopayprotocol/agent-sdk`, `viem`, `zod` |
 | `@autopayprotocol/middleware` | 0.1.0 | ESM + CJS via tsup | `viem ^2.0.0` |
 | `@autopayprotocol/sdk` | Published | ESM + CJS via tsup | None |
-
----
-
-## Remaining Friction Points
-
-What's been resolved and what's still open.
-
-### Resolved
-
-| Friction | Solution |
-|----------|----------|
-| Raw viem calls required | `AutoPayAgent` class wraps everything — `subscribe()`, `unsubscribe()`, `getPolicy()`, etc. |
-| Event log parsing | SDK extracts `policyId` from `PolicyCreated` event internally |
-| Nonce management | SDK sequences approve → createPolicy automatically |
-| Opaque errors | Typed errors: `InsufficientBalanceError`, `InsufficientGasError`, `PolicyNotFoundError`, etc. |
-| No transparent fetch wrapper | `wrapFetchWithSubscription` handles 402 → subscribe → retry automatically |
-| LLMs can't discover AutoPay | MCP server with 7 tools — Claude/other LLM agents can subscribe via tool calls |
-| No balance/gas pre-checks | `subscribe()` checks USDC balance and gas before transacting |
-| 402 discovery not implemented | `wrapFetchWithSubscription` parses 402 bodies and auto-subscribes |
-| Cross-chain bridging | `bridgeUsdc()` on `AutoPayAgent` + `autopay_bridge_usdc` MCP tool + auto-bridge in `wrapFetchWithSubscription` — all via LiFi REST API |
-
-### Still Open
-
-| Friction | Severity | Note |
-|----------|----------|------|
-| Agent framework integrations | Low | No LangChain tool, CrewAI integration, or OpenAI function schema yet. |
 
 ---
 
