@@ -469,22 +469,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        // Auth: per-merchant API key → global STATS_API_KEY → signature auth (if AUTH_ENABLED)
-        const merchantKeyAuth = await authenticateByMerchantApiKey(req, res, config, address)
-        if (merchantKeyAuth === 'rate_limited') return
-        if (!merchantKeyAuth) {
-          const statsApiKey = process.env.STATS_API_KEY
-          const providedKey = req.headers['x-api-key'] as string | undefined
-          const hasValidGlobalKey = statsApiKey && providedKey === statsApiKey
-          if (!hasValidGlobalKey) {
-            if (AUTH_ENABLED) {
-              const rateResult = authRateLimiter.check(address.toLowerCase())
-              if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
-              const verified = await authenticateMerchant(req, res, address)
-              if (!verified) return
-            }
-          }
-        }
+        // Stats are aggregate-only (counts + totals), no PII — no auth required
         const chainId = params.get('chain_id')
         await handleMerchantStats(config, address, chainId ? parseInt(chainId, 10) : undefined, res)
         return

@@ -237,16 +237,10 @@ export async function fetchMerchantStats(
   address: string,
   chainId: number,
 ): Promise<MerchantStatsResponse> {
-  const { baseUrl, apiKey } = resolveRelayer(address)
-
-  const headers: Record<string, string> = {}
-  if (apiKey) {
-    headers['X-API-Key'] = apiKey
-  }
+  const { baseUrl } = resolveRelayer(address)
 
   const res = await fetch(
     `${baseUrl}/merchants/${encodeURIComponent(address)}/stats?chain_id=${encodeURIComponent(chainId)}`,
-    { headers }
   )
   if (!res.ok) {
     throw new Error(`Failed to fetch merchant stats: ${res.status}`)
@@ -254,7 +248,6 @@ export async function fetchMerchantStats(
 
   const data: unknown = await res.json()
 
-  // Validate response shape
   if (
     typeof data !== 'object' || data === null ||
     typeof (data as MerchantStatsResponse).activeSubscribers !== 'number' ||
