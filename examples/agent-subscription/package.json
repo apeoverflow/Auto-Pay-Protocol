@@ -15,8 +15,8 @@
     "test": "node --env-file=.env test-agent.js"
   },
   "dependencies": {
-    "@autopayprotocol/agent-sdk": "file:../../packages/agent-sdk",
-    "@autopayprotocol/middleware": "file:../../packages/middleware",
+    "@autopayprotocol/agent-sdk": "^0.1.2",
+    "@autopayprotocol/middleware": "^0.1.1",
     "express": "^4.21.0",
     "viem": "^2.21.0"
   }
