@@ -29,7 +29,7 @@
     "verifierType": "etherscan",
     "verifierUrl": "https://api.etherscan.io/v2/api?chainid=8453",
     "etherscanApiKeyEnv": "BASESCAN_API_KEY",
-    "pollIntervalMs": 180000,
+    "pollIntervalMs": 60000,
     "batchSize": 5,
     "confirmations": 5,
     "supportsLifi": true,

@@ -22,7 +22,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     rpcUrl: process.env.BASE_RPC || 'https://mainnet.base.org',
     policyManagerAddress: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a' as `0x${string}`,
     startBlock: 42554078,
-    pollIntervalMs: 180000,
+    pollIntervalMs: 60000,
     batchSize: 5,
     confirmations: 5,
     enabled: true,
