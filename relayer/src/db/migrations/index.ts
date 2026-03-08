@@ -55,11 +55,14 @@ export async function runMigrations(databaseUrl: string) {
 
       logger.info({ name: migration.name }, 'Applying migration...')
 
-      // Run migration
-      await sql.unsafe(migration.sql)
-      await sql`
-        INSERT INTO _migrations (name) VALUES (${migration.name})
-      `
+      // Run migration + record in a single transaction so partial failures
+      // don't leave the DB in an inconsistent state
+      await sql.begin(async (tx) => {
+        await tx.unsafe(migration.sql)
+        await (tx as any)`
+          INSERT INTO _migrations (name) VALUES (${migration.name})
+        `
+      })
 
       logger.info({ name: migration.name }, 'Migration applied')
     }
