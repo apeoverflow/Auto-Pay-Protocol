@@ -23,12 +23,18 @@ export async function createChargeRecord(
   return chargeId
 }
 
+/**
+ * Mark a charge as successful. Returns true if updated, false if it was a
+ * duplicate (already exists for this tx_hash) — in which case the charge
+ * record is deleted and the caller should skip downstream work (webhooks,
+ * policy updates) to avoid FK constraint errors.
+ */
 export async function markChargeSuccess(
   databaseUrl: string,
   chargeId: number,
   txHash: string,
   protocolFee: string
-) {
+): Promise<boolean> {
   const db = getDb(databaseUrl)
   const normalizedHash = txHash.toLowerCase()
 
@@ -36,7 +42,7 @@ export async function markChargeSuccess(
   if (await chargeExistsForTx(databaseUrl, normalizedHash)) {
     logger.warn({ chargeId, txHash: normalizedHash }, 'Duplicate charge detected, removing')
     await db`DELETE FROM charges WHERE id = ${chargeId}`
-    return
+    return false
   }
 
   await db`
@@ -50,6 +56,7 @@ export async function markChargeSuccess(
   `
 
   logger.debug({ chargeId, txHash: normalizedHash }, 'Marked charge as success')
+  return true
 }
 
 export async function markChargeFailed(

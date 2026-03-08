@@ -61,13 +61,26 @@ async function processChainCharges(
         spendingCap: policy.spending_cap,
       }, '[CHARGE-TRACE] Executor: charge succeeded, updating DB')
 
-      // Update charge record
-      await markChargeSuccess(
+      // Update charge record — returns false if this was a duplicate (already
+      // processed by a concurrent executor run). In that case the charge record
+      // has been deleted, so we must NOT reference chargeId in webhooks or
+      // update policy counters (would cause FK constraint error + double-count).
+      const wasNew = await markChargeSuccess(
         config.databaseUrl,
         chargeId,
         result.txHash!,
         result.protocolFee ?? '0'
       )
+
+      if (!wasNew) {
+        logger.warn({
+          policyId: policy.id,
+          chargeId,
+          txHash: result.txHash,
+        }, '[CHARGE-TRACE] Duplicate charge — skipping policy update and webhook')
+        succeeded++
+        continue
+      }
 
       // Update policy state — use full charge_amount (not net amount from event)
       await updatePolicyAfterCharge(
