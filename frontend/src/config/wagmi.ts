@@ -13,6 +13,13 @@ import { CHAIN_CONFIGS } from './chains'
 
 // All AutoPay chains (mainnet + testnet) from the generated config
 const autoPayChains = Object.values(CHAIN_CONFIGS).map(c => c.chain)
+const autoPayChainIds = new Set<number>(autoPayChains.map(c => c.id))
+
+// Bridge source chains — exclude any already in autoPayChains to avoid duplicate keys
+const bridgeChains = [mainnet, arbitrum, optimism, base, polygon, bsc, avalanche, gnosis]
+  .filter(c => !autoPayChainIds.has(c.id))
+
+const allChains = [...autoPayChains, ...bridgeChains]
 
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'demo-project-id'
 
@@ -38,8 +45,6 @@ const connectors = connectorsForWallets(
 
 export const wagmiConfig = createConfig({
   connectors,
-  chains: [...autoPayChains, mainnet, arbitrum, optimism, base, polygon, bsc, avalanche, gnosis] as any,
-  transports: Object.fromEntries(
-    [...autoPayChains, mainnet, arbitrum, optimism, base, polygon, bsc, avalanche, gnosis].map(c => [c.id, http()])
-  ),
+  chains: allChains as any,
+  transports: Object.fromEntries(allChains.map(c => [c.id, http()])),
 })

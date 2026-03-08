@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useChain } from '../contexts/ChainContext'
 import { useWallet } from '../hooks'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { LiFiWidget, type WidgetConfig, ChainType } from '@lifi/widget'
+import { EVM } from '@lifi/sdk'
+import { useAccount, useConfig } from 'wagmi'
+import { getConnectorClient } from 'wagmi/actions'
+import { createWalletClient, custom } from 'viem'
 import { Globe, CircleDollarSign, Zap, Shield, ExternalLink } from 'lucide-react'
 
 const FLOW_USDC = '0xF1815bd50389c46847f0Bda824eC8da914045D14'
@@ -18,6 +23,18 @@ const CHAINS = [
   'Flow', 'Ethereum', 'Arbitrum', 'Optimism', 'Base',
   'Polygon', 'Avalanche', 'BSC', 'Solana', 'Fantom',
   'zkSync', 'Linea', 'Scroll', 'Gnosis',
+]
+
+const SWITCH_NETWORKS = [
+  { id: 1, name: 'Ethereum' },
+  { id: 56, name: 'BSC' },
+  { id: 137, name: 'Polygon' },
+  { id: 8453, name: 'Base' },
+  { id: 42161, name: 'Arbitrum' },
+  { id: 10, name: 'Optimism' },
+  { id: 43114, name: 'Avalanche' },
+  { id: 100, name: 'Gnosis' },
+  { id: 747, name: 'Flow EVM' },
 ]
 
 function useWidgetScale(wrapRef: React.RefObject<HTMLDivElement | null>) {
@@ -43,13 +60,23 @@ function useWidgetScale(wrapRef: React.RefObject<HTMLDivElement | null>) {
 export function BridgePage() {
   const { address } = useWallet()
   const { openConnectModal } = useConnectModal()
+  const { setSuppressAutoSwitch } = useChain()
+  const wagmiConfig = useConfig()
+  const { chainId, connector } = useAccount()
   const widgetRef = useRef<HTMLDivElement>(null)
   useWidgetScale(widgetRef)
+
+  // Disable ChainContext's auto-switch on the bridge page
+  useEffect(() => {
+    setSuppressAutoSwitch(true)
+    return () => setSuppressAutoSwitch(false)
+  }, [setSuppressAutoSwitch])
+
+  const currentNetwork = SWITCH_NETWORKS.find(n => n.id === chainId)
 
   const widgetConfig: WidgetConfig = useMemo(
     () => ({
       integrator: 'AutoPay',
-      fromChain: 1, // Default source to Ethereum mainnet
       toChain: FLOW_CHAIN_ID,
       toToken: FLOW_USDC,
       toAddress: address
@@ -60,6 +87,29 @@ export function BridgePage() {
       fee: 0.005,
       hiddenUI: ['poweredBy', 'contactSupport'],
       disabledUI: ['toToken', 'toAddress'],
+      sdkConfig: {
+        providers: [
+          EVM({
+            getWalletClient: () => getConnectorClient(wagmiConfig, { assertChainId: false }),
+            switchChain: async (reqChainId) => {
+              const connectorProvider = await connector?.getProvider() as any
+              const provider = connectorProvider || (window as any).ethereum
+              await provider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: `0x${reqChainId.toString(16)}` }],
+              })
+              await new Promise(resolve => setTimeout(resolve, 200))
+              const [account] = await provider.request({ method: 'eth_accounts' }) as string[]
+              const chain = wagmiConfig.chains.find(c => c.id === reqChainId)
+              return createWalletClient({
+                account: account as `0x${string}`,
+                chain,
+                transport: custom(provider),
+              })
+            },
+          }),
+        ],
+      },
       walletConfig: {
         onConnect() {
           openConnectModal?.()
@@ -103,7 +153,7 @@ export function BridgePage() {
         },
       },
     }),
-    [address, openConnectModal],
+    [address, openConnectModal, wagmiConfig, connector],
   )
 
   return (
@@ -120,6 +170,16 @@ export function BridgePage() {
       </div>
 
       <div className="bridge-center">
+        {/* ── Current network indicator ── */}
+        {chainId && (
+          <div className="flex justify-end mb-2">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              {currentNetwork?.name ?? `Chain ${chainId}`}
+            </div>
+          </div>
+        )}
+
         {/* ── Widget ── */}
         <div className="bridge-widget-card">
           <div ref={widgetRef} className="bridge-widget-wrap">
