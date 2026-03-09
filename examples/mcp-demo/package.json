@@ -1,0 +1,18 @@
+{
+  "name": "autopay-mcp-demo",
+  "version": "1.0.0",
+  "description": "Demo: Claude Code uses AutoPay MCP tools to subscribe to a paid API",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "service": "node --env-file=.env service.js",
+    "setup": "node --env-file=.env setup.js"
+  },
+  "dependencies": {
+    "@autopayprotocol/middleware": "^0.1.1",
+    "express": "^4.21.0",
+    "viem": "^2.21.0"
+  }
+}
