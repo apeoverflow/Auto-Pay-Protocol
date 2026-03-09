@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoPay Protocol - PL Genesis Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400;1,9..40,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg:         #080b14;
+    --bg-card:    #0d1120;
+    --bg-card-hover: #111729;
+    --border:     rgba(99, 130, 190, 0.12);
+    --border-accent: rgba(59, 130, 246, 0.25);
+    --text:       #f0f2f8;
+    --text-dim:   #7a8baa;
+    --text-muted: #4a5672;
+    --blue:       #3b82f6;
+    --blue-bright:#60a5fa;
+    --green:      #22c55e;
+    --green-dim:  #16a34a;
+    --cyan:       #22d3ee;
+    --red:        #ef4444;
+    --orange:     #f59e0b;
+    --radius:     12px;
+    --radius-lg:  16px;
+    --radius-sm:  8px;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, pre, .mono {
+    font-family: 'JetBrains Mono', 'Fira Code', Menlo, monospace;
+  }
+
+  /* ── Icons ────────────────────────────────────── */
+  .icon {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    flex-shrink: 0;
+  }
+
+  .icon.sm { width: 16px; height: 16px; }
+  .icon.lg { width: 24px; height: 24px; }
+
+  /* ── Slide Engine ─────────────────────────────── */
+  .deck { position: relative; width: 100vw; height: 100vh; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    align-items: center;
+    padding: 5vh 5vw;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--bg); overflow: hidden;
+  }
+
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  .slide::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle, rgba(99,130,190,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Pixel Transition Decorations ─────────────── */
+
+  .px-strip {
+    position: absolute; left: 0; width: 100vw;
+    height: 200px;
+    overflow: hidden; pointer-events: none; z-index: 0;
+    opacity: 0.7;
+  }
+  .px-strip.top    { top: -100px; }
+  .px-strip.bottom { bottom: -100px; }
+
+  .px-blk { position: absolute; }
+  .px-blk-outline { background: transparent; border: 1.5px solid rgba(59,130,246,0.14); }
+  .px-blk-fill    { background: rgba(59,130,246,0.04); }
+  .px-blk-bright  { background: rgba(59,130,246,0.06); border: 1.5px solid rgba(59,130,246,0.2); }
+  .px-blk-white   { background: rgba(240,242,248,0.035); }
+  .px-blk-wout    { background: transparent; border: 1.5px solid rgba(240,242,248,0.055); }
+
+  /* Corner clusters */
+  .px-corner {
+    position: absolute; width: 160px; height: 160px;
+    overflow: visible; pointer-events: none; z-index: 0;
+    opacity: 0.7;
+  }
+  .px-corner.tl { top: 10px; left: 10px; }
+  .px-corner.tr { top: 10px; right: 10px; }
+  .px-corner.bl { bottom: 10px; left: 10px; }
+  .px-corner.br { bottom: 10px; right: 10px; }
+
+  .slide > *:not(.px-strip):not(.px-corner) { position: relative; z-index: 1; max-width: 1200px; width: 100%; margin-left: auto; margin-right: auto; }
+  .slide.wide > *:not(.px-strip):not(.px-corner) { max-width: 1400px; }
+  .slide.centered > *:not(.px-strip):not(.px-corner) { max-width: 800px; }
+  .slide.centered.wide > *:not(.px-strip):not(.px-corner) { max-width: 1200px; }
+
+  /* ── Slide Body — fills remaining space, centers content ── */
+  .slide-body {
+    display: flex; flex-direction: column; justify-content: flex-start;
+    align-items: center; min-height: 0; width: 100%;
+    margin-top: 2.5rem;
+  }
+
+  .slide-body > * {
+    width: 100%; max-width: 1200px;
+  }
+
+  /* ── Typography ───────────────────────────────── */
+  .label {
+    font-size: 0.85rem; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 4.5vw, 4rem); font-weight: 800;
+    line-height: 1.08; letter-spacing: -0.03em;
+    color: var(--text); margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 2.5vw, 2.25rem); font-weight: 700;
+    line-height: 1.15; letter-spacing: -0.02em;
+    color: var(--text); margin-bottom: 1.25rem;
+  }
+
+  .subtitle {
+    font-size: clamp(1.3rem, 2vw, 1.65rem); font-weight: 400;
+    color: var(--text-dim); line-height: 1.6; max-width: 1100px;
+    margin-bottom: 3rem;
+  }
+
+  .highlight { color: var(--blue-bright); }
+  .green     { color: var(--green); }
+  .dim       { color: var(--text-dim); }
+  .muted     { color: var(--text-muted); }
+
+  /* ── Cards ────────────────────────────────────── */
+  .card-grid { display: grid; gap: 1.5rem; margin-top: 2.5rem; }
+  .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .card {
+    position: relative;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 2rem;
+    transition: border-color 0.25s, background 0.25s;
+  }
+
+  .card:hover { border-color: var(--border-accent); background: var(--bg-card-hover); }
+
+  .card .card-icon {
+    width: 56px; height: 56px; flex-shrink: 0; border-radius: var(--radius-sm);
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1rem; color: var(--blue-bright);
+  }
+  .card .card-icon .icon { width: 28px; height: 28px; }
+  .card .card-icon svg { width: 28px; height: 28px; }
+
+  .card h3 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text); }
+  .card p  { font-size: 1.25rem; color: var(--text-dim); line-height: 1.55; }
+
+  .card .badge {
+    display: inline-block; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.2em 0.65em; border-radius: 999px; margin-top: 0.75rem;
+  }
+
+  .badge.green  { background: rgba(34,197,94,0.12); color: var(--green); }
+  .badge.blue   { background: rgba(59,130,246,0.12); color: var(--blue-bright); }
+
+  /* ── Fn icon — small inline icon for contract functions ── */
+  .fn-icon {
+    width: 52px; height: 52px; border-radius: 10px;
+    background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--blue-bright); flex-shrink: 0;
+  }
+  .fn-icon .icon.sm { width: 26px; height: 26px; }
+  .fn-icon.lg { width: 60px; height: 60px; border-radius: 14px; }
+  .fn-icon.lg .icon.sm { width: 30px; height: 30px; }
+
+  /* ── Comparison Table ─────────────────────────── */
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 1.2rem; margin-top: 1.5rem; }
+
+  .compare-table th {
+    text-align: left; padding: 0.75rem 1rem; font-weight: 600;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+    font-size: 0.9rem; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+
+  .compare-table th.brand { color: var(--blue-bright); }
+
+  .compare-table td {
+    padding: 0.8rem 1rem; border-bottom: 1px solid rgba(99,130,190,0.06);
+    color: var(--text-dim);
+  }
+
+  .compare-table td.brand { color: var(--text); font-weight: 500; }
+  .compare-table .check { color: var(--green); font-weight: 600; margin-right: 0.35rem; }
+  .compare-table .cross { color: var(--red); opacity: 0.5; margin-right: 0.35rem; }
+
+  /* ── Code Block ───────────────────────────────── */
+  .code-block {
+    background: #060910; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem;
+    font-size: 1.05rem; line-height: 1.7;
+    overflow-x: auto; margin-top: 1rem; white-space: pre;
+  }
+
+  .code-block .kw   { color: #c084fc; }
+  .code-block .fn   { color: #60a5fa; }
+  .code-block .str  { color: #4ade80; }
+  .code-block .cm   { color: #4a5672; font-style: italic; }
+  .code-block .op   { color: #7a8baa; }
+
+  /* ── Flow Diagram ─────────────────────────────── */
+  .flow-row { display: flex; align-items: center; gap: 1rem; margin-top: 2.5rem; margin-bottom: 3rem; flex-wrap: nowrap; }
+
+  .flow-box {
+    position: relative;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem;
+    text-align: center; min-width: 0; flex: 1;
+    padding-top: 1.75rem;
+  }
+
+  .flow-logo {
+    position: absolute; top: -24px; left: 50%; transform: translateX(-50%);
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--bg); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    padding: 6px; z-index: 2;
+  }
+  .flow-logo img { width: 100%; height: 100%; object-fit: contain; }
+  .flow-logo img.logo-dark { filter: brightness(0) invert(1); }
+
+  .flow-box.accent { border-color: var(--border-accent); background: rgba(59,130,246,0.05); }
+
+  .flow-arrow { color: var(--text-muted); display: flex; align-items: center; flex-shrink: 0; }
+
+  /* ── Pill List ────────────────────────────────── */
+  .pill-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; list-style: none; }
+
+  .pill-list li {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 999px; padding: 0.5rem 1.15rem;
+    font-size: 1.2rem; color: var(--text-dim); font-weight: 500;
+  }
+
+  /* ── Two-Column Layout ────────────────────────── */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+  .split.wide-left  { grid-template-columns: 1.3fr 1fr; }
+
+  /* ── Logo ─────────────────────────────────────── */
+
+  /* ── Bullet Points ────────────────────────────── */
+  .bullets { list-style: none; margin-top: 1.25rem; }
+
+  .bullets li { padding: 0.6rem 0; font-size: 1.3rem; color: var(--text-dim); line-height: 1.55; }
+
+  .bullets li::before {
+    content: ''; display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--blue); margin-right: 0.75rem; vertical-align: middle;
+  }
+
+  .bullets li strong { color: var(--text); font-weight: 600; }
+
+  /* ── Progress Bar ─────────────────────────────── */
+  .progress {
+    position: fixed; bottom: 0; left: 0; height: 3px;
+    background: var(--blue); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100;
+  }
+
+  .slide-counter {
+    position: fixed; bottom: 1.25rem; right: 2rem;
+    font-size: 0.7rem; font-weight: 500; color: var(--text-muted);
+    z-index: 100; font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Logo mark (inverted full wordmark for dark bg) ── */
+  .logo-wordmark {
+    height: 56px; margin-bottom: 1.5rem;
+    filter: brightness(0) invert(1);
+  }
+
+  /* ── Check list ───────────────────────────────── */
+  .check-list { list-style: none; margin-top: 0.75rem; }
+
+  .check-list li {
+    font-size: 1.25rem; color: var(--text-dim); padding: 0.5rem 0; line-height: 1.5;
+    display: flex; align-items: baseline; gap: 0.5rem;
+  }
+
+  .check-list li::before {
+    content: ''; display: inline-block; flex-shrink: 0;
+    width: 14px; height: 14px; margin-top: 2px;
+    border-radius: 50%; border: 1.5px solid var(--green);
+    background: rgba(34,197,94,0.1);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2322c55e' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: center; background-size: 8px;
+  }
+
+  .check-list li strong { color: var(--text); font-weight: 600; }
+
+  /* ── Webhook event pills ──────────────────────── */
+  .event-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+
+  .event-pill {
+    background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 999px; padding: 0.45rem 1.15rem; font-size: 1.05rem;
+    font-weight: 600; color: var(--blue-bright);
+    font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+  }
+
+  .event-desc { font-size: 1.2rem; color: var(--text-dim); }
+
+  /* ── Stat box ─────────────────────────────────── */
+  .stat-box { text-align: center; }
+
+  .stat-box .stat-value {
+    font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 800;
+    letter-spacing: -0.03em; line-height: 1;
+  }
+
+  .stat-box .stat-label {
+    font-size: 1rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-dim); margin-top: 0.5rem;
+  }
+
+  /* ── Divider ──────────────────────────────────── */
+  .divider { width: 48px; height: 3px; background: var(--blue); border-radius: 2px; margin: 1rem 0; }
+
+  /* ── Links ────────────────────────────────────── */
+  .link-row { display: flex; gap: 2.5rem; margin-top: 2.5rem; flex-wrap: wrap; }
+
+  .link-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    font-size: 1.15rem; color: var(--text-dim); font-weight: 500;
+  }
+
+  .link-item .link-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--blue-bright);
+  }
+
+  /* ── Centered slide ───────────────────────────── */
+  .slide.centered { align-items: center; text-align: center; justify-content: center; padding-top: 6vh; }
+  .slide.centered h1, .slide.centered .subtitle { max-width: 800px; }
+
+  /* ── IPFS visual ──────────────────────────────── */
+  .ipfs-layer { display: flex; align-items: stretch; gap: 1.5rem; margin-top: 2.5rem; }
+
+  .ipfs-layer .layer {
+    flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.75rem; padding-top: 2.75rem; position: relative;
+  }
+
+  .ipfs-layer .layer .layer-num {
+    font-size: 0.85rem; font-weight: 700; color: var(--blue);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.85rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  .ipfs-layer .layer h4 { font-size: 1.35rem; font-weight: 700; margin-top: 0.75rem; margin-bottom: 0.75rem; color: var(--text); }
+  .ipfs-layer .layer p  { font-size: 1.2rem; color: var(--text-dim); line-height: 1.55; }
+
+  /* ── Partner Logo Bar ─────────────────────────── */
+  .logo-bar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 2.5rem; flex-wrap: wrap; margin-top: 2rem;
+  }
+  .logo-bar img {
+    height: 36px; opacity: 0.35;
+    filter: saturate(0.4) brightness(0.85);
+    transition: opacity 0.25s, filter 0.25s;
+  }
+  .logo-bar img:hover { opacity: 0.7; filter: saturate(0.6) brightness(0.9); }
+  .logo-bar.lg img { height: 44px; }
+  .logo-bar img.logo-dark { filter: brightness(0) invert(1) opacity(0.35); }
+  .logo-bar img.logo-dark:hover { filter: brightness(0) invert(1) opacity(0.7); }
+
+  @media (max-width: 900px) {
+    .split { grid-template-columns: 1fr; gap: 2rem; }
+    .card-grid.cols-3, .card-grid.cols-4 { grid-template-columns: 1fr 1fr; }
+    .ipfs-layer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 0: Title -->
+  <div class="slide centered active">
+    <img src="../branding/Autopay-full.svg" alt="AutoPay Protocol" style="height:170px; filter:brightness(0) invert(1); opacity:0.97; margin-bottom:2rem;">
+    <p class="subtitle" style="font-size: clamp(1.1rem, 1.8vw, 1.4rem); font-weight: 500; color: var(--text); max-width: 700px;">
+      Stripe for Crypto Subscriptions<br>
+      <span class="highlight">50% Cheaper</span><span class="dim">,</span>
+      Non-Custodial<span class="dim">,</span>
+      Multi-Chain
+    </p>
+    <div class="divider" style="margin: 1.5rem auto;"></div>
+    <p class="muted" style="font-size: 1.05rem;">PL Genesis: Frontiers of Collaboration - March 2026</p>
+  </div>
+
+  <!-- SLIDE 1: The Problem -->
+  <div class="slide">
+
+    <div class="label">The Problem</div>
+    <h1>Billions in USDC,<br>Zero Subscription Infrastructure</h1>
+    <div class="slide-body">
+      <p class="subtitle">
+        Without owning the charging infrastructure, <strong style="color:var(--text)">you're subject to the centralised powers that be</strong>. Tiered subscriptions are the norm in web2 - in web3, we don't have the rails.
+      </p>
+      <p class="subtitle">
+        Agents are stuck with x402, forcing businesses to change their model.
+      </p>
+      <div class="card-grid cols-3" style="margin-top: 2.5rem;">
+        <div class="card" style="text-align:center; padding:2.25rem 1.5rem;">
+          <div style="font-size:0.75rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--blue-bright); margin-bottom:0.75rem;">Supply</div>
+          <div class="stat-box">
+            <div class="stat-value highlight">$300B+</div>
+            <div class="stat-label" style="margin-top:0.5rem;">Stablecoins in circulation</div>
+          </div>
+        </div>
+        <div class="card" style="text-align:center; padding:2.25rem 1.5rem;">
+          <div style="font-size:0.75rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--blue-bright); margin-bottom:0.75rem;">Demand</div>
+          <div class="stat-box">
+            <div class="stat-value highlight">~$500B</div>
+            <div class="stat-label" style="margin-top:0.5rem;">Global subscription market</div>
+          </div>
+        </div>
+        <div class="card" style="text-align:center; padding:2.25rem 1.5rem; border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.04);">
+          <div style="font-size:0.75rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--red); margin-bottom:0.75rem;">The Gap</div>
+          <div class="stat-box">
+            <div class="stat-value" style="color:var(--red); font-size:4rem;">0</div>
+            <div class="stat-label" style="margin-top:0.5rem;">Non-custodial subscription protocols</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: Funding the Commons -->
+  <div class="slide">
+
+    <div class="label">Funding the Commons</div>
+    <h1>The Commons Need<br>Recurring Revenue</h1>
+    <div class="slide-body">
+    <p class="subtitle">
+      Grants end. Funding cliffs hit. The commons need <strong style="color:var(--text)">permissionless recurring revenue</strong>.
+    </p>
+    <div class="card-grid cols-4" style="margin-top: 1rem;">
+      <div class="card">
+        <h3>Stripe / Patreon</h3>
+        <p>Custodial, 5%+ fees, deplatforming risk</p>
+      </div>
+      <div class="card">
+        <h3>Gitcoin Grants</h3>
+        <p>One-time rounds, not recurring</p>
+      </div>
+      <div class="card">
+        <h3>Crypto Donations</h3>
+        <p>One-off, unpredictable</p>
+      </div>
+      <div class="card" style="border-color: var(--border-accent); background: rgba(59,130,246,0.04); padding-top:2.75rem;">
+        <div class="flow-logo" style="width:68px; height:68px; top:-34px; padding:4px;"><img src="../branding/autopay-logo-square.svg" alt="AutoPay" style="filter:brightness(0) invert(1); padding-left:4px;"></div>
+        <h3><span class="highlight">AutoPay</span></h3>
+        <p>Non-custodial, 2.5%, recurring, revocable</p>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: The Solution — For Subscribers -->
+  <div class="slide" style="justify-content:flex-start; padding-top:12vh;">
+    <div class="label">The Solution</div>
+    <div style="display:flex; align-items:center; gap:1.25rem;">
+      <div style="flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue-bright)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px; height:48px; filter:drop-shadow(0 0 12px rgba(59,130,246,0.35));"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h1 style="margin:0;">For Subscribers</h1>
+    </div>
+    <div class="slide-body">
+    <p class="subtitle">Fund from any chain, keep full custody, cancel anytime.</p>
+    <div class="card-grid cols-2" style="margin-top: 1.5rem; max-width: 900px;">
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <div><h3>30+ Chains</h3><p>Fund from any EVM chain via LiFi bridge. No manual bridging needed.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div><h3>Full Custody</h3><p>Funds stay in your wallet until charged. Non-custodial by design.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div><h3>Spending Caps</h3><p>On-chain limits enforced by the smart contract. No overcharging.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+        <div><h3>Cancel Anytime</h3><p>Revoke on-chain instantly. No approval needed from the merchant.</p></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: The Solution — For Merchants -->
+  <div class="slide" style="justify-content:flex-start; padding-top:12vh;">
+    <div class="label">The Solution</div>
+    <div style="display:flex; align-items:center; gap:1.25rem;">
+      <div style="flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue-bright)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px; height:48px; filter:drop-shadow(0 0 12px rgba(59,130,246,0.35));"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <h1 style="margin:0;">For Merchants</h1>
+    </div>
+    <div class="slide-body">
+    <p class="subtitle">Own the infra, automate revenue, pay 50% less in fees.</p>
+    <div class="card-grid cols-2" style="margin-top: 1.5rem; max-width: 900px;">
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div><h3>50% Lower Fees</h3><p>2.5% protocol fee vs Stripe's ~5%. More revenue for you.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+        <div><h3>Automated Revenue</h3><p>Relayer charges subscribers on schedule. Set and forget.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+        <div><h3>Own the Infra</h3><p>Self-hostable relayer. Your charging system, independent of any third party.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <div><h3>Webhooks</h3><p>Same pattern as Stripe. Get notified on charges, cancellations, failures.</p></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: The Solution — The Protocol -->
+  <div class="slide" style="justify-content:flex-start; padding-top:12vh;">
+    <div class="label">The Solution</div>
+    <div style="display:flex; align-items:center; gap:1.25rem;">
+      <div style="flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue-bright)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px; height:48px; filter:drop-shadow(0 0 12px rgba(59,130,246,0.35));"><circle cx="12" cy="5" r="2.5"/><circle cx="4.5" cy="19" r="2.5"/><circle cx="19.5" cy="19" r="2.5"/><line x1="12" y1="7.5" x2="4.5" y2="16.5"/><line x1="12" y1="7.5" x2="19.5" y2="16.5"/><line x1="7" y1="19" x2="17" y2="19"/></svg>
+      </div>
+      <h1 style="margin:0;">The Protocol</h1>
+    </div>
+    <div class="slide-body">
+    <p class="subtitle">On-chain rules, fully auditable, unstoppable.</p>
+    <div class="card-grid cols-2" style="margin-top: 1.5rem; max-width: 900px;">
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+        <div><h3>Your Keys, Your Funds</h3><p>Non-custodial. Funds stay in user wallets until charged by policy.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div><h3>On-Chain Rules</h3><p>Amount, interval, and cap enforced by smart contract. No middlemen.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div><h3>Fully Auditable</h3><p>Every charge, receipt, and report backed by Filecoin. Verifiable forever.</p></div>
+      </div>
+      <div class="card" style="display:flex; gap:1rem; align-items:start;">
+        <div class="fn-icon lg"><svg class="icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <div><h3>Unstoppable</h3><p>No deplatforming. No vendor lock-in. Permissionless infrastructure.</p></div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: Architecture -->
+  <div class="slide">
+
+    <div class="label">Architecture</div>
+    <h1>Multi-Chain In, Single-Chain Settlement</h1>
+    <div class="slide-body">
+    <div class="flow-row" style="justify-content: center;">
+      <div class="flow-box">
+        <div class="flow-logo"><img src="../frontend/public/logos/usdc.svg" alt="USDC"></div>
+        <div style="font-size:1.2rem; font-weight:700;">30+ Chains</div>
+        <div style="font-size:0.9rem; color:var(--text-dim); margin-top:0.25rem;">Any EVM source chain</div>
+      </div>
+      <div class="flow-arrow">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </div>
+      <div class="flow-box" style="border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.06);">
+        <div class="flow-logo"><img src="../frontend/public/logos/lifi.svg" alt="LI.FI" class="logo-dark"></div>
+        <div style="font-size:0.8rem; font-weight:600; color:var(--blue); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.25rem;">Powered by LiFi</div>
+        <div style="font-size:1.2rem; font-weight:700;">Cross-Chain Bridge</div>
+      </div>
+      <div class="flow-arrow">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </div>
+      <div class="flow-box accent">
+        <div class="flow-logo"><img src="../frontend/public/logos/flow.svg" alt="Flow"></div>
+        <div style="font-size:0.8rem; font-weight:600; color:var(--green); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.25rem;">Settlement Chain</div>
+        <div style="font-size:1.2rem; font-weight:700;">Flow EVM</div>
+        <div style="font-size:0.9rem; color:var(--text-dim); margin-top:0.25rem;">Sub-cent gas &middot; Reliable RPC</div>
+      </div>
+      <div class="flow-arrow">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </div>
+      <div class="flow-box">
+        <div class="flow-logo"><img src="../frontend/public/logos/usdc.svg" alt="USDC"></div>
+        <div style="font-size:1.2rem; font-weight:700;">Merchant Wallet</div>
+        <div style="font-size:0.9rem; color:var(--text-dim); margin-top:0.25rem;">USDC received directly</div>
+      </div>
+    </div>
+    <div style="margin-top:3rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:2rem;">
+      <div style="flex:1; min-width:250px;">
+        <div style="font-size:0.85rem; font-weight:600; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.35rem;">Why Flow EVM</div>
+        <ul class="bullets" style="margin-top:0;">
+          <li><strong>Sub-cent gas</strong> on mainnet</li>
+          <li><strong>EVM-equivalent</strong> - same Solidity, same tooling</li>
+          <li><strong>Reliable public RPC</strong></li>
+        </ul>
+      </div>
+      <div style="flex:1; min-width:250px; text-align:right;">
+        <div style="font-size:0.85rem; font-weight:600; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.35rem;">Deployed Contracts</div>
+        <ul class="bullets" style="margin-top:0; list-style:none;">
+          <li><strong>Flow EVM</strong> (747) - <span class="mono" style="font-size:0.95rem; color:var(--text-muted);">0x5EDAF...345</span></li>
+          <li><strong>Base</strong> (8453) - <span class="mono" style="font-size:0.95rem; color:var(--text-muted);">0x037A2...86a</span></li>
+          <li><strong>Base Sepolia</strong> (84532) - <span class="mono" style="font-size:0.95rem; color:var(--text-muted);">0x5EDAF...345</span></li>
+        </ul>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: Smart Contract -->
+  <div class="slide">
+
+    <div class="label">Smart Contract</div>
+    <h1>Policy-Based Payment Enforcement</h1>
+    <div class="slide-body">
+    <p class="subtitle" style="margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.5rem;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><span class="mono" style="font-size:0.85rem; color:var(--text-muted);">PolicyManager.sol</span></p>
+    <div class="card-grid cols-2" style="margin-top: 1rem;">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+          <div class="fn-icon">
+            <svg class="icon sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+          <h3 style="margin:0;" class="mono">createPolicy()</h3>
+        </div>
+        <p>Subscriber sets amount, interval, cap. <strong style="color:var(--green);">First charge executes immediately</strong>.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+          <div class="fn-icon">
+            <svg class="icon sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h3 style="margin:0;" class="mono">charge()</h3>
+        </div>
+        <p>Relayer calls when due. USDC split: <strong style="color:var(--green);">97.5% merchant</strong>, 2.5% protocol.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+          <div class="fn-icon">
+            <svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <h3 style="margin:0;" class="mono">revokePolicy()</h3>
+        </div>
+        <p>Instant cancellation. <strong style="color:var(--green);">Revoked on-chain</strong>, no merchant approval needed.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+          <div class="fn-icon">
+            <svg class="icon sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </div>
+          <h3 style="margin:0;" class="mono">cancelFailedPolicy()</h3>
+        </div>
+        <p>After <strong style="color:var(--red);">3 consecutive failures</strong>, anyone can terminate the policy.</p>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Filecoin / IPFS -->
+  <div class="slide">
+
+    <div class="label">Decentralised Audit Trail</div>
+    <h1>Filecoin as a Financial Integrity Layer</h1>
+    <div class="slide-body">
+    <p class="subtitle">Not file storage - <strong style="color:var(--text);">financial accountability</strong>.</p>
+    <div class="ipfs-layer" style="margin-top:0;">
+      <div class="layer">
+        <div class="flow-logo"><img src="../frontend/public/logos/storacha.svg" alt="Storacha" style="transform:translateX(-3px);"></div>
+        <div class="layer-num">
+          <svg class="icon sm" viewBox="0 0 24 24" style="color:var(--blue);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Subscription Terms
+        </div>
+        <h4>Plan Metadata on IPFS</h4>
+        <p>Terms snapshotted to IPFS via <strong style="color:var(--text);">Storacha</strong> at subscribe time. CID stored on-chain.</p>
+      </div>
+      <div class="layer">
+        <div class="flow-logo"><img src="logos/ipfs.svg" alt="IPFS"></div>
+        <div class="layer-num">
+          <svg class="icon sm" viewBox="0 0 24 24" style="color:var(--blue);"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          Charge Receipts
+        </div>
+        <h4>Permanent Charge Receipts</h4>
+        <p>Every charge generates a receipt on IPFS + Filecoin. Relayer disappears? Receipts don't.</p>
+      </div>
+      <div class="layer">
+        <div class="flow-logo"><img src="../frontend/public/logos/filecoin.svg" alt="Filecoin"></div>
+        <div class="layer-num">
+          <svg class="icon sm" viewBox="0 0 24 24" style="color:var(--blue);"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Merchant Reports
+        </div>
+        <h4>Merchant Reports on Filecoin</h4>
+        <p>Revenue, churn, subscribers - stored on IPFS + Filecoin via Storacha. Permanent, shareable, verifiable.</p>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: SDK & Developer Experience -->
+  <div class="slide">
+
+    <div class="label">Developer Experience</div>
+    <h1>SDK-First Integration</h1>
+    <div class="slide-body">
+    <div class="split wide-left">
+      <div>
+        <div style="display:inline-flex; align-items:center; gap:0.5rem; background:rgba(239,68,68,0.12); color:var(--red); font-size:0.85rem; font-weight:600; padding:0.3rem 0.85rem; border-radius:999px; letter-spacing:0.06em; margin-bottom:1rem;">
+          <svg class="icon sm" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          npm &nbsp; @autopayprotocol/sdk
+        </div>
+        <pre class="code-block"><span class="kw">import</span> { createCheckoutUrl, verifyWebhook } <span class="kw">from</span>
+  <span class="str">'@autopayprotocol/sdk'</span>;
+
+<span class="cm">// 1. Create Checkout</span>
+<span class="kw">const</span> url = <span class="fn">createCheckoutUrl</span>({
+  amount: <span class="str">'9.99'</span>,
+  interval: <span class="str">'30d'</span>,
+  recipient: <span class="str">'0xMerchant...'</span>
+});
+
+<span class="cm">// 2. Verify Payment Webhook</span>
+<span class="kw">const</span> event = <span class="fn">verifyWebhook</span>(req.body, signature);
+<span class="kw">if</span> (event.type <span class="op">===</span> <span class="str">'charge.succeeded'</span>) {
+  <span class="fn">grantAccess</span>(event.userId);
+}</pre>
+      </div>
+      <div>
+        <h2 style="font-size:1.3rem; margin-bottom:1.5rem;">Typed Webhook Events</h2>
+        <div class="event-row">
+          <span class="event-pill">charge.succeeded</span>
+          <span class="event-desc">Payment confirmed</span>
+        </div>
+        <div class="event-row">
+          <span class="event-pill">policy.revoked</span>
+          <span class="event-desc">User cancelled</span>
+        </div>
+        <div class="event-row">
+          <span class="event-pill">policy.cancelled_by_failure</span>
+          <span class="event-desc" style="white-space:nowrap;">Auto-cancelled after 3 failures</span>
+        </div>
+        <div class="event-row">
+          <span class="event-pill">charge.failed</span>
+          <span class="event-desc">Insufficient balance</span>
+        </div>
+        <div style="margin-top: 3rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem;">
+          <div style="display:flex; align-items:center; gap:0.85rem; margin-bottom:1.25rem;">
+            <div style="width:44px; height:44px; border-radius:9px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue-bright)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px; height:24px;"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            </div>
+            <div>
+              <div style="font-size:1.3rem; font-weight:700; color:var(--text);">The Relayer Engine</div>
+              <span class="badge blue" style="font-size:0.8rem; margin-top:0.25rem;">Self-Hostable</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:0.6rem;">
+            <div style="display:flex; align-items:center; gap:0.65rem;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px; flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:1.15rem; color:var(--text-dim);">Indexes on-chain events</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.65rem;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px; flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:1.15rem; color:var(--text-dim);">Executes <span class="mono" style="font-size:1rem;">charge()</span> when due</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.65rem;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px; flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:1.15rem; color:var(--text-dim);">Sends typed webhooks to merchants</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: Agent & MCP -->
+  <div class="slide">
+
+    <div class="label">Agentic Commerce</div>
+    <h1>AutoPay Agent Middleware &amp; MCP</h1>
+    <div class="slide-body">
+    <p class="subtitle" style="margin-bottom:1.5rem;">AI agents can manage subscriptions, verify receipts, and trigger payments.</p>
+    <div class="card-grid cols-2" style="gap:1rem; margin-top:0;">
+      <div class="card">
+        <div class="card-icon">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg>
+        </div>
+        <h3>Agent Middleware</h3>
+        <p>Create checkouts, check status, manage plans. No UI required.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+        </div>
+        <h3>MCP Server</h3>
+        <p>Any LLM can query policies, verify receipts, and trigger charges via MCP.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="7.5 4.21 12 6.81 16.5 4.21"/><polyline points="7.5 19.79 7.5 14.6 3 12"/><polyline points="21 12 16.5 14.6 16.5 19.79"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <h3>IPFS-Backed Verification</h3>
+        <p>Verify terms and receipts via IPFS CIDs. Zero trust in the relayer.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <h3>Composable Payments</h3>
+        <p>Gate content, automate treasury subs, manage DAO memberships.</p>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: What's Built -->
+  <div class="slide">
+
+    <div class="label">What's Built</div>
+    <h1>Production-Ready MVP</h1>
+    <div class="slide-body">
+    <div class="card-grid cols-2">
+      <div class="card" style="display:flex; justify-content:space-between; align-items:start;">
+        <div style="display:flex; gap:1rem; align-items:start;">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg></div>
+          <div><h3>Smart Contracts</h3><p>Create, charge, revoke - live on Flow EVM + Base.</p></div>
+        </div>
+        <span class="badge green">Deployed</span>
+      </div>
+      <div class="card" style="display:flex; justify-content:space-between; align-items:start;">
+        <div style="display:flex; gap:1rem; align-items:start;">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+          <div><h3>Frontend</h3><p>React + RainbowKit + LiFi bridge. Merchant &amp; subscriber dashboards.</p></div>
+        </div>
+        <span class="badge green">Live</span>
+      </div>
+      <div class="card" style="display:flex; justify-content:space-between; align-items:start;">
+        <div style="display:flex; gap:1rem; align-items:start;">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+          <div><h3>Relayer</h3><p>Indexer, executor, webhooks, PostgreSQL.</p></div>
+        </div>
+        <span class="badge green">Working</span>
+      </div>
+      <div class="card" style="display:flex; justify-content:space-between; align-items:start;">
+        <div style="display:flex; gap:1rem; align-items:start;">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+          <div><h3>Merchant & Agent SDKs</h3><p>Published on npm. Checkout, webhooks + MCP.</p></div>
+        </div>
+        <span class="badge blue">Published</span>
+      </div>
+      <div class="card" style="display:flex; justify-content:space-between; align-items:start;">
+        <div style="display:flex; gap:1rem; align-items:start;">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+          <div><h3>IPFS Metadata &amp; Receipts</h3><p>Storacha-backed. Immutable plan terms + charge receipts.</p></div>
+        </div>
+        <span class="badge blue">New</span>
+      </div>
+      <div class="card" style="display:flex; justify-content:space-between; align-items:start;">
+        <div style="display:flex; gap:1rem; align-items:start;">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 15h.01"/><path d="M16 15h.01"/></svg></div>
+          <div><h3>Agent &amp; MCP</h3><p>Middleware + MCP server for agentic commerce.</p></div>
+        </div>
+        <span class="badge blue">New</span>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 12: Tech Stack -->
+  <div class="slide">
+
+    <div class="label">Tech Stack</div>
+    <h1>Built With</h1>
+    <div class="slide-body">
+    <div class="card-grid cols-3" style="row-gap:2.5rem;">
+      <div class="card" style="padding-top:2.25rem;">
+        <div class="flow-logo"><img src="logos/solidity.svg" alt="Solidity"></div>
+        <h3>Smart Contracts</h3><ul class="pill-list"><li>Solidity 0.8.20+</li><li>Foundry</li><li>OpenZeppelin</li></ul></div>
+      <div class="card" style="padding-top:2.25rem;">
+        <div style="position:absolute; top:-24px; left:50%; transform:translateX(-50%); display:flex; gap:0.5rem;">
+          <div class="flow-logo" style="position:static; transform:none; width:40px; height:40px;"><img src="../frontend/public/logos/lifi.svg" alt="LiFi" class="logo-dark"></div>
+          <div class="flow-logo" style="position:static; transform:none; width:40px; height:40px; padding:7px;"><img src="../frontend/public/logos/rainbowkit.svg" alt="RainbowKit"></div>
+        </div>
+        <h3>Frontend</h3><ul class="pill-list"><li>React</li><li>Vite</li><li>Tailwind</li><li>RainbowKit</li><li>viem / wagmi</li><li>LiFi</li></ul></div>
+      <div class="card" style="padding-top:2.25rem;">
+        <div class="card-icon" style="position:absolute; top:-24px; left:50%; transform:translateX(-50%); width:48px; height:48px; border-radius:50%; background:var(--bg); border:1px solid var(--border); display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3>Relayer</h3><ul class="pill-list"><li>Node.js</li><li>TypeScript</li><li>PostgreSQL</li><li>Docker</li></ul></div>
+      <div class="card" style="padding-top:2.25rem;">
+        <div style="position:absolute; top:-24px; left:50%; transform:translateX(-50%); display:flex; gap:0.5rem;">
+          <div class="flow-logo" style="position:static; transform:none;"><img src="../frontend/public/logos/storacha.svg" alt="Storacha" style="transform:translateX(-3px);"></div>
+          <div class="flow-logo" style="position:static; transform:none;"><img src="logos/ipfs.svg" alt="IPFS"></div>
+          <div class="flow-logo" style="position:static; transform:none;"><img src="../frontend/public/logos/filecoin.svg" alt="Filecoin"></div>
+        </div>
+        <h3>Storage</h3><ul class="pill-list"><li>Storacha</li><li>IPFS</li><li>Filecoin</li><li>Supabase</li></ul></div>
+      <div class="card" style="padding-top:2.25rem;">
+        <div style="position:absolute; top:-24px; left:50%; transform:translateX(-50%); display:flex; gap:0.5rem;">
+          <div class="flow-logo" style="position:static; transform:none; width:40px; height:40px;"><img src="../frontend/public/logos/flow.svg" alt="Flow"></div>
+          <div class="flow-logo" style="position:static; transform:none; width:40px; height:40px; padding:7px; border-radius:8px;"><img src="../frontend/public/logos/base.svg" alt="Base"></div>
+          <div class="flow-logo" style="position:static; transform:none; width:40px; height:40px;"><img src="../frontend/public/logos/usdc.svg" alt="USDC"></div>
+        </div>
+        <h3>Settlement</h3><ul class="pill-list"><li>Flow EVM</li><li>Base</li><li>USDC</li></ul></div>
+      <div class="card" style="padding-top:2.25rem;">
+        <div class="card-icon" style="position:absolute; top:-24px; left:50%; transform:translateX(-50%); width:48px; height:48px; border-radius:50%; background:var(--bg); border:1px solid var(--border); display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <h3>Integrations</h3><ul class="pill-list"><li>MCP Server</li><li>Agent SDK</li><li>Webhooks</li><li>REST API</li></ul></div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 13: Why AutoPay Wins -->
+  <div class="slide wide" style="padding-left:3vw; padding-right:3vw;">
+
+    <div class="label">Competitive Advantage</div>
+    <h1>Why AutoPay Protocol Wins</h1>
+    <div class="slide-body">
+    <div style="display:grid; grid-template-columns:1fr 1.6fr; gap:2rem; align-items:stretch; max-width:1400px; width:100%;">
+      <!-- Left: hero stats -->
+      <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        <div style="flex:1; background:linear-gradient(135deg, rgba(59,130,246,0.08) 0%, var(--bg-card) 60%); border:1px solid var(--border-accent); border-radius:var(--radius-lg); padding:2.25rem 2rem; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+          <div style="font-size:0.8rem; font-weight:600; color:var(--blue); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:0.75rem;">Protocol Fee</div>
+          <div style="font-size:clamp(3rem,5vw,4.5rem); font-weight:800; letter-spacing:-0.03em; color:var(--blue-bright); line-height:1;">2.5%</div>
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.75rem;">
+            <span style="display:inline-flex; align-items:center; gap:0.25rem; background:rgba(34,197,94,0.1); color:var(--green); font-size:0.85rem; font-weight:600; padding:0.2rem 0.6rem; border-radius:999px;">&#8595; 50%</span>
+            <span class="dim" style="font-size:0.95rem;">vs Stripe (5%)</span>
+          </div>
+        </div>
+        <div style="flex:1; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2.25rem 2rem; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+          <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:0.75rem;">Custody Model</div>
+          <div style="font-size:clamp(1.6rem,2.5vw,2.2rem); font-weight:800; letter-spacing:-0.02em; color:var(--text);">Non-Custodial</div>
+          <p style="font-size:1.05rem; color:var(--text-dim); margin-top:0.5rem; line-height:1.5;">Your keys, your funds.<br>No platform risk.</p>
+        </div>
+      </div>
+      <!-- Right: comparison table -->
+      <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:0.5rem 0; display:flex; flex-direction:column; justify-content:center;">
+        <table class="compare-table" style="margin:0;">
+          <thead><tr><th>Feature</th><th class="brand">AutoPay</th><th>Others</th></tr></thead>
+          <tbody>
+            <tr><td>Recurring Logic</td><td class="brand"><span class="check">&#10003;</span> Policy-Based</td><td>Streaming / Manual</td></tr>
+            <tr><td>Multi-Chain</td><td class="brand"><span class="check">&#10003;</span> 30+ (LiFi)</td><td>Single Chain</td></tr>
+            <tr><td>Settlement</td><td class="brand"><span class="check">&#10003;</span> Flow EVM / Base</td><td>Fragmented</td></tr>
+            <tr><td>Spending Caps</td><td class="brand"><span class="check">&#10003;</span> On-Chain</td><td><span class="cross">&#10007;</span> None / Off-Chain</td></tr>
+            <tr><td>Audit Trail</td><td class="brand"><span class="check">&#10003;</span> Filecoin-backed</td><td><span class="cross">&#10007;</span> Trust the platform</td></tr>
+            <tr><td>Merchant Ownership</td><td class="brand"><span class="check">&#10003;</span> Self-hostable</td><td><span class="cross">&#10007;</span> Vendor lock-in</td></tr>
+            <tr><td>Agentic Commerce</td><td class="brand"><span class="check">&#10003;</span> MCP + Agent SDK</td><td><span class="cross">&#10007;</span> None</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 14: Close / CTA -->
+  <div class="slide centered wide">
+
+    <img src="../branding/Autopay-full.svg" alt="AutoPay Protocol" style="height:150px; filter:brightness(0) invert(1); opacity:0.97; margin-bottom:1.5rem;">
+    <div class="divider" style="margin: 1rem auto;"></div>
+    <p style="font-size: clamp(1rem, 1.5vw, 1.25rem); color: var(--blue-bright); font-weight: 500; margin-bottom: 0.25rem;">autopayprotocol.com</p>
+    <p class="subtitle" style="margin-bottom: 2.5rem; max-width: 500px;">
+      Interested in accepting recurring USDC?<br>Get in touch.
+    </p>
+<div class="link-row" style="justify-content:center; flex-wrap:nowrap;">
+      <div class="link-item">
+        <div class="link-icon">
+          <svg class="icon sm" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        </div>
+        autopayprotocol@proton.me
+      </div>
+      <div class="link-item">
+        <div class="link-icon">
+          <svg class="icon sm" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+        </div>
+        github.com/apeoverflow
+      </div>
+      <div class="link-item">
+        <div class="link-icon">
+          <svg class="icon sm" viewBox="0 0 24 24"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>
+        </div>
+        @autopayprotocol/sdk
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="progress" id="progress"></div>
+<div class="slide-counter" id="counter"></div>
+
+<script>
+  /* ── Pixel transition generator ── */
+  function seededRandom(seed) {
+    let s = seed;
+    return () => { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+  }
+
+  function genStrip(seed, pos) {
+    const rand = seededRandom(seed);
+    // top: dense at top, sparse at bottom. bottom: inverse.
+    const zones = pos === 'top' ? [
+      { yMin: 0, yMax: 25, count: 40, sMin: 3, sMax: 12 },
+      { yMin: 18, yMax: 55, count: 50, sMin: 5, sMax: 18 },
+      { yMin: 45, yMax: 80, count: 30, sMin: 8, sMax: 24 },
+      { yMin: 72, yMax: 100, count: 12, sMin: 3, sMax: 10 },
+    ] : [
+      { yMin: 0, yMax: 28, count: 12, sMin: 3, sMax: 10 },
+      { yMin: 20, yMax: 55, count: 30, sMin: 8, sMax: 24 },
+      { yMin: 45, yMax: 82, count: 50, sMin: 5, sMax: 18 },
+      { yMin: 75, yMax: 100, count: 40, sMin: 3, sMax: 12 },
+    ];
+    const el = document.createElement('div');
+    el.className = 'px-strip ' + pos;
+    el.setAttribute('aria-hidden', 'true');
+    for (const z of zones) {
+      for (let i = 0; i < z.count; i++) {
+        const x = rand() * 102 - 1;
+        const y = z.yMin + rand() * (z.yMax - z.yMin);
+        const s = z.sMin + rand() * (z.sMax - z.sMin);
+        const r = rand();
+        // mix of blue and white block types
+        const t = r < 0.12 ? 'bright' : r < 0.35 ? 'outline' : r < 0.55 ? 'fill' : r < 0.75 ? 'white' : 'wout';
+        const d = document.createElement('div');
+        d.className = 'px-blk px-blk-' + t;
+        d.style.cssText = `left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;width:${Math.round(s)}px;height:${Math.round(s)}px;`;
+        el.appendChild(d);
+      }
+    }
+    return el;
+  }
+
+  function genCorner(seed, pos) {
+    const rand = seededRandom(seed);
+    const el = document.createElement('div');
+    el.className = 'px-corner ' + pos;
+    el.setAttribute('aria-hidden', 'true');
+    const count = 12 + Math.floor(rand() * 8);
+    for (let i = 0; i < count; i++) {
+      const x = rand() * 100;
+      const y = rand() * 100;
+      const s = 3 + rand() * 12;
+      const r = rand();
+      const t = r < 0.15 ? 'bright' : r < 0.4 ? 'outline' : r < 0.6 ? 'fill' : r < 0.8 ? 'white' : 'wout';
+      const d = document.createElement('div');
+      d.className = 'px-blk px-blk-' + t;
+      d.style.cssText = `left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;width:${Math.round(s)}px;height:${Math.round(s)}px;`;
+      el.appendChild(d);
+    }
+    return el;
+  }
+
+  // Per-slide corner configs: which corners to add
+  // Corners go on the OPPOSITE end from the strip to avoid clutter
+  // e.g. top strip → bottom corners, bottom strip → top corners
+  const CORNER_MAP = {
+    0:  ['tl','tr'],         // title: strip bottom → corners top
+    1:  ['tr','br'],         // problem: strip bottom → corners right side
+    2:  ['tl'],              // commons: strip top → corner bottom-left... but top has label, so tl only
+    3:  ['br'],              // solution: strip bottom → corner br
+    4:  ['bl','br'],         // architecture: strip top → corners bottom
+    5:  ['tl','tr'],         // smart contract: strip bottom → corners top
+    6:  ['tr','br'],         // filecoin: strip top → corners right
+    7:  ['bl'],              // SDK: strip bottom → corner bl
+    8:  ['tl','br'],         // agent: strip top → diagonal corners
+    9:  ['tr'],              // what's built: strip bottom → corner tr
+    10: ['bl','br'],         // tech stack: strip top → corners bottom
+    11: ['tl'],              // why autopay: strip bottom → corner tl
+    12: ['tl','tr'],         // close: strip bottom → corners top
+  };
+
+  // Alternate: even slides get top strip, odd slides get bottom strip
+  // First and last slides both get bottom (content is centered)
+  const STRIP_OFFSETS = { 9: '-160px' }; // push SDK slide strip further down
+  document.querySelectorAll('.slide').forEach((s, i) => {
+    const total = document.querySelectorAll('.slide').length;
+    const pos = (i === 0 || i === total - 1) ? 'bottom' : (i % 2 === 0 ? 'top' : 'bottom');
+    const strip = genStrip(42 + i * 13, pos);
+    if (STRIP_OFFSETS[i]) strip.style[pos] = STRIP_OFFSETS[i];
+    s.appendChild(strip);
+
+    // Add corners
+    const corners = CORNER_MAP[i] || [];
+    corners.forEach((c, ci) => {
+      s.appendChild(genCorner(300 + i * 17 + ci * 7, c));
+    });
+  });
+
+  const slides = document.querySelectorAll('.slide');
+  let current = 0;
+
+  function show(n) {
+    n = Math.max(0, Math.min(n, slides.length - 1));
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    document.getElementById('progress').style.width =
+      ((current / (slides.length - 1)) * 100) + '%';
+    document.getElementById('counter').textContent =
+      (current + 1) + ' / ' + slides.length;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault(); show(current + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault(); show(current - 1);
+    } else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(slides.length - 1); }
+  });
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', (e) => {
+    const diff = e.changedTouches[0].screenX - touchStartX;
+    if (Math.abs(diff) > 50) show(current + (diff < 0 ? 1 : -1));
+  });
+
+  document.addEventListener('click', (e) => {
+    const x = e.clientX / window.innerWidth;
+    if (x > 0.75) show(current + 1);
+    else if (x < 0.25) show(current - 1);
+  });
+
+  show(0);
+</script>
+</body>
+</html>
