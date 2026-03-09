@@ -9,13 +9,11 @@ import { getConnectorClient } from 'wagmi/actions'
 import { createWalletClient, custom } from 'viem'
 import { Globe, CircleDollarSign, Zap, Shield, ExternalLink } from 'lucide-react'
 
-const FLOW_USDC = '0xF1815bd50389c46847f0Bda824eC8da914045D14'
-const FLOW_CHAIN_ID = 747
 
 const STEPS = [
   { icon: Globe, title: 'Pick source', iconColor: 'text-blue-600' },
   { icon: CircleDollarSign, title: 'Swap to USDC', iconColor: 'text-emerald-600' },
-  { icon: Zap, title: 'Bridge to Flow', iconColor: 'text-amber-600' },
+  { icon: Zap, title: (chain: string) => `Bridge to ${chain}`, iconColor: 'text-amber-600' },
   { icon: Shield, title: 'Subscribe', iconColor: 'text-violet-600' },
 ]
 
@@ -112,7 +110,7 @@ function useWidgetScale(wrapRef: React.RefObject<HTMLDivElement | null>) {
 export function BridgePage() {
   const { address } = useWallet()
   const { openConnectModal } = useConnectModal()
-  const { setSuppressAutoSwitch } = useChain()
+  const { setSuppressAutoSwitch, chainConfig } = useChain()
   const wagmiConfig = useConfig()
   const { chainId, connector } = useAccount()
   const widgetRef = useRef<HTMLDivElement>(null)
@@ -129,8 +127,8 @@ export function BridgePage() {
   const widgetConfig: WidgetConfig = useMemo(
     () => ({
       integrator: 'AutoPay',
-      toChain: FLOW_CHAIN_ID,
-      toToken: FLOW_USDC,
+      toChain: chainConfig.chain.id,
+      toToken: chainConfig.usdc,
       toAddress: address
         ? { address, chainType: ChainType.EVM, name: 'Connected Wallet' }
         : undefined,
@@ -205,7 +203,7 @@ export function BridgePage() {
         },
       },
     }),
-    [address, openConnectModal, wagmiConfig, connector],
+    [address, openConnectModal, wagmiConfig, connector, chainConfig],
   )
 
   return (
@@ -215,7 +213,7 @@ export function BridgePage() {
         {STEPS.map((step, i) => (
           <div key={i} className="bridge-step">
             <step.icon className={`h-3.5 w-3.5 ${step.iconColor}`} />
-            <span>{step.title}</span>
+            <span>{typeof step.title === 'function' ? step.title(chainConfig.shortName) : step.title}</span>
             {i < STEPS.length - 1 && <div className="bridge-step-connector" />}
           </div>
         ))}

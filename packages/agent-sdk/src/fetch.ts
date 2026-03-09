@@ -42,6 +42,8 @@ export interface WrapFetchOptions {
   selectPlan?: (plans: AutoPayDiscovery['plans']) => number
   /** Spending cap strategy. Default: amount * 30 */
   spendingCap?: (amount: number) => number
+  /** Called when a 402 response is received with an AutoPay discovery body */
+  onDiscovery?: (url: string, discovery: AutoPayDiscovery) => void
   /** Called after a new subscription is created */
   onSubscribe?: (merchant: `0x${string}`, subscription: Subscription) => void
   /** Called when a cached subscription is reused */
@@ -112,6 +114,9 @@ export function wrapFetchWithSubscription(
     if (!discovery) {
       return cloned
     }
+
+    const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    options.onDiscovery?.(requestUrl, discovery)
 
     const merchantKey = discovery.merchant.toLowerCase()
 

@@ -10,6 +10,16 @@ import {
   type ChainKey,
 } from '@autopayprotocol/agent-sdk'
 
+// ── Helpers ──────────────────────────────────────────────────────
+
+function formatInterval(interval: number | string): string {
+  if (typeof interval === 'string') return interval
+  if (interval <= 60) return `${interval}s`
+  if (interval <= 3600) return `${Math.round(interval / 60)}min`
+  if (interval <= 86400) return `${Math.round(interval / 3600)}hr`
+  return `${Math.round(interval / 86400)}day`
+}
+
 // ── Config from env ─────────────────────────────────────────────
 
 const PRIVATE_KEY = process.env.AUTOPAY_PRIVATE_KEY || process.env.AGENT_PRIVATE_KEY
@@ -31,8 +41,33 @@ const agent = new AutoPayAgent({
   rpcUrl: RPC_URL,
 })
 
-// Wrapped fetch for the autopay_fetch tool — caches subscriptions across calls
-const fetchWithPay = wrapFetchWithSubscription(fetch, agent)
+// Wrapped fetch — logs 402 discovery, subscription, and reuse events to stderr
+// (visible in Claude Code's Ctrl+O log view)
+const fetchWithPay = wrapFetchWithSubscription(fetch, agent, {
+  onDiscovery: (url, discovery) => {
+    console.error(`\n  ⚡ HTTP 402 Payment Required — ${url}`)
+    console.error(`  ┌─────────────────────────────────────`)
+    console.error(`  │ Merchant:  ${discovery.merchant}`)
+    for (const plan of discovery.plans) {
+      console.error(`  │ Plan:      ${plan.name} — ${plan.amount} ${plan.currency}/${formatInterval(plan.interval)}`)
+      if (plan.description) console.error(`  │            ${plan.description}`)
+    }
+    for (const net of discovery.networks) {
+      console.error(`  │ Network:   ${net.name} (${net.chainId})`)
+    }
+    console.error(`  └─────────────────────────────────────`)
+  },
+  onSubscribe: (merchant, sub) => {
+    console.error(`\n  ✓ Subscribed on-chain`)
+    console.error(`    Policy:   ${sub.policyId}`)
+    console.error(`    Tx:       ${agent.chain.explorer}/tx/${sub.txHash}`)
+    console.error(`    Merchant: ${merchant}`)
+  },
+  onReuse: (merchant, policyId) => {
+    console.error(`\n  ↻ Reusing cached subscription for ${merchant}`)
+    console.error(`    Policy:   ${policyId}`)
+  },
+})
 
 // ── MCP Server ──────────────────────────────────────────────────
 
