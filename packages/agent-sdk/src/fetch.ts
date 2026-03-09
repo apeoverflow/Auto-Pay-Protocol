@@ -118,7 +118,7 @@ export function wrapFetchWithSubscription(
     const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
     options.onDiscovery?.(requestUrl, discovery)
 
-    const merchantKey = discovery.merchant.toLowerCase()
+    const merchantKey = `${agent.chain.chainId}:${discovery.merchant.toLowerCase()}`
 
     // 1. Check local store first (trusted, fast)
     const cached = await store.get(merchantKey)

@@ -87,7 +87,11 @@ export class AutoPayAgent {
 
     const transport = http(this.chain.rpcUrl)
 
-    this.publicClient = createPublicClient({ chain: viemChain, transport })
+    this.publicClient = createPublicClient({
+      chain: viemChain,
+      transport,
+      pollingInterval: 2_000, // 2s polling for tx receipts
+    })
     this.walletClient = createWalletClient({ account, chain: viemChain, transport })
   }
 
@@ -157,7 +161,7 @@ export class AutoPayAgent {
       args: [this.chain.policyManager, approvalAmount],
     })
 
-    await this.publicClient.waitForTransactionReceipt({ hash })
+    await this.publicClient.waitForTransactionReceipt({ hash, timeout: 300_000 })
     return hash
   }
 
@@ -214,7 +218,7 @@ export class AutoPayAgent {
       ],
     })
 
-    const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 300_000 })
 
     // Parse PolicyCreated event to get policyId
     for (const log of receipt.logs) {
@@ -247,7 +251,7 @@ export class AutoPayAgent {
       args: [policyId],
     })
 
-    await this.publicClient.waitForTransactionReceipt({ hash })
+    await this.publicClient.waitForTransactionReceipt({ hash, timeout: 300_000 })
     return hash
   }
 

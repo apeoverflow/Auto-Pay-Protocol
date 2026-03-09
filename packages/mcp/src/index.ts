@@ -2,9 +2,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { formatUnits, parseUnits } from 'viem'
+import { resolve } from 'node:path'
+import { homedir } from 'node:os'
 import {
   AutoPayAgent,
   wrapFetchWithSubscription,
+  FileStore,
   SOURCE_USDC,
   USDC_DECIMALS,
   type ChainKey,
@@ -41,31 +44,59 @@ const agent = new AutoPayAgent({
   rpcUrl: RPC_URL,
 })
 
-// Wrapped fetch — logs 402 discovery, subscription, and reuse events to stderr
-// (visible in Claude Code's Ctrl+O log view)
+// Persist subscriptions to disk so they survive MCP server restarts
+const storePath = resolve(
+  process.env.AUTOPAY_STORE_PATH || resolve(homedir(), '.autopay', 'subscriptions.json'),
+)
+const store = new FileStore(storePath)
+
+// Track what happens during each fetch for inclusion in tool response
+interface FetchEvent {
+  type: 'discovery' | 'subscribe' | 'reuse'
+  discovery?: { merchant: string; plans: Array<{ name: string; amount: string; currency: string; interval: number | string; description?: string }>; networks: Array<{ chainId: number; name: string }> }
+  policyId?: string
+  txHash?: string
+  merchant?: string
+}
+
+let pendingFetchEvents: FetchEvent[] = []
+
 const fetchWithPay = wrapFetchWithSubscription(fetch, agent, {
-  onDiscovery: (url, discovery) => {
-    console.error(`\n  ⚡ HTTP 402 Payment Required — ${url}`)
-    console.error(`  ┌─────────────────────────────────────`)
-    console.error(`  │ Merchant:  ${discovery.merchant}`)
+  store,
+  onDiscovery: (_url, discovery) => {
+    pendingFetchEvents.push({
+      type: 'discovery',
+      discovery: {
+        merchant: discovery.merchant,
+        plans: discovery.plans.map(p => ({
+          name: p.name,
+          amount: p.amount,
+          currency: p.currency,
+          interval: p.interval,
+          description: p.description,
+        })),
+        networks: discovery.networks.map(n => ({ chainId: n.chainId, name: n.name })),
+      },
+    })
+    // Also log to stderr for Ctrl+O view
+    console.error(`\n  ⚡ HTTP 402 Payment Required`)
+    console.error(`    Merchant: ${discovery.merchant}`)
     for (const plan of discovery.plans) {
-      console.error(`  │ Plan:      ${plan.name} — ${plan.amount} ${plan.currency}/${formatInterval(plan.interval)}`)
-      if (plan.description) console.error(`  │            ${plan.description}`)
+      console.error(`    Plan: ${plan.name} — ${plan.amount} ${plan.currency}/${formatInterval(plan.interval)}`)
     }
-    for (const net of discovery.networks) {
-      console.error(`  │ Network:   ${net.name} (${net.chainId})`)
-    }
-    console.error(`  └─────────────────────────────────────`)
   },
   onSubscribe: (merchant, sub) => {
-    console.error(`\n  ✓ Subscribed on-chain`)
-    console.error(`    Policy:   ${sub.policyId}`)
-    console.error(`    Tx:       ${agent.chain.explorer}/tx/${sub.txHash}`)
-    console.error(`    Merchant: ${merchant}`)
+    pendingFetchEvents.push({
+      type: 'subscribe',
+      merchant,
+      policyId: sub.policyId,
+      txHash: sub.txHash,
+    })
+    console.error(`  ✓ Subscribed: ${sub.policyId}`)
   },
   onReuse: (merchant, policyId) => {
-    console.error(`\n  ↻ Reusing cached subscription for ${merchant}`)
-    console.error(`    Policy:   ${policyId}`)
+    pendingFetchEvents.push({ type: 'reuse', merchant, policyId })
+    console.error(`  ↻ Reused: ${policyId}`)
   },
 })
 
@@ -187,6 +218,15 @@ server.registerTool(
     try {
       const txHash = await agent.unsubscribe(policyId as `0x${string}`)
 
+      // Clear cached subscription so autopay_fetch doesn't reuse it
+      const allEntries = await store.all()
+      for (const [merchant, entry] of allEntries) {
+        if (entry.policyId === policyId) {
+          await store.delete(merchant)
+          console.error(`  ✗ Cleared cached subscription for merchant ${merchant}`)
+        }
+      }
+
       return {
         content: [{
           type: 'text',
@@ -256,6 +296,56 @@ server.registerTool(
   },
 )
 
+// ── Tool: autopay_list_subscriptions ──────────────────────────────
+
+server.registerTool(
+  'autopay_list_subscriptions',
+  {
+    description: 'List all active subscriptions this agent has. Shows cached subscriptions with their merchant addresses and policy IDs. Use autopay_get_policy for full on-chain details of a specific policy.',
+  },
+  async () => {
+    try {
+      const entries = await store.all()
+
+      if (entries.size === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: 'No active subscriptions found.',
+          }],
+        }
+      }
+
+      const subscriptions: Array<{ merchant: string; chainId?: number; policyId: string }> = []
+      for (const [key, entry] of entries) {
+        // Key format is "chainId:merchant" or legacy "merchant"
+        const colonIdx = key.indexOf(':')
+        const merchant = colonIdx >= 0 ? key.slice(colonIdx + 1) : key
+        const chainId = colonIdx >= 0 ? Number(key.slice(0, colonIdx)) : undefined
+        subscriptions.push({ merchant, chainId, policyId: entry.policyId })
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            count: subscriptions.length,
+            subscriptions,
+          }, null, 2),
+        }],
+      }
+    } catch (err) {
+      return {
+        isError: true,
+        content: [{
+          type: 'text',
+          text: `List subscriptions failed: ${err instanceof Error ? err.message : String(err)}`,
+        }],
+      }
+    }
+  },
+)
+
 // ── Tool: autopay_fetch ─────────────────────────────────────────
 
 server.registerTool(
@@ -271,6 +361,9 @@ server.registerTool(
   },
   async ({ url, method, headers, body }) => {
     try {
+      // Clear events from any previous call
+      pendingFetchEvents = []
+
       const init: RequestInit = {}
       if (method) init.method = method
       if (headers) init.headers = headers
@@ -292,10 +385,44 @@ server.registerTool(
         responseBody = responseBody.slice(0, 50_000) + '\n\n... (truncated, response was ' + responseBody.length + ' chars)'
       }
 
+      // Build context prefix from events that occurred during the fetch
+      const events = pendingFetchEvents
+      pendingFetchEvents = []
+      let prefix = ''
+
+      for (const evt of events) {
+        if (evt.type === 'discovery' && evt.discovery) {
+          prefix += `── Payment Required (HTTP 402) ──\n`
+          prefix += `Server requires a paid subscription.\n`
+          prefix += `Merchant: ${evt.discovery.merchant}\n`
+          for (const plan of evt.discovery.plans) {
+            prefix += `Plan: ${plan.name} — ${plan.amount} ${plan.currency}/${formatInterval(plan.interval)}`
+            if (plan.description) prefix += ` (${plan.description})`
+            prefix += `\n`
+          }
+          for (const net of evt.discovery.networks) {
+            prefix += `Network: ${net.name} (chain ${net.chainId})\n`
+          }
+          prefix += `\n`
+        }
+        if (evt.type === 'subscribe') {
+          prefix += `── Auto-Subscribed ──\n`
+          prefix += `Created on-chain subscription to pay for access.\n`
+          prefix += `Policy: ${evt.policyId}\n`
+          prefix += `Tx: ${agent.chain.explorer}/tx/${evt.txHash}\n`
+          prefix += `\n`
+        }
+        if (evt.type === 'reuse') {
+          prefix += `── Reused Cached Subscription ──\n`
+          prefix += `Policy: ${evt.policyId}\n`
+          prefix += `\n`
+        }
+      }
+
       return {
         content: [{
           type: 'text',
-          text: `HTTP ${res.status} ${res.statusText}\n\n${responseBody}`,
+          text: `${prefix}HTTP ${res.status} ${res.statusText}\n\n${responseBody}`,
         }],
       }
     } catch (err) {
