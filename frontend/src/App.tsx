@@ -213,7 +213,9 @@ function App() {
   }
 
   // Auth screen (not connected) — fullscreen routes handle their own auth
-  if (activeRoute === '/app' || (!isLoggedIn && getRouteLayout(activeRoute) !== 'fullscreen')) {
+  // When user just disconnected, wasLoggedIn is still true for this render —
+  // skip the auth screen so we don't flash it before navigating to landing
+  if (activeRoute === '/app' || (!isLoggedIn && !wasLoggedIn.current && getRouteLayout(activeRoute) !== 'fullscreen')) {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div

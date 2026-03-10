@@ -605,7 +605,6 @@ const ROWS = [
   { label: 'Fee', us: '2.5% flat', them: '2.9% + 30c' },
   { label: 'Deplatforming', us: 'Impossible', them: 'One policy change away' },
   { label: 'Settlement', us: 'Instant, on-chain', them: '2–7 business days' },
-  { label: 'Geography', us: 'Any wallet, any country', them: 'Bank account required' },
   { label: 'Custody', us: 'Subscriber\'s wallet', them: 'Their servers' },
   { label: 'Terms', us: 'Smart contract enforced', them: 'Can change anytime' },
   { label: 'Chargebacks', us: 'None', them: 'Up to 120 days' },
@@ -1065,7 +1064,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               </div>
               <div className="lp-diff-footer">
                 <motion.div variants={revealVariants} className="lp-diff-result">
-                  <span className="lp-diff-caret">{'>'}</span> autopay wins on <span className="lp-diff-count">8/8</span> criteria
+                  <span className="lp-diff-caret">{'>'}</span> autopay wins on <span className="lp-diff-count">7/7</span> criteria
                   <span className="lp-diff-cursor" />
                 </motion.div>
               </div>
