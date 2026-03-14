@@ -33,8 +33,9 @@ import { DEFAULT_CHAIN } from '../config/chains'
 
 /** Brand color per chain — RGB triplet for use in rgba() */
 const CHAIN_BRAND: Record<string, { rgb: string; hex: string; hexHover: string; accentRgb: string; icon: string; name: string }> = {
-  flowEvm: { rgb: '0,180,108', hex: '#00B46C', hexHover: '#009D5E', accentRgb: '0,210,130', icon: '/flow-icon.svg', name: 'Flow' },
-  base:    { rgb: '0,82,255',  hex: '#0052FF', hexHover: '#0047E0', accentRgb: '0,212,255', icon: '/base-icon.svg', name: 'Base' },
+  flowEvm:     { rgb: '0,180,108',   hex: '#00B46C', hexHover: '#009D5E', accentRgb: '0,210,130',   icon: '/flow-icon.svg',     name: 'Flow' },
+  base:        { rgb: '0,0,255',     hex: '#0000FF', hexHover: '#0000DD', accentRgb: '0,100,255',   icon: '/base-square.svg',   name: 'Base' },
+  polkadotHub: { rgb: '60,60,75',     hex: '#3C3C4B', hexHover: '#2E2E3B', accentRgb: '90,90,110',   icon: '/polkadot-icon.svg', name: 'Polkadot' },
 }
 const brand = CHAIN_BRAND[DEFAULT_CHAIN] ?? CHAIN_BRAND.base
 
@@ -821,7 +822,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             <motion.p variants={heroTextVariants} className="lp-eyebrow">SUBSCRIPTION RAILS YOU OWN</motion.p>
             <motion.h1 variants={heroTextVariants} className="lp-hero-h1">
               Recurring payments{' '}
-              <em>no one can shut off</em>
+              <em>no one can shut down</em>
             </motion.h1>
             <motion.p variants={heroTextVariants} className="lp-hero-sub">
               Non-custodial USDC subscriptions across 30+ chains. Built for humans and AI agents alike.
@@ -1823,7 +1824,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
         .lp-hc-progress-fill {
           height: 100%; border-radius: 3px;
-          background: linear-gradient(90deg, var(--blue), #3b7cff);
+          background: linear-gradient(90deg, var(--blue), var(--blue-hover));
           position: relative;
         }
         .lp-hc-progress-fill::after {

@@ -33,7 +33,7 @@ interface FundWalletCardProps {
 const CHAIN_COLORS: Record<number, { gradient: string }> = {
   11155111: { gradient: 'from-[#627EEA] to-[#8B9FEF]' }, // Ethereum Sepolia
   43113: { gradient: 'from-[#E84142] to-[#FF6B6B]' },    // Avalanche Fuji
-  84532: { gradient: 'from-[#0052FF] to-[#3377FF]' },    // Base Sepolia
+  84532: { gradient: 'from-[#0000FF] to-[#3333FF]' },    // Base Sepolia
   64165: { gradient: 'from-[#19FB9B] to-[#8B5CF6]' },    // Sonic Testnet
   4801: { gradient: 'from-[#000000] to-[#333333]' },     // World Chain Sepolia
   1328: { gradient: 'from-[#9B1C1C] to-[#DC2626]' },     // Sei Atlantic

@@ -21,6 +21,17 @@ export async function estimateGas(
   let maxPriorityFeePerGas = feeHistory.maxPriorityFeePerGas ?? 1_000_000_000n
   let maxFeePerGas = feeHistory.maxFeePerGas ?? 50_000_000_000n
 
+  // Apply chain-specific gas estimation correction (e.g. Polkadot Hub overestimates ~3x)
+  // Must be applied before minGasFees floor so the floor remains authoritative
+  if (chainConfig.gasEstimationDivisor && chainConfig.gasEstimationDivisor > 1) {
+    const divisor = BigInt(chainConfig.gasEstimationDivisor)
+    maxFeePerGas = maxFeePerGas / divisor
+    maxPriorityFeePerGas = maxPriorityFeePerGas / divisor
+    // Ensure division doesn't produce zero (minimum 1 wei)
+    if (maxFeePerGas === 0n) maxFeePerGas = 1n
+    if (maxPriorityFeePerGas === 0n) maxPriorityFeePerGas = 1n
+  }
+
   // Apply chain-specific minimum fees (Arc requires 1 gwei min priority)
   if (chainConfig.minGasFees) {
     if (maxPriorityFeePerGas < chainConfig.minGasFees.maxPriorityFeePerGas) {

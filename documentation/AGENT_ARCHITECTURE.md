@@ -36,7 +36,7 @@ graph LR
 
     style A fill:#1a1a2e,color:#fff
     style U fill:#2775CA,color:#fff
-    style P fill:#0052FF,color:#fff
+    style P fill:#0000FF,color:#fff
     style M fill:#86868B,color:#fff
 ```
 
@@ -51,7 +51,7 @@ graph LR
 
     style A fill:#1a1a2e,color:#fff
     style S fill:#86868B,color:#fff
-    style P fill:#0052FF,color:#fff
+    style P fill:#0000FF,color:#fff
 ```
 
 #### Phase 3: Auto-Renewal (agent does nothing)
@@ -63,7 +63,7 @@ graph LR
     U -->|"Recurring payment"| M[Merchant]
 
     style R fill:#16A34A,color:#fff
-    style P fill:#0052FF,color:#fff
+    style P fill:#0000FF,color:#fff
     style U fill:#2775CA,color:#fff
     style M fill:#86868B,color:#fff
 ```
@@ -257,7 +257,7 @@ flowchart LR
     I --> D
 
     style D fill:#16A34A,color:#fff
-    style I fill:#0052FF,color:#fff
+    style I fill:#0000FF,color:#fff
 ```
 
 | Step | Source | Trust | Cost |

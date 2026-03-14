@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { Wallet, Copy, Check, ExternalLink, RefreshCw, ArrowRight, Send, Droplets, ArrowUpRight, Settings } from 'lucide-react'
+import { Wallet, Copy, Check, ExternalLink, RefreshCw, ArrowRight, Send, Droplets, ArrowUpRight, Settings, CircleDollarSign } from 'lucide-react'
 import { useWallet } from '../../hooks'
+import { useChain } from '../../contexts/ChainContext'
 import { formatUSDCString, shortenAddress } from '../../lib/utils'
 
 interface FundWalletStepProps {
@@ -12,6 +13,7 @@ interface FundWalletStepProps {
 
 export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunded }: FundWalletStepProps) {
   const { address, balance, fetchBalance } = useWallet()
+  const { chainConfig } = useChain()
   const [copied, setCopied] = React.useState(false)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
 
@@ -127,21 +129,39 @@ export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunde
         How to fund
       </p>
       <div className="grid grid-cols-3 gap-2 mb-4">
-        <a
-          href="/bridge"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors group text-center"
-        >
-          <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
-            <ArrowUpRight className="w-4.5 h-4.5 text-indigo-500" />
-          </div>
-          <div>
-            <p className="text-xs font-medium leading-tight">Bridge to Arc</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">From another chain</p>
-          </div>
-          <ExternalLink className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
-        </a>
+        {chainConfig.supportsLifi ? (
+          <a
+            href="/bridge"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors group text-center"
+          >
+            <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <ArrowUpRight className="w-4.5 h-4.5 text-indigo-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium leading-tight">Bridge</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">From another chain</p>
+            </div>
+            <ExternalLink className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+          </a>
+        ) : (
+          <a
+            href="/bridge"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors group text-center"
+          >
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <CircleDollarSign className="w-4.5 h-4.5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium leading-tight">Get USDC</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Funding options</p>
+            </div>
+            <ExternalLink className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+          </a>
+        )}
 
         <a
           href="https://faucet.circle.com/"

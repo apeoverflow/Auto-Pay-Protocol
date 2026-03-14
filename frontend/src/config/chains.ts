@@ -20,6 +20,14 @@ export const baseMainnet = defineChain({
   blockExplorers: { default: { name: 'BaseScan', url: 'https://basescan.org' } },
 })
 
+export const polkadotHubMainnet = defineChain({
+  id: 420420419,
+  name: 'Polkadot Hub',
+  nativeCurrency: { decimals: 18, name: 'DOT', symbol: 'DOT' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_POLKADOT_HUB_RPC || 'https://eth-rpc.polkadot.io/'] } },
+  blockExplorers: { default: { name: 'Blockscout', url: 'https://blockscout.polkadot.io' } },
+})
+
 export const baseSepoliaMainnet = defineChain({
   id: 84532,
   name: 'Base Sepolia',
@@ -64,6 +72,18 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[8453]?.deployBlock,
     explorer: 'https://basescan.org',
     supportsLifi: true,
+    enabled: true,
+  },
+  polkadotHub: {
+    key: 'polkadotHub',
+    chain: polkadotHubMainnet,
+    name: 'Polkadot Hub',
+    shortName: 'Polkadot',
+    usdc: '0x0000053900000000000000000000000001200000',
+    policyManager: DEPLOYMENTS[420420419]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[420420419]?.deployBlock,
+    explorer: 'https://blockscout.polkadot.io',
+    supportsLifi: false,
     enabled: true,
   },
   baseSepolia: {

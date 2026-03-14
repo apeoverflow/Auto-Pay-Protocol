@@ -15,13 +15,26 @@ import App from './App'
 
 const initialChain = CHAIN_CONFIGS[DEFAULT_CHAIN].chain
 
+// Per-chain primary color (HSL values for --primary CSS variable)
+const CHAIN_PRIMARY: Record<string, string> = {
+  flowEvm: '155 100% 35%',      // #00B46C green
+  base: '221.2 83.2% 53.3%',    // #3B82F6 blue (default)
+  polkadotHub: '256 30% 28%',   // dark purple/slate
+}
+const chainPrimary = CHAIN_PRIMARY[DEFAULT_CHAIN]
+if (chainPrimary) {
+  const s = document.createElement('style')
+  s.textContent = `:root { --primary: ${chainPrimary} !important; }`
+  document.head.appendChild(s)
+}
+
 const queryClient = new QueryClient()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider initialChain={initialChain} theme={darkTheme({ accentColor: '#0052FF', borderRadius: 'large' })}>
+        <RainbowKitProvider initialChain={initialChain} theme={darkTheme({ accentColor: '#0000FF', borderRadius: 'large' })}>
           <ChainProvider>
             <AuthProvider>
               <WalletProvider>

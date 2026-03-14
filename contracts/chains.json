@@ -36,6 +36,25 @@
     "checkoutBaseUrl": "https://autopayprotocol.com",
     "enabled": true
   },
+  "polkadotHub": {
+    "chainId": 420420419,
+    "name": "Polkadot Hub",
+    "shortName": "Polkadot",
+    "nativeCurrency": { "name": "DOT", "symbol": "DOT", "decimals": 18 },
+    "rpcUrl": "https://eth-rpc.polkadot.io/",
+    "usdc": "0x0000053900000000000000000000000001200000",
+    "blockExplorer": "https://blockscout.polkadot.io",
+    "blockExplorerName": "Blockscout",
+    "verifierType": "blockscout",
+    "verifierUrl": "https://blockscout.polkadot.io/api/",
+    "pollIntervalMs": 6000,
+    "batchSize": 1000,
+    "confirmations": 2,
+    "supportsLifi": false,
+    "checkoutBaseUrl": "https://polkadot.autopayprotocol.com",
+    "gasEstimationDivisor": 3,
+    "enabled": true
+  },
   "baseSepolia": {
     "chainId": 84532,
     "name": "Base Sepolia",

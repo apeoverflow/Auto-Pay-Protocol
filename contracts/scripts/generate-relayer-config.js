@@ -52,6 +52,7 @@ function generate() {
       policyManagerAddress: deployment?.contracts?.policyManager || null,
       startBlock: deployment?.deployBlock || 0,
       enabled: chain.enabled && !!deployment?.contracts?.policyManager,
+      gasEstimationDivisor: chain.gasEstimationDivisor || undefined,
     };
   }
 
@@ -71,7 +72,8 @@ ${Object.entries(chainConfigs).map(([key, config]) => `  ${key}: {
     pollIntervalMs: ${config.pollIntervalMs},
     batchSize: ${config.batchSize},
     confirmations: ${config.confirmations},
-    enabled: ${config.enabled},
+    enabled: ${config.enabled},${config.gasEstimationDivisor ? `
+    gasEstimationDivisor: ${config.gasEstimationDivisor},` : ''}
   }`).join(',\n')}
 } as const
 

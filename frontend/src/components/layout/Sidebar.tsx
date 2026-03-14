@@ -19,6 +19,7 @@ import {
 import { Button } from '../ui/button'
 import { useAuth } from '../../hooks'
 import { useMerchantMode } from '../../hooks/useMerchantMode'
+import { useChain } from '../../contexts/ChainContext'
 import type { AppMode } from '../../contexts/MerchantModeContext'
 
 export type NavItem =
@@ -60,8 +61,11 @@ const betaNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
 export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }: SidebarProps) {
   const { logout } = useAuth()
   const { mode, setMode, isMerchant } = useMerchantMode()
+  const { chainConfig } = useChain()
 
-  const navItems = isMerchant ? merchantNavItems : subscriberNavItems
+  const navItems = isMerchant
+    ? merchantNavItems
+    : subscriberNavItems.filter(item => item.id !== 'bridge' || chainConfig.supportsLifi)
 
   const handleModeSwitch = (newMode: AppMode) => {
     if (newMode === mode) return

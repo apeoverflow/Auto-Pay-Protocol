@@ -27,6 +27,18 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     confirmations: 5,
     enabled: true,
   },
+  polkadotHub: {
+    chainId: 420420419,
+    name: 'Polkadot Hub',
+    rpcUrl: process.env.POLKADOT_HUB_RPC || 'https://eth-rpc.polkadot.io/',
+    policyManagerAddress: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+    startBlock: 0,
+    pollIntervalMs: 6000,
+    batchSize: 1000,
+    confirmations: 2,
+    enabled: false,
+    gasEstimationDivisor: 3,
+  },
   baseSepolia: {
     chainId: 84532,
     name: 'Base Sepolia',

@@ -69,7 +69,7 @@ export interface ChainConfig {
   checkoutBaseUrl: string
 }
 
-export type ChainKey = 'flowEvm' | 'base' | 'baseSepolia'
+export type ChainKey = 'flowEvm' | 'base' | 'polkadotHub' | 'baseSepolia'
 
 export const chains: Record<ChainKey, ChainConfig> = {
   flowEvm: {
@@ -85,6 +85,13 @@ export const chains: Record<ChainKey, ChainConfig> = {
     usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     explorer: 'https://basescan.org',
     checkoutBaseUrl: 'https://autopayprotocol.com',
+  },
+  polkadotHub: {
+    name: 'Polkadot Hub',
+    chainId: 420420419,
+    usdc: '0x0000053900000000000000000000000001200000',
+    explorer: 'https://blockscout.polkadot.io',
+    checkoutBaseUrl: 'https://polkadot.autopayprotocol.com',
   },
   baseSepolia: {
     name: 'Base Sepolia',

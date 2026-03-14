@@ -8,6 +8,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { ArrowRight, CreditCard, Activity, ChevronRight, Clock, Send, Loader2, ArrowDownUp } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { useWallet, usePolicies, useMetadataBatch } from '../hooks'
+import { useChain } from '../contexts/ChainContext'
 import { formatUSDC } from '../types/subscriptions'
 
 interface DashboardPageProps {
@@ -176,6 +177,7 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
 
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { address } = useWallet()
+  const { chainConfig } = useChain()
   const [copied, setCopied] = React.useState(false)
   const [sendOpen, setSendOpen] = React.useState(false)
 
@@ -222,20 +224,22 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         {/* Subscription chips — horizontal scroll */}
         <MobileSubscriptionScroll onNavigate={() => onNavigate('subscriptions')} />
 
-        {/* Bridge Funds Quick Action */}
-        <button
-          onClick={() => onNavigate('bridge')}
-          className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl border border-blue-500/20 active:scale-[0.98] transition-all"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
-            <ArrowDownUp className="h-5 w-5" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-[13px] font-semibold">Bridge Funds</p>
-            <p className="text-[11px] text-muted-foreground">Transfer USDC from other chains</p>
-          </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </button>
+        {/* Bridge Funds Quick Action — only for chains with LiFi support */}
+        {chainConfig.supportsLifi && (
+          <button
+            onClick={() => onNavigate('bridge')}
+            className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl border border-blue-500/20 active:scale-[0.98] transition-all"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
+              <ArrowDownUp className="h-5 w-5" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-[13px] font-semibold">Bridge Funds</p>
+              <p className="text-[11px] text-muted-foreground">Transfer USDC from other chains</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
 
         {/* Recent Activity */}
         <div>
@@ -296,20 +300,22 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         <div className="flex flex-col gap-6 min-h-0 overflow-hidden">
           <SendUSDC compact />
 
-          {/* Bridge Funds Quick Action */}
-          <button
-            onClick={() => onNavigate('bridge')}
-            className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all group"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
-              <ArrowDownUp className="h-5 w-5" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-semibold">Bridge Funds</p>
-              <p className="text-xs text-muted-foreground">Transfer USDC from other chains</p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-          </button>
+          {/* Bridge Funds Quick Action — only for chains with LiFi support */}
+          {chainConfig.supportsLifi && (
+            <button
+              onClick={() => onNavigate('bridge')}
+              className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all group"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/20">
+                <ArrowDownUp className="h-5 w-5" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold">Bridge Funds</p>
+                <p className="text-xs text-muted-foreground">Transfer USDC from other chains</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
 
           <Card className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between py-3.5 px-5 flex-shrink-0 border-b border-border/50">

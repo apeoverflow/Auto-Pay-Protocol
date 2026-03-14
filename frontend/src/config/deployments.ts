@@ -21,6 +21,13 @@ export const CHAINS = {
     "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "blockExplorer": "https://basescan.org"
   },
+  "polkadotHub": {
+    "id": 420420419,
+    "name": "Polkadot Hub",
+    "rpcUrl": "https://eth-rpc.polkadot.io/",
+    "usdc": "0x0000053900000000000000000000000001200000",
+    "blockExplorer": "https://blockscout.polkadot.io"
+  },
   "baseSepolia": {
     "id": 84532,
     "name": "Base Sepolia",

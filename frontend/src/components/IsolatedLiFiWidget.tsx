@@ -72,7 +72,7 @@ function buildConfig(toAddress?: string): WidgetConfig {
         background: 'transparent',
       },
       palette: {
-        primary: { main: '#0052FF' },
+        primary: { main: '#0000FF' },
         secondary: { main: '#f5f5f7' },
         background: { default: '#ffffff', paper: '#f5f5f7' },
         text: { primary: '#1D1D1F', secondary: '#86868B' },
@@ -170,7 +170,7 @@ const barStyles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 600,
     color: '#fff',
-    background: '#0052FF',
+    background: '#0000FF',
     border: 'none',
     borderRadius: 8,
     padding: '7px 14px',

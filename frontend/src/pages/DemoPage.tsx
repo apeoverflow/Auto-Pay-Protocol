@@ -30,6 +30,7 @@ import { DEFAULT_CHAIN, type ChainKey } from '../config/chains'
 const CHECKOUT_BASE_URLS: Record<ChainKey, string> = {
   base: 'https://autopayprotocol.com',
   flowEvm: 'https://flow.autopayprotocol.com',
+  polkadotHub: 'https://polkadot.autopayprotocol.com',
   baseSepolia: 'https://staging.autopayprotocol.com',
 }
 import { parseContractError } from '../types/policy'
@@ -359,9 +360,9 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
                       <ArrowDownUp className="h-4 w-4 text-primary" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-medium">Need USDC on Flow?</p>
+                      <p className="text-sm font-medium">Need USDC on {chainConfig.shortName}?</p>
                       <p className="text-xs text-muted-foreground">
-                        Bridge from any chain via LiFi
+                        {chainConfig.supportsLifi ? 'Bridge from any chain via LiFi' : 'Funding options'}
                       </p>
                     </div>
                   </div>

@@ -2552,24 +2552,24 @@
 }
 
 .bridge-widget-wrap .MuiDrawer-root .MuiButton-contained {
-  background-color: #0052FF !important;
+  background-color: #0000FF !important;
   border-radius: 12px !important;
   text-transform: none !important;
   font-weight: 600 !important;
   font-size: 0.9375rem !important;
   padding: 10px 24px !important;
-  box-shadow: 0 2px 12px rgba(0, 82, 255, 0.2) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 255, 0.2) !important;
 }
 
 .bridge-widget-wrap .MuiDrawer-root .MuiButton-contained:hover {
-  background-color: #0047e0 !important;
-  box-shadow: 0 4px 16px rgba(0, 82, 255, 0.3) !important;
+  background-color: #0000DD !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 255, 0.3) !important;
 }
 
 .bridge-widget-wrap .MuiDrawer-root .MuiButton-text {
   text-transform: none !important;
   font-weight: 600 !important;
-  color: #0052FF !important;
+  color: #0000FF !important;
   border-radius: 12px !important;
   font-size: 0.9375rem !important;
 }
@@ -3136,7 +3136,7 @@
 
 .fund-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, hsl(var(--primary)), hsl(221 83% 63%));
+  background: hsl(var(--primary));
   border-radius: 3px;
   transition: width 0.5s ease-out;
 }
@@ -3146,7 +3146,7 @@
   background: linear-gradient(
     90deg,
     hsl(var(--primary)) 0%,
-    hsl(221 83% 70%) 50%,
+    hsl(var(--primary) / 0.6) 50%,
     hsl(var(--primary)) 100%
   );
   background-size: 200% 100%;

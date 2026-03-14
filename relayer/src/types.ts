@@ -14,6 +14,8 @@ export interface ChainConfig {
     maxPriorityFeePerGas: bigint
     maxFeePerGas: bigint
   }
+  /** Divide gas estimates by this factor to correct for chain overestimation (e.g. Polkadot Hub ~3x) */
+  gasEstimationDivisor?: number
 }
 
 export type RetryPreset = 'aggressive' | 'standard' | 'conservative' | 'custom'

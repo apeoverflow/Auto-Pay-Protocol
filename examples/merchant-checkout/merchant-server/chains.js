@@ -12,6 +12,11 @@ export const CHAIN_PRESETS = {
     policyManager: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a',
     checkoutUrl: 'https://autopayprotocol.com/checkout',
   },
+  polkadotHub: {
+    rpcUrl: 'https://eth-rpc.polkadot.io/',
+    policyManager: '0x0000000000000000000000000000000000000000',
+    checkoutUrl: 'https://polkadot.autopayprotocol.com/checkout',
+  },
   baseSepolia: {
     rpcUrl: 'https://sepolia.base.org',
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',

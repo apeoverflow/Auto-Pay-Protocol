@@ -1154,7 +1154,7 @@ export function MerchantSettingsPage() {
   "timestamp": "2026-02-25T12:00:00.000Z",
   "data": {
     "policyId": "0xabc123...",
-    "chainId": 747,
+    "chainId": ${chainConfig.chain.id},
     "payer": "0x1234...abcd",
     "merchant": "0x5678...ef01",
     "amount": "15.00",

@@ -16,7 +16,8 @@ import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
 
 const CHAIN_ICONS: Record<string, string> = {
   flowEvm: '/flow-icon.svg',
-  base: '/base-icon.svg',
+  base: '/base-square.svg',
+  polkadotHub: '/polkadot-icon.svg',
 }
 
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {

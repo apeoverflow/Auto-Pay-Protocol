@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { useChain } from '../contexts/ChainContext'
 import { useWallet } from '../hooks'
@@ -7,7 +8,7 @@ import { EVM } from '@lifi/sdk'
 import { useAccount, useConfig } from 'wagmi'
 import { getConnectorClient } from 'wagmi/actions'
 import { createWalletClient, custom } from 'viem'
-import { Globe, CircleDollarSign, Zap, Shield, ExternalLink } from 'lucide-react'
+import { Globe, CircleDollarSign, Zap, Shield, ExternalLink, Wallet, ArrowUpRight, Copy, Check } from 'lucide-react'
 
 
 const STEPS = [
@@ -107,6 +108,116 @@ function useWidgetScale(wrapRef: React.RefObject<HTMLDivElement | null>) {
   }, [wrapRef])
 }
 
+function FundingGuidePage() {
+  const { address } = useWallet()
+  const { chainConfig } = useChain()
+  const [copied, setCopied] = React.useState(false)
+
+  const handleCopy = async () => {
+    if (!address) return
+    await navigator.clipboard.writeText(address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const isPolkadot = chainConfig.chain.id === 420420419
+
+  const fundingOptions = [
+    {
+      title: 'Exchange withdrawal',
+      description: `Withdraw USDC to ${chainConfig.name} from Coinbase, Crypto.com, or other exchanges`,
+      icon: <Wallet className="h-5 w-5 text-emerald-600" />,
+      bgColor: 'bg-emerald-50',
+    },
+    ...(isPolkadot ? [
+      {
+        title: 'Chainflip',
+        description: `Swap from any chain (ETH, USDC, BTC) to ${chainConfig.name}`,
+        icon: <ArrowUpRight className="h-5 w-5 text-blue-600" />,
+        bgColor: 'bg-blue-50',
+        href: 'https://swap.chainflip.io/',
+      },
+      {
+        title: 'Snowbridge',
+        description: `Trustless bridge from Ethereum to ${chainConfig.name}`,
+        icon: <Globe className="h-5 w-5 text-violet-600" />,
+        bgColor: 'bg-violet-50',
+        href: 'https://app.snowbridge.network/',
+      },
+    ] : []),
+  ]
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <CircleDollarSign className="w-6 h-6 text-primary" />
+          </div>
+          <h2 className="text-lg font-semibold">Get USDC on {chainConfig.name}</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Fund your wallet to start subscribing
+          </p>
+        </div>
+
+        {/* Wallet address */}
+        {address && (
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground mb-2">Send USDC to your wallet</p>
+            <button
+              onClick={handleCopy}
+              className="w-full flex items-center gap-2 group"
+            >
+              <code className="text-xs font-mono bg-muted/50 border border-border rounded-lg px-3 py-2 flex-1 truncate text-left">
+                {address}
+              </code>
+              <div className="flex-shrink-0 w-8 h-8 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 flex items-center justify-center transition-colors">
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
+                )}
+              </div>
+            </button>
+            {copied && (
+              <p className="text-[10px] text-green-500 mt-1.5">Copied to clipboard</p>
+            )}
+          </div>
+        )}
+
+        {/* Funding options */}
+        <div className="space-y-2">
+          {fundingOptions.map((option) => {
+            const content = (
+              <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors">
+                <div className={`w-10 h-10 rounded-lg ${option.bgColor} flex items-center justify-center flex-shrink-0`}>
+                  {option.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    {option.title}
+                    {option.href && <ExternalLink className="w-3 h-3 text-muted-foreground" />}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{option.description}</p>
+                </div>
+              </div>
+            )
+
+            if (option.href) {
+              return (
+                <a key={option.title} href={option.href} target="_blank" rel="noopener noreferrer">
+                  {content}
+                </a>
+              )
+            }
+            return <div key={option.title}>{content}</div>
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function BridgePage() {
   const { address } = useWallet()
   const { openConnectModal } = useConnectModal()
@@ -116,11 +227,12 @@ export function BridgePage() {
   const widgetRef = useRef<HTMLDivElement>(null)
   useWidgetScale(widgetRef)
 
-  // Disable ChainContext's auto-switch on the bridge page
+  // Disable ChainContext's auto-switch on the bridge page (only when LiFi is active)
   useEffect(() => {
+    if (!chainConfig.supportsLifi) return
     setSuppressAutoSwitch(true)
     return () => setSuppressAutoSwitch(false)
-  }, [setSuppressAutoSwitch])
+  }, [setSuppressAutoSwitch, chainConfig.supportsLifi])
 
   const currentNetwork = SWITCH_NETWORKS.find(n => n.id === chainId)
 
@@ -173,7 +285,7 @@ export function BridgePage() {
           background: 'transparent',
         },
         palette: {
-          primary: { main: '#0052FF' },
+          primary: { main: '#0000FF' },
           secondary: { main: '#f5f5f7' },
           background: {
             default: '#ffffff',
@@ -205,6 +317,11 @@ export function BridgePage() {
     }),
     [address, openConnectModal, wagmiConfig, connector, chainConfig],
   )
+
+  // If the chain doesn't support LiFi, show the funding guidance page instead
+  if (!chainConfig.supportsLifi) {
+    return <FundingGuidePage />
+  }
 
   return (
     <div className="bridge-page">
