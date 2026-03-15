@@ -2,17 +2,14 @@ import { useAuth, useWallet } from '../../hooks'
 import { Button } from '../ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
-import { Copy, RefreshCw, LogOut, Wallet } from 'lucide-react'
+import { RefreshCw, LogOut, Wallet } from 'lucide-react'
+import { DualAddress } from '../shared/DualAddress'
 
 export function AccountInfo() {
   const { username, logout } = useAuth()
   const { address, balance, fetchBalance } = useWallet()
 
   if (!address) return null
-
-  const copyAddress = () => {
-    navigator.clipboard.writeText(address)
-  }
 
   return (
     <Card>
@@ -29,14 +26,7 @@ export function AccountInfo() {
         {/* Address */}
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Wallet Address</label>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 bg-muted px-3 py-2 rounded-md text-sm font-mono truncate">
-              {address}
-            </code>
-            <Button variant="ghost" size="icon" onClick={copyAddress}>
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
+          <DualAddress address={address} full copyable />
         </div>
 
         {/* Username */}

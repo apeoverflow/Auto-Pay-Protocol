@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { formatUnits, maxUint256 } from 'viem'
+import { formatUnits, maxUint128, maxUint256 } from 'viem'
 import { useAccount, useSwitchChain } from 'wagmi'
 import { USDC_DECIMALS } from '../config'
 import { erc20Abi } from '../config/contracts'
@@ -86,11 +86,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         address: chainConfig.usdc,
         abi: erc20Abi,
         functionName: 'approve',
-        args: [chainConfig.policyManager, maxUint256],
+        args: [chainConfig.policyManager, chainConfig.chain.id === 420420419 ? maxUint128 : maxUint256],
       })
 
       setSetupStatus('Confirming...')
-      await publicClient.waitForTransactionReceipt({ hash })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Approval transaction reverted on-chain')
+      }
 
       setSetupStatus('Wallet ready!')
       setIsWalletSetup(true)

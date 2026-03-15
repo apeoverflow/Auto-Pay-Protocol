@@ -80,6 +80,20 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
       "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
+  },
+  "420420419": {
+    "chainId": 420420419,
+    "chainName": "polkadotHub",
+    "deployedAt": "2026-03-15T00:58:57Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 13412400,
+    "contracts": {
+      "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+    },
+    "addresses": {
+      "usdc": "0x0000053900000000000000000000000001200000",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
   }
 };
 

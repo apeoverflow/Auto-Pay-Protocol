@@ -13,6 +13,7 @@ import {
   Settings,
   ExternalLink,
 } from 'lucide-react'
+import { DualAddress } from '../components/shared/DualAddress'
 
 function truncateAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
@@ -93,14 +94,7 @@ export function SettingsPage() {
               <CardContent className="p-5 space-y-4">
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Wallet Address</label>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-muted/50 border border-border/50 px-3 py-2.5 rounded-lg text-xs font-mono truncate">
-                      {address}
-                    </code>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0 rounded-lg hover:bg-muted" onClick={copyAddress}>
-                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </Button>
-                  </div>
+                  {address && <DualAddress address={address} full copyable />}
                 </div>
 
                 {username && (

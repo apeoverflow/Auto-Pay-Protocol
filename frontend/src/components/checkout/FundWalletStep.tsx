@@ -3,6 +3,10 @@ import { Wallet, Copy, Check, ExternalLink, RefreshCw, ArrowRight, Send, Droplet
 import { useWallet } from '../../hooks'
 import { useChain } from '../../contexts/ChainContext'
 import { formatUSDCString, shortenAddress } from '../../lib/utils'
+import { DualAddress } from '../shared/DualAddress'
+import { evmToSS58, shortenSS58 } from '../../lib/ss58'
+
+const POLKADOT_HUB_CHAIN_ID = 420420419
 
 interface FundWalletStepProps {
   requiredAmount: string // e.g. "9.99"
@@ -39,9 +43,12 @@ export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunde
     }
   }, [isFunded, onFunded])
 
+  const isPolkadot = chainConfig.chain.id === POLKADOT_HUB_CHAIN_ID
+  const sendAddress = isPolkadot && walletAddress.length >= 42 ? evmToSS58(walletAddress) : walletAddress
+
   const handleCopy = async () => {
-    if (!walletAddress) return
-    await navigator.clipboard.writeText(walletAddress)
+    if (!sendAddress) return
+    await navigator.clipboard.writeText(sendAddress)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -103,24 +110,7 @@ export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunde
         {/* Wallet address */}
         <div className="rounded-xl border border-border bg-card p-3.5">
           <p className="text-xs text-muted-foreground mb-2">Your address</p>
-          <button
-            onClick={handleCopy}
-            className="w-full flex items-center gap-2 group"
-          >
-            <code className="text-[11px] font-mono bg-muted/50 border border-border rounded-lg px-2.5 py-1.5 flex-1 truncate text-left">
-              {walletAddress}
-            </code>
-            <div className="flex-shrink-0 w-8 h-8 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 flex items-center justify-center transition-colors">
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-green-500" />
-              ) : (
-                <Copy className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
-              )}
-            </div>
-          </button>
-          {copied && (
-            <p className="text-[10px] text-green-500 mt-1.5">Copied to clipboard</p>
-          )}
+          <DualAddress address={walletAddress} full copyable />
         </div>
       </div>
 
@@ -128,7 +118,7 @@ export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunde
       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-0.5 mb-2">
         How to fund
       </p>
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className={`grid ${chainConfig.chain.id === 84532 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mb-4`}>
         {chainConfig.supportsLifi ? (
           <a
             href="/bridge"
@@ -163,21 +153,23 @@ export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunde
           </a>
         )}
 
-        <a
-          href="https://faucet.circle.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors group text-center"
-        >
-          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-            <Droplets className="w-4.5 h-4.5 text-blue-500" />
-          </div>
-          <div>
-            <p className="text-xs font-medium leading-tight">Testnet USDC</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Circle faucet</p>
-          </div>
-          <ExternalLink className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
-        </a>
+        {chainConfig.chain.id === 84532 && (
+          <a
+            href="https://faucet.circle.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors group text-center"
+          >
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+              <Droplets className="w-4.5 h-4.5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium leading-tight">Testnet USDC</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Circle faucet</p>
+            </div>
+            <ExternalLink className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+          </a>
+        )}
 
         <button
           onClick={handleCopy}
@@ -188,7 +180,9 @@ export function FundWalletStep({ requiredAmount, gasEstimate, cancelUrl, onFunde
           </div>
           <div>
             <p className="text-xs font-medium leading-tight">Send direct</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{shortenAddress(walletAddress)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {isPolkadot ? shortenSS58(sendAddress) : shortenAddress(walletAddress)}
+            </p>
           </div>
           <Copy className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
         </button>

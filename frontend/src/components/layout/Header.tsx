@@ -1,9 +1,12 @@
 import { useWallet, useChain } from '../../hooks'
 import { Button } from '../ui/button'
 import { ChainSelector } from '../chain/ChainSelector'
-import { Copy, Check, RefreshCw, Menu } from 'lucide-react'
+import { Copy, Check, RefreshCw, Menu, HelpCircle } from 'lucide-react'
 import * as React from 'react'
 import type { NavItem } from './Sidebar'
+import { evmToSS58, shortenSS58 } from '../../lib/ss58'
+
+const POLKADOT_HUB_CHAIN_ID = 420420419
 
 interface HeaderProps {
   currentPage?: NavItem
@@ -33,9 +36,13 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
   const [copiedUsdc, setCopiedUsdc] = React.useState(false)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
 
+  const isPolkadot = chainConfig.chain.id === POLKADOT_HUB_CHAIN_ID
+  const ss58Address = isPolkadot && address ? evmToSS58(address) : null
+  const [showTooltip, setShowTooltip] = React.useState(false)
+
   const handleCopy = () => {
     if (address) {
-      navigator.clipboard.writeText(address)
+      navigator.clipboard.writeText(ss58Address || address)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -111,19 +118,41 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
         <div className="hidden sm:block h-6 w-px bg-border/50" />
 
         {/* Wallet address — desktop only */}
-        <button
-          onClick={handleCopy}
-          className="hidden sm:flex items-center gap-1.5 rounded-full bg-muted/30 border border-border/50 px-3 py-1.5 transition-colors hover:bg-muted/50 active:bg-muted/60"
-        >
-          <span className="font-mono text-xs text-muted-foreground">
-            {address && formatAddress(address)}
-          </span>
-          {copied ? (
-            <Check className="h-3 w-3 text-success flex-shrink-0" />
-          ) : (
-            <Copy className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+        <div className="hidden sm:flex items-center gap-1 relative">
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 rounded-full bg-muted/30 border border-border/50 px-3 py-1.5 transition-colors hover:bg-muted/50 active:bg-muted/60"
+          >
+            <span className="font-mono text-xs text-muted-foreground">
+              {ss58Address ? shortenSS58(ss58Address) : address && formatAddress(address)}
+            </span>
+            {copied ? (
+              <Check className="h-3 w-3 text-success flex-shrink-0" />
+            ) : (
+              <Copy className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            )}
+          </button>
+          {isPolkadot && (
+            <button
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+              className="flex-shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              {showTooltip && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-64 p-2.5 rounded-lg bg-foreground text-background text-[11px] leading-relaxed shadow-lg">
+                  <p className="font-medium mb-1">Polkadot Hub uses two address formats</p>
+                  <p className="opacity-80">
+                    <span className="font-mono">SS58</span> — for receiving DOT/USDC from exchanges and Substrate wallets.
+                  </p>
+                  <p className="opacity-80 mt-1">
+                    <span className="font-mono">EVM</span> ({address && formatAddress(address)}) — same account, used by your wallet internally.
+                  </p>
+                </div>
+              )}
+            </button>
           )}
-        </button>
+        </div>
       </div>
     </header>
   )
