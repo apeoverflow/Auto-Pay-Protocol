@@ -20,7 +20,7 @@ export const CHAINS = {
     chainId: 420420419,
     rpcUrl: 'https://eth-rpc.polkadot.io/',
     usdc: '0x0000053900000000000000000000000001200000',
-    policyManager: '0x0000000000000000000000000000000000000000',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
     explorer: 'https://blockscout.polkadot.io',
   },
   baseSepolia: {
