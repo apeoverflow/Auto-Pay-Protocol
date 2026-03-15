@@ -42,7 +42,7 @@ export const chains: Record<ChainKey, AgentChainConfig> = {
     name: 'Polkadot Hub',
     chainId: 420420419,
     rpcUrl: 'https://eth-rpc.polkadot.io/',
-    policyManager: '0x0000000000000000000000000000000000000000',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
     usdc: '0x0000053900000000000000000000000001200000',
     explorer: 'https://blockscout.polkadot.io',
     nativeCurrency: { name: 'DOT', symbol: 'DOT', decimals: 18 },
