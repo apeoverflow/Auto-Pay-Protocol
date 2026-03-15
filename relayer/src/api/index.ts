@@ -1673,6 +1673,18 @@ async function handleCreatePlan(
     metadata.version = '1.0'
   }
 
+  // Enforce max 2 non-archived plans per merchant
+  const MAX_PLANS_PER_MERCHANT = 2
+  const existingPlans = await getPlanMetadataByMerchant(config.databaseUrl, merchantAddress)
+  const activePlanCount = existingPlans.filter(p => p.status !== 'archived').length
+  if (activePlanCount >= MAX_PLANS_PER_MERCHANT) {
+    res.writeHead(403, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({
+      error: `Plan limit reached. Each merchant account is limited to ${MAX_PLANS_PER_MERCHANT} active plans. Archive an existing plan to create a new one.`,
+    }))
+    return
+  }
+
   const id = customId ?? randomUUID()
 
   // If requesting active and Storacha is configured, insert as draft first,
@@ -1945,6 +1957,20 @@ async function handlePatchPlan(
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: `Cannot transition from "${existing.status}" to "${newStatus}"` }))
       return
+    }
+
+    // Enforce plan limit when re-activating an archived plan
+    if (existing.status === 'archived' && (newStatus === 'active' || newStatus === 'draft')) {
+      const MAX_PLANS_PER_MERCHANT = 2
+      const allPlans = await getPlanMetadataByMerchant(config.databaseUrl, merchantAddress)
+      const activePlanCount = allPlans.filter(p => p.status !== 'archived' && p.id !== planId).length
+      if (activePlanCount >= MAX_PLANS_PER_MERCHANT) {
+        res.writeHead(403, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          error: `Plan limit reached. Each merchant account is limited to ${MAX_PLANS_PER_MERCHANT} active plans. Archive an existing plan first.`,
+        }))
+        return
+      }
     }
   }
 
