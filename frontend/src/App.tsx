@@ -1,6 +1,7 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useAuth, useWallet, useRoute } from './hooks'
+import { useTerms } from './contexts/TermsContext'
 import type { Route } from './hooks/useRoute'
 import { getRouteLayout, navItemToRoute, routeToNavItem } from './hooks/useRoute'
 import type { NavItem } from './components/layout/Sidebar'
@@ -16,7 +17,10 @@ import {
   DocsPage,
   CheckoutPage,
   LandingPage,
+  TermsPage,
+  PrivacyPage,
 } from './pages'
+import { TermsAcceptanceModal } from './components/shared/TermsAcceptanceModal'
 import {
   MerchantOverviewPage,
   MerchantPlansPage,
@@ -67,6 +71,7 @@ function App() {
   const { address, isLoading } = useWallet()
   const { route, navigate } = useRoute()
   const { openConnectModal } = useConnectModal()
+  const { hasAcceptedTerms } = useTerms()
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [displayedRoute, setDisplayedRoute] = useState<Route>(route)
@@ -162,6 +167,28 @@ function App() {
 
   const activeRoute = phase === 'idle' ? (effectiveRoute as Route) : displayedRoute
 
+  // Fullscreen: Terms of Service
+  if (activeRoute === '/terms') {
+    return (
+      <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        <div className="route-layer">
+          <TermsPage onBack={() => navigate(isLoggedIn ? '/dashboard' : '/')} />
+        </div>
+      </div>
+    )
+  }
+
+  // Fullscreen: Privacy Policy
+  if (activeRoute === '/privacy') {
+    return (
+      <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        <div className="route-layer">
+          <PrivacyPage onBack={() => navigate(isLoggedIn ? '/dashboard' : '/')} />
+        </div>
+      </div>
+    )
+  }
+
   // Fullscreen: Docs
   if (activeRoute === '/docs') {
     return (
@@ -237,6 +264,11 @@ function App() {
         </div>
       </div>
     )
+  }
+
+  // ToS acceptance gate — must sign before using dashboard
+  if (!hasAcceptedTerms) {
+    return <TermsAcceptanceModal />
   }
 
   const currentNavItem = routeToNavItem(activeRoute)

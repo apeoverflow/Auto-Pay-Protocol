@@ -8,6 +8,7 @@ import './index.css'
 import { ChainProvider } from './contexts/ChainContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { WalletProvider } from './contexts/WalletContext'
+import { TermsProvider } from './contexts/TermsContext'
 import { MerchantModeProvider } from './contexts/MerchantModeContext'
 import { wagmiConfig } from './config/wagmi'
 import { CHAIN_CONFIGS, DEFAULT_CHAIN } from './config/chains'
@@ -38,9 +39,11 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <ChainProvider>
             <AuthProvider>
               <WalletProvider>
-                <MerchantModeProvider>
-                  <App />
-                </MerchantModeProvider>
+                <TermsProvider>
+                  <MerchantModeProvider>
+                    <App />
+                  </MerchantModeProvider>
+                </TermsProvider>
               </WalletProvider>
             </AuthProvider>
           </ChainProvider>

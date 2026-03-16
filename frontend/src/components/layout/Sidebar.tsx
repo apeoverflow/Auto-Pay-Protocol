@@ -15,6 +15,7 @@ import {
   Receipt,
   BarChart3,
   Users,
+  Calendar,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { useAuth } from '../../hooks'
@@ -198,6 +199,17 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
                 <ExternalLink className="h-4 w-4" />
               </span>
               Live Demo
+            </a>
+            <a
+              href="https://calendly.com/kieranmarcus/30min"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200 text-white/40 hover:bg-white/[0.04] hover:text-white/60"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-md text-current">
+                <Calendar className="h-4 w-4" />
+              </span>
+              Schedule a Demo
             </a>
           </div>
         </div>

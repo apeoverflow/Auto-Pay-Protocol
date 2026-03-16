@@ -32,6 +32,12 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
   const [sharePlanId, setSharePlanId] = React.useState<string | null>(null)
   const sharePlan = sharePlanId ? plans.find((p) => p.id === sharePlanId) : null
 
+  // Fetch all plans (unfiltered) to calculate active plan count for limit check
+  const { plans: allPlans } = useMerchantPlans()
+  const MAX_PLANS = 2
+  const activePlanCount = allPlans.filter(p => p.status !== 'archived').length
+  const atPlanLimit = activePlanCount >= MAX_PLANS
+
   const handleNavigateNew = () => {
     window.history.pushState(null, '', '/merchant/plans/new')
     window.dispatchEvent(new PopStateEvent('popstate'))
@@ -115,9 +121,9 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
           ))}
         </div>
 
-        <Button size="sm" className="gap-1.5" onClick={handleNavigateNew}>
+        <Button size="sm" className="gap-1.5" onClick={handleNavigateNew} disabled={atPlanLimit} title={atPlanLimit ? `Limit of ${MAX_PLANS} plans reached. Archive a plan to create a new one.` : undefined}>
           <Plus className="h-3.5 w-3.5" />
-          Create Plan
+          {atPlanLimit ? `Limit Reached (${MAX_PLANS})` : 'Create Plan'}
         </Button>
       </div>
 
@@ -154,7 +160,7 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
             <p className="text-sm text-muted-foreground">
               {statusFilter === 'all' ? 'No plans yet. Create your first plan to get started.' : `No ${statusFilter} plans.`}
             </p>
-            {statusFilter === 'all' && (
+            {statusFilter === 'all' && !atPlanLimit && (
               <Button size="sm" className="gap-1.5" onClick={handleNavigateNew}>
                 <Plus className="h-3.5 w-3.5" />
                 Create Plan

@@ -805,6 +805,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           </div>
           <div className="lp-nav-links">
             <button onClick={onDocs} className="lp-nav-link">Docs</button>
+            <a href="https://calendly.com/kieranmarcus/30min" target="_blank" rel="noopener noreferrer" className="lp-nav-link">Schedule a Demo</a>
             <MotionButton onClick={onOpenApp} className="lp-nav-cta">
               Launch App <ArrowRight size={14} strokeWidth={2.5} />
             </MotionButton>
@@ -1234,6 +1235,11 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                 <a href="https://www.npmjs.com/package/@autopayprotocol/agent-sdk" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> Agent SDK</a>
                 <a href="https://www.npmjs.com/package/@autopayprotocol/mcp" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> MCP Server</a>
                 <a href="https://www.npmjs.com/package/@autopayprotocol/middleware" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> Middleware</a>
+              </div>
+              <div className="lp-footer-col">
+                <div className="lp-footer-col-title">Legal</div>
+                <a href="/terms" className="lp-footer-link">Terms of Service</a>
+                <a href="/privacy" className="lp-footer-link">Privacy Policy</a>
               </div>
             </div>
           </div>
