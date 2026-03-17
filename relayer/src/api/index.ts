@@ -417,6 +417,8 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantReport: '/merchants/:address/reports/:period?chain_id=...',
             merchantReportGenerate: 'POST /merchants/:address/reports/generate',
             merchantReportCsv: '/merchants/:address/reports/:period/csv?chain_id=N',
+            termsAccept: 'POST /terms/accept',
+            termsCheck: '/terms/check/:address?version=...',
             subscribers: 'POST /subscribers',
             merchantSubscribers: '/merchants/:address/subscribers?chain_id=...',
             merchantWebhook: '/merchants/:address/webhook',
@@ -1042,6 +1044,90 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         }
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true }))
+        return
+      }
+
+      // Terms acceptance: record signed acceptance
+      if (path === '/terms/accept' && req.method === 'POST') {
+        const clientIp = getClientIp(req)
+        const ipRateResult = authRateLimiter.check(clientIp)
+        if (!ipRateResult.allowed) { sendRateLimited(res, ipRateResult); return }
+
+        const body = await parseBody(req)
+        const { address, version, message, signature } = body as {
+          address?: string; version?: string; message?: string; signature?: string
+        }
+
+        if (!address || typeof address !== 'string' || !isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'address must be a valid Ethereum address' }))
+          return
+        }
+        if (!version || typeof version !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'version is required' }))
+          return
+        }
+        if (!message || typeof message !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'message is required' }))
+          return
+        }
+        if (!signature || typeof signature !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'signature is required' }))
+          return
+        }
+
+        // Verify the signature matches the address
+        const { verifyMessage } = await import('viem')
+        const valid = await verifyMessage({ address: address as `0x${string}`, message, signature: signature as `0x${string}` })
+        if (!valid) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid signature — does not match the provided address' }))
+          return
+        }
+
+        // Store acceptance (upsert — re-signing same version replaces the old record)
+        const db = getDb(config.databaseUrl)
+        await db`
+          INSERT INTO terms_acceptances (wallet_address, terms_version, message, signature, accepted_at)
+          VALUES (${address.toLowerCase()}, ${version}, ${message}, ${signature}, NOW())
+          ON CONFLICT (wallet_address, terms_version) DO UPDATE
+          SET message = ${message}, signature = ${signature}, accepted_at = NOW()
+        `
+
+        logger.info({ address, version }, 'Terms acceptance recorded')
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ ok: true }))
+        return
+      }
+
+      // Terms acceptance: check if a wallet has accepted a specific version
+      const termsCheckMatch = path.match(/^\/terms\/check\/([^/]+)$/)
+      if (termsCheckMatch && req.method === 'GET') {
+        const address = termsCheckMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid address' }))
+          return
+        }
+        const version = params.get('version')
+        if (!version) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'version query parameter is required' }))
+          return
+        }
+
+        const db = getDb(config.databaseUrl)
+        const rows = await db`
+          SELECT accepted_at FROM terms_acceptances
+          WHERE wallet_address = ${address.toLowerCase()} AND terms_version = ${version}
+          LIMIT 1
+        `
+        const accepted = rows.length > 0
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ accepted, acceptedAt: accepted ? rows[0].accepted_at : null }))
         return
       }
 
