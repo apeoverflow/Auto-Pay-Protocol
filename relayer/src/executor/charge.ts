@@ -146,7 +146,18 @@ export async function chargePolicy(
   }
 
   // Estimate gas with chain-specific settings
-  const gasEstimate = await estimateGas(publicClient, chainConfig)
+  let gasEstimate: Awaited<ReturnType<typeof estimateGas>>
+  try {
+    gasEstimate = await estimateGas(publicClient, chainConfig)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Gas estimation failed'
+    logger.error({ policyId, error: errorMessage }, 'Gas estimation failed')
+    return {
+      success: false,
+      policyId,
+      error: `Gas estimation failed: ${errorMessage}`,
+    }
+  }
 
   try {
     // Simulate the transaction first

@@ -2,7 +2,7 @@ import type { RelayerConfig, ChainConfig, WebhookPayload } from '../types.js'
 import { chargePolicy, cancelFailedPolicyOnChain } from './charge.js'
 import { shouldRetry, isRetryableError, logRetryDecision, getNextRetryDelay } from './retry.js'
 import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttention, getPolicy, incrementConsecutiveFailures, resetConsecutiveFailures, markPolicyCancelledByFailure, markPolicyCompleted, pushNextChargeAt } from '../db/policies.js'
-import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt, deleteChargeRecord } from '../db/charges.js'
+import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt, deleteChargeRecord, getCharge } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { createLogger } from '../utils/logger.js'
 
@@ -47,7 +47,14 @@ async function processChainCharges(
     )
 
     // Attempt charge
-    const result = await chargePolicy(policy.id, config)
+    let result: Awaited<ReturnType<typeof chargePolicy>>
+    try {
+      result = await chargePolicy(policy.id, config)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unexpected executor error'
+      logger.error({ policyId: policy.id, error: errorMessage }, 'chargePolicy threw unexpectedly')
+      result = { success: false, policyId: policy.id, error: errorMessage }
+    }
 
     if (result.success) {
       logger.debug({
@@ -305,7 +312,8 @@ async function processChainCharges(
       failed++
     } else {
       // Hard failure: tx reverted or other error
-      const attemptCount = policy.charge_count ?? 1
+      const chargeRecord = await getCharge(config.databaseUrl, chargeId)
+      const attemptCount = chargeRecord?.attempt_count ?? 1
       const retryable = isRetryableError(new Error(result.error))
       const willRetry = retryable && shouldRetry(attemptCount, config.retry)
 
@@ -362,9 +370,14 @@ async function processChainCharges(
 
         failed++
       } else {
-        // Will retry - increment attempt count
+        // Will retry - increment attempt count and record the error for debugging
         await incrementChargeAttempt(config.databaseUrl, chargeId)
-        // Don't count as failed yet - will retry on next executor run
+        // Persist error message so failures are visible in DB even during retries
+        const db = (await import('../db/index.js')).getDb(config.databaseUrl)
+        await db`
+          UPDATE charges SET error_message = ${result.error ?? 'Unknown error'}
+          WHERE id = ${chargeId}
+        `
       }
     }
   }
