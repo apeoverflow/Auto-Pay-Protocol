@@ -35,7 +35,7 @@ export function PrivacyPage({ onBack }: PrivacyPageProps) {
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">2. Data Controller</h2>
             <p>
-              AutoPay Protocol is the data controller for information processed through the Relayer and Interface. For questions about data processing, contact us at <a href="mailto:privacy@autopayprotocol.com" className="text-primary hover:underline">privacy@autopayprotocol.com</a>.
+              AutoPay Protocol is the data controller for information processed through the Relayer and Interface. For questions about data processing, contact us at <a href="mailto:autopayprotocol@proton.me" className="text-primary hover:underline">autopayprotocol@proton.me</a>.
             </p>
           </section>
 
@@ -305,7 +305,7 @@ export function PrivacyPage({ onBack }: PrivacyPageProps) {
               <li><strong>Withdraw consent:</strong> Where processing is based on consent, you may withdraw it at any time.</li>
             </ul>
             <p>
-              <strong>Important limitation:</strong> Due to the immutable nature of blockchain technology, we cannot erase or modify data that has been recorded on public blockchains or uploaded to IPFS/Filecoin. We can delete your off-chain data (subscriber information, Relayer database records) upon request. To exercise your rights, contact <a href="mailto:privacy@autopayprotocol.com" className="text-primary hover:underline">privacy@autopayprotocol.com</a>.
+              <strong>Important limitation:</strong> Due to the immutable nature of blockchain technology, we cannot erase or modify data that has been recorded on public blockchains or uploaded to IPFS/Filecoin. We can delete your off-chain data (subscriber information, Relayer database records) upon request. To exercise your rights, contact <a href="mailto:autopayprotocol@proton.me" className="text-primary hover:underline">autopayprotocol@proton.me</a>.
             </p>
 
             <h3 className="text-lg font-medium mt-4 mb-2">7.2 Under CCPA (California Users)</h3>
@@ -365,7 +365,7 @@ export function PrivacyPage({ onBack }: PrivacyPageProps) {
               For privacy-related inquiries, data access requests, or to exercise your rights, contact us at:
             </p>
             <p className="mt-2">
-              <strong>Email:</strong> <a href="mailto:privacy@autopayprotocol.com" className="text-primary hover:underline">privacy@autopayprotocol.com</a>
+              <strong>Email:</strong> <a href="mailto:autopayprotocol@proton.me" className="text-primary hover:underline">autopayprotocol@proton.me</a>
             </p>
             <p>
               We will respond to verified requests within 30 days.

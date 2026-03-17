@@ -290,7 +290,7 @@ export function TermsPage({ onBack }: TermsPageProps) {
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">22. Contact</h2>
             <p>
-              For questions about these Terms, contact us at <a href="mailto:legal@autopayprotocol.com" className="text-primary hover:underline">legal@autopayprotocol.com</a>.
+              For questions about these Terms, contact us at <a href="mailto:autopayprotocol@proton.me" className="text-primary hover:underline">autopayprotocol@proton.me</a>.
             </p>
           </section>
         </div>
