@@ -805,7 +805,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           </div>
           <div className="lp-nav-links">
             <button onClick={onDocs} className="lp-nav-link">Docs</button>
-            <a href="https://calendly.com/kieranmarcus/30min" target="_blank" rel="noopener noreferrer" className="lp-nav-link">Schedule a Demo</a>
+            <a href="https://calendly.com/kieranmarcus/30min" target="_blank" rel="noopener noreferrer" className="lp-nav-link lp-nav-demo">Schedule a Demo</a>
             <MotionButton onClick={onOpenApp} className="lp-nav-cta">
               Launch App <ArrowRight size={14} strokeWidth={2.5} />
             </MotionButton>
@@ -1641,6 +1641,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-nav-links { gap: 12px; }
           .lp-nav-link { font-size: 12px; }
           .lp-nav-cta { font-size: 12px; padding: 6px 12px; white-space: nowrap; }
+          .lp-nav-demo { display: none; }
         }
 
         /* ── hero ── */

@@ -71,7 +71,7 @@ function App() {
   const { address, isLoading } = useWallet()
   const { route, navigate } = useRoute()
   const { openConnectModal } = useConnectModal()
-  const { hasAcceptedTerms } = useTerms()
+  const { hasAcceptedTerms, isChecking: isCheckingTerms } = useTerms()
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [displayedRoute, setDisplayedRoute] = useState<Route>(route)
@@ -256,7 +256,7 @@ function App() {
   }
 
   // Dashboard routes (requires connected wallet)
-  if (isLoading || !address) {
+  if (isLoading || !address || isCheckingTerms) {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <div className="route-layer">

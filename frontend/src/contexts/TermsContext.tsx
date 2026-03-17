@@ -4,6 +4,7 @@ import { useAccount, useSignMessage } from 'wagmi'
 // Bump this when ToS changes materially to require re-acceptance
 export const TERMS_VERSION = '1.0'
 
+const RELAYER_URL = import.meta.env.VITE_RELAYER_URL || ''
 const STORAGE_KEY_PREFIX = 'autopay_tos_accepted_'
 
 function storageKey(address: string): string {
@@ -18,6 +19,7 @@ interface StoredAcceptance {
 
 interface TermsContextValue {
   hasAcceptedTerms: boolean
+  isChecking: boolean
   isAccepting: boolean
   acceptTerms: () => Promise<void>
   termsVersion: string
@@ -29,15 +31,19 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
   const [hasAccepted, setHasAccepted] = React.useState(false)
+  const [isChecking, setIsChecking] = React.useState(false)
   const [isAccepting, setIsAccepting] = React.useState(false)
 
-  // Check localStorage for existing acceptance when address changes
+  // Check acceptance status when address changes
+  // 1. Check localStorage (fast, instant UI)
+  // 2. Verify with relayer (authoritative, background)
   React.useEffect(() => {
     if (!address) {
       setHasAccepted(false)
       return
     }
 
+    // Fast path: check localStorage first
     try {
       const stored = localStorage.getItem(storageKey(address))
       if (stored) {
@@ -48,9 +54,37 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch {
-      // Corrupt data — require re-acceptance
+      // Corrupt data — fall through to relayer check
     }
-    setHasAccepted(false)
+
+    // Slow path: check relayer (for users who cleared localStorage or switched devices)
+    if (!RELAYER_URL) {
+      setHasAccepted(false)
+      return
+    }
+
+    setIsChecking(true)
+    fetch(`${RELAYER_URL}/terms/check/${address.toLowerCase()}?version=${TERMS_VERSION}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.accepted) {
+          // Re-populate localStorage cache
+          const acceptance: StoredAcceptance = {
+            version: TERMS_VERSION,
+            timestamp: new Date(data.acceptedAt).getTime(),
+            signature: 'verified-server',
+          }
+          localStorage.setItem(storageKey(address), JSON.stringify(acceptance))
+          setHasAccepted(true)
+        } else {
+          setHasAccepted(false)
+        }
+      })
+      .catch(() => {
+        // Relayer unreachable — don't block the user if localStorage had nothing
+        setHasAccepted(false)
+      })
+      .finally(() => setIsChecking(false))
   }, [address])
 
   const acceptTerms = React.useCallback(async () => {
@@ -69,12 +103,30 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
 
       const signature = await signMessageAsync({ message })
 
+      // Save to relayer (authoritative record with signature verification)
+      if (RELAYER_URL) {
+        const res = await fetch(`${RELAYER_URL}/terms/accept`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            address: address.toLowerCase(),
+            version: TERMS_VERSION,
+            message,
+            signature,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error((err as { error?: string }).error || 'Failed to record acceptance')
+        }
+      }
+
+      // Cache in localStorage for fast subsequent loads
       const acceptance: StoredAcceptance = {
         version: TERMS_VERSION,
         timestamp: Date.now(),
         signature,
       }
-
       localStorage.setItem(storageKey(address), JSON.stringify(acceptance))
       setHasAccepted(true)
     } finally {
@@ -85,11 +137,12 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
   const value = React.useMemo(
     () => ({
       hasAcceptedTerms: hasAccepted,
+      isChecking,
       isAccepting,
       acceptTerms,
       termsVersion: TERMS_VERSION,
     }),
-    [hasAccepted, isAccepting, acceptTerms]
+    [hasAccepted, isChecking, isAccepting, acceptTerms]
   )
 
   return <TermsContext.Provider value={value}>{children}</TermsContext.Provider>

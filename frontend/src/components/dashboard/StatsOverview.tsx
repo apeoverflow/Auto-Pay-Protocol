@@ -230,7 +230,7 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
       />
 
       {/* ── Desktop: full stat cards ── */}
-      <div className="hidden md:grid gap-4 lg:grid-cols-4 flex-shrink-0">
+      <div className="hidden md:grid gap-4 md:grid-cols-2 lg:grid-cols-4 flex-shrink-0">
         <StatCard
           title="Wallet Balance"
           value={formatBalance(balance)}

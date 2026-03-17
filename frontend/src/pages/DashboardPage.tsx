@@ -269,7 +269,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       </div>
 
       {/* ── Desktop: original grid layout ── */}
-      <div className="hidden md:grid flex-1 gap-6 lg:grid-cols-3 min-h-0">
+      <div className="hidden md:grid flex-1 gap-6 md:grid-cols-2 lg:grid-cols-3 min-h-0">
         {/* Left column - Subscriptions */}
         <div className="flex flex-col lg:col-span-2 min-h-0 overflow-hidden">
           <Card className="flex flex-col min-h-0 overflow-hidden">
