@@ -17,6 +17,21 @@ interface StoredAcceptance {
   signature: string
 }
 
+/** Synchronously check localStorage for a valid acceptance. */
+function checkLocalAcceptance(address: string | undefined): boolean {
+  if (!address) return false
+  try {
+    const stored = localStorage.getItem(storageKey(address))
+    if (stored) {
+      const parsed: StoredAcceptance = JSON.parse(stored)
+      return parsed.version === TERMS_VERSION && !!parsed.signature
+    }
+  } catch {
+    // Corrupt data
+  }
+  return false
+}
+
 interface TermsContextValue {
   hasAcceptedTerms: boolean
   isChecking: boolean
@@ -30,31 +45,24 @@ const TermsContext = React.createContext<TermsContextValue | null>(null)
 export function TermsProvider({ children }: { children: React.ReactNode }) {
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
-  const [hasAccepted, setHasAccepted] = React.useState(false)
+
+  // Initialize synchronously from localStorage — prevents flash of ToS modal
+  const [hasAccepted, setHasAccepted] = React.useState(() => checkLocalAcceptance(address))
   const [isChecking, setIsChecking] = React.useState(false)
   const [isAccepting, setIsAccepting] = React.useState(false)
 
-  // Check acceptance status when address changes
-  // 1. Check localStorage (fast, instant UI)
-  // 2. Verify with relayer (authoritative, background)
+  // When address changes, sync state immediately from localStorage,
+  // then fall back to relayer check if localStorage has no record.
   React.useEffect(() => {
     if (!address) {
       setHasAccepted(false)
       return
     }
 
-    // Fast path: check localStorage first
-    try {
-      const stored = localStorage.getItem(storageKey(address))
-      if (stored) {
-        const parsed: StoredAcceptance = JSON.parse(stored)
-        if (parsed.version === TERMS_VERSION && parsed.signature) {
-          setHasAccepted(true)
-          return
-        }
-      }
-    } catch {
-      // Corrupt data — fall through to relayer check
+    // Synchronous localStorage check — covers the common case instantly
+    if (checkLocalAcceptance(address)) {
+      setHasAccepted(true)
+      return
     }
 
     // Slow path: check relayer (for users who cleared localStorage or switched devices)
@@ -81,7 +89,6 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {
-        // Relayer unreachable — don't block the user if localStorage had nothing
         setHasAccepted(false)
       })
       .finally(() => setIsChecking(false))
