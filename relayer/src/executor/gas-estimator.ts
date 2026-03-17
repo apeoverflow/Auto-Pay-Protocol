@@ -16,10 +16,22 @@ export async function estimateGas(
   chainConfig: ChainConfig
 ): Promise<GasEstimate> {
   // Get current gas price from network
-  const feeHistory = await client.estimateFeesPerGas()
+  // Some chains (e.g. Polkadot Hub) don't support eth_feeHistory reward percentiles,
+  // causing viem's estimateFeesPerGas to throw. Fall back to eth_gasPrice (legacy).
+  let maxFeePerGas: bigint
+  let maxPriorityFeePerGas: bigint
 
-  let maxPriorityFeePerGas = feeHistory.maxPriorityFeePerGas ?? 1_000_000_000n
-  let maxFeePerGas = feeHistory.maxFeePerGas ?? 50_000_000_000n
+  try {
+    const feeHistory = await client.estimateFeesPerGas()
+    maxPriorityFeePerGas = feeHistory.maxPriorityFeePerGas ?? 1_000_000_000n
+    maxFeePerGas = feeHistory.maxFeePerGas ?? 50_000_000_000n
+  } catch {
+    // Fallback to legacy gas price
+    const gasPrice = await client.getGasPrice()
+    maxFeePerGas = gasPrice
+    maxPriorityFeePerGas = 0n
+    logger.debug({ gasPrice: gasPrice.toString() }, 'Using legacy gas price (estimateFeesPerGas unsupported)')
+  }
 
   // Apply chain-specific gas estimation correction (e.g. Polkadot Hub overestimates ~3x)
   // Must be applied before minGasFees floor so the floor remains authoritative
