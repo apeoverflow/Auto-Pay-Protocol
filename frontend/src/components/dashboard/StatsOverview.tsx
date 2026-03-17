@@ -17,7 +17,7 @@ interface StatCardProps {
 
 function StatCard({ title, value, subtitle, icon, gradientFrom, gradientTo, iconBg, iconColor, accentColor }: StatCardProps) {
   return (
-    <div className="stat-card group border-border hidden md:block">
+    <div className="stat-card group border-border hidden lg:block">
       {/* Top accent line */}
       <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${gradientFrom} ${gradientTo}`} />
 
@@ -60,7 +60,7 @@ function MobileHeroStats({ balance, formatBal, address, copied, onCopy, onSend, 
   const formatAddr = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`
 
   return (
-    <div className="mobile-hero-stats md:hidden flex-shrink-0">
+    <div className="mobile-hero-stats lg:hidden flex-shrink-0">
       {/* Hero balance */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-5 py-5 shadow-lg shadow-slate-900/20">
         {/* Decorative elements */}
@@ -230,7 +230,7 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
       />
 
       {/* ── Desktop: full stat cards ── */}
-      <div className="hidden md:grid gap-4 md:grid-cols-2 lg:grid-cols-4 flex-shrink-0">
+      <div className="hidden lg:grid gap-4 lg:grid-cols-4 flex-shrink-0">
         <StatCard
           title="Wallet Balance"
           value={formatBalance(balance)}

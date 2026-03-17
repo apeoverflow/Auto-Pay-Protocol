@@ -21,7 +21,7 @@ export function DashboardLayout({ children, currentPage, onNavigate }: Dashboard
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -37,7 +37,7 @@ export function DashboardLayout({ children, currentPage, onNavigate }: Dashboard
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Header currentPage={currentPage} onMenuToggle={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-auto px-3 py-3 md:p-6 min-w-0 bg-background">
+        <main className="flex-1 overflow-auto px-3 py-3 lg:p-6 min-w-0 bg-background">
           {children}
         </main>
       </div>

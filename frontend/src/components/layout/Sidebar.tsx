@@ -76,7 +76,7 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
       {/* Backdrop overlay for mobile */}
       <div
         className={cn(
-          'fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm transition-opacity duration-300 md:hidden',
+          'fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden',
           mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
         onClick={onClose}
@@ -85,8 +85,8 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-[60] flex w-[260px] md:w-[220px] flex-col sidebar-gradient flex-shrink-0 border-r border-white/[0.06] transition-transform duration-300 ease-in-out',
-          'md:static md:translate-x-0',
+          'fixed inset-y-0 left-0 z-[60] flex w-[260px] lg:w-[220px] flex-col sidebar-gradient flex-shrink-0 border-r border-white/[0.06] transition-transform duration-300 ease-in-out',
+          'lg:static lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -95,7 +95,7 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
           <img src="/logo.png" alt="AutoPayProtocol" className="h-9 w-auto opacity-90" />
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>

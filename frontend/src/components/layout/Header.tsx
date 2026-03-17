@@ -68,15 +68,15 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
   }
 
   return (
-    <header className="relative z-50 flex h-14 md:h-16 items-center justify-between border-b border-border/50 bg-white/80 backdrop-blur-sm px-3 md:px-6">
-      <div className="flex items-center gap-2 md:gap-4">
+    <header className="relative z-50 flex h-14 lg:h-16 items-center justify-between border-b border-border/50 bg-white/80 backdrop-blur-sm px-3 lg:px-6">
+      <div className="flex items-center gap-2 lg:gap-4">
         <button
           onClick={onMenuToggle}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted md:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted lg:hidden"
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-base md:text-lg font-semibold tracking-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>{pageTitles[currentPage]}</h1>
+        <h1 className="text-base lg:text-lg font-semibold tracking-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>{pageTitles[currentPage]}</h1>
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-3">

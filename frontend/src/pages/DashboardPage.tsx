@@ -93,7 +93,7 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
 
   if (isLoading && policies.length === 0) {
     return (
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <div className="flex items-center justify-center py-6">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
@@ -103,7 +103,7 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
 
   if (activePolicies.length === 0) {
     return (
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <div className="flex items-center justify-between mb-2.5 px-0.5">
           <h3 className="text-[13px] font-semibold text-foreground/80" style={{ fontFamily: "'DM Sans', sans-serif" }}>Subscriptions</h3>
           <button
@@ -122,7 +122,7 @@ function MobileSubscriptionScroll({ onNavigate }: { onNavigate: () => void }) {
   }
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <div className="flex items-center justify-between mb-2.5 px-0.5">
         <h3 className="text-[13px] font-semibold text-foreground/80" style={{ fontFamily: "'DM Sans', sans-serif" }}>Subscriptions</h3>
         <button
@@ -190,7 +190,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 md:h-full md:gap-6">
+    <div className="flex flex-col gap-3 lg:h-full lg:gap-6">
       {/* Stats Overview — hero card includes address + send on mobile */}
       <StatsOverview
         address={address}
@@ -220,7 +220,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       </Drawer>
 
       {/* ── Mobile layout ── */}
-      <div className="flex flex-col gap-4 md:hidden">
+      <div className="flex flex-col gap-4 lg:hidden">
         {/* Subscription chips — horizontal scroll */}
         <MobileSubscriptionScroll onNavigate={() => onNavigate('subscriptions')} />
 
@@ -269,7 +269,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       </div>
 
       {/* ── Desktop: original grid layout ── */}
-      <div className="hidden md:grid flex-1 gap-6 md:grid-cols-2 lg:grid-cols-3 min-h-0">
+      <div className="hidden lg:grid flex-1 gap-6 lg:grid-cols-3 min-h-0">
         {/* Left column - Subscriptions */}
         <div className="flex flex-col lg:col-span-2 min-h-0 overflow-hidden">
           <Card className="flex flex-col min-h-0 overflow-hidden">
