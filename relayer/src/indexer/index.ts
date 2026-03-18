@@ -9,6 +9,7 @@ import {
 import { insertPolicy, revokePolicy, updatePolicyAfterCharge, getPolicy, markPolicyCancelledByFailure } from '../db/policies.js'
 import { chargeHandledByExecutor } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
+import { insertSubscriberData } from '../db/subscribers.js'
 import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('indexer')
@@ -96,6 +97,36 @@ export async function runIndexerOnce(
             parsed.event,
             timestamp
           )
+          // Ensure subscriber_data row exists (fallback for when the checkout
+          // page's fire-and-forget POST /subscribers fails or races the indexer)
+          try {
+            let planId: string | null = null
+            let planMerchant: string | null = null
+            if (parsed.event.metadataUrl) {
+              try {
+                const urlPath = new URL(parsed.event.metadataUrl).pathname
+                const segments = urlPath.split('/').filter(Boolean)
+                if (segments[0] === 'metadata' && segments.length >= 3) {
+                  planMerchant = segments[1]
+                  planId = segments[2]
+                }
+              } catch { /* invalid URL — skip plan extraction */ }
+            }
+            await insertSubscriberData(
+              databaseUrl,
+              parsed.event.policyId,
+              chainConfig.chainId,
+              parsed.event.payer,
+              parsed.event.merchant,
+              planId,
+              planMerchant,
+              {} // no form data available from on-chain events
+            )
+          } catch (err) {
+            // Non-fatal — subscriber_data may already exist from checkout POST
+            logger.debug({ policyId: parsed.event.policyId, err }, 'Subscriber data insert skipped (likely already exists)')
+          }
+
           // Queue webhook
           await queueWebhook(databaseUrl, parsed.event.policyId, 'policy.created', {
             event: 'policy.created',

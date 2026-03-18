@@ -49,16 +49,17 @@ export async function saveReport(
 export async function getReportsByMerchant(
   databaseUrl: string,
   merchantAddress: string,
-  chainId: number
+  chainId?: number
 ): Promise<ReportRow[]> {
   const db = getDb(databaseUrl)
   const addr = merchantAddress.toLowerCase()
+  const chainFilter = chainId != null ? db`AND chain_id = ${chainId}` : db``
 
   const rows = await db<ReportRow[]>`
     SELECT merchant_address, chain_id, period, cid, created_at
     FROM merchant_reports
     WHERE merchant_address = ${addr}
-      AND chain_id = ${chainId}
+      ${chainFilter}
     ORDER BY period DESC
   `
 

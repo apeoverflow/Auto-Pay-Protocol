@@ -487,14 +487,9 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           return
         }
         const chainId = params.get('chain_id')
-        if (!chainId) {
-          res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
-          return
-        }
         const page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1)
         const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50', 10) || 50))
-        await handleMerchantCharges(config, address, parseInt(chainId, 10), page, limit, res)
+        await handleMerchantCharges(config, address, chainId ? parseInt(chainId, 10) : undefined, page, limit, res)
         return
       }
 
@@ -783,12 +778,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           return
         }
         const chainId = params.get('chain_id')
-        if (!chainId) {
-          res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
-          return
-        }
-        const reports = await getReportsByMerchant(config.databaseUrl, address, parseInt(chainId, 10))
+        const reports = await getReportsByMerchant(config.databaseUrl, address, chainId ? parseInt(chainId, 10) : undefined)
         const response = reports.map((r) => ({
           period: r.period,
           cid: r.cid,
@@ -1238,17 +1228,12 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           }
         }
         const chainId = params.get('chain_id')
-        if (!chainId) {
-          res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'chain_id query parameter is required' }))
-          return
-        }
         const planId = params.get('plan_id') || undefined
         const page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1)
         const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50', 10) || 50))
 
         const { subscribers, total } = await getSubscribersByMerchant(
-          config.databaseUrl, address, parseInt(chainId, 10), planId, page, limit
+          config.databaseUrl, address, chainId ? parseInt(chainId, 10) : undefined, planId, page, limit
         )
 
         res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -2312,7 +2297,7 @@ async function handleMerchantStats(
 async function handleMerchantCharges(
   config: RelayerConfig,
   merchantAddress: string,
-  chainId: number,
+  chainId: number | undefined,
   page: number,
   limit: number,
   res: ServerResponse

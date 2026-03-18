@@ -42,7 +42,13 @@ export async function insertSubscriberData(
   await db`
     INSERT INTO subscriber_data (policy_id, chain_id, payer, merchant, plan_id, plan_merchant, form_data)
     VALUES (${policyId}, ${chainId}, ${payer.toLowerCase()}, ${merchant.toLowerCase()}, ${planId}, ${planMerchant?.toLowerCase() ?? null}, ${db.json(formData)})
-    ON CONFLICT (policy_id, chain_id) DO NOTHING
+    ON CONFLICT (policy_id, chain_id) DO UPDATE SET
+      form_data = CASE
+        WHEN ${db.json(formData)}::jsonb <> '{}'::jsonb THEN ${db.json(formData)}::jsonb
+        ELSE subscriber_data.form_data
+      END,
+      plan_id = COALESCE(EXCLUDED.plan_id, subscriber_data.plan_id),
+      plan_merchant = COALESCE(EXCLUDED.plan_merchant, subscriber_data.plan_merchant)
   `
 
   logger.debug({ policyId, chainId, payer }, 'Inserted subscriber data')
@@ -51,7 +57,7 @@ export async function insertSubscriberData(
 export async function getSubscribersByMerchant(
   databaseUrl: string,
   merchant: string,
-  chainId: number,
+  chainId?: number,
   planId?: string,
   page = 1,
   limit = 50
@@ -67,37 +73,25 @@ export async function getSubscribersByMerchant(
     COALESCE(p.interval_seconds, 0) AS interval_seconds,
     s.created_at`
 
-  const [subscribers, countResult] = planId
-    ? await Promise.all([
-        db<SubscriberWithPolicy[]>`
-          SELECT ${db.unsafe(selectFields)}
-          FROM subscriber_data s
-          LEFT JOIN policies p ON s.policy_id = p.id AND s.chain_id = p.chain_id
-          WHERE s.merchant = ${addr} AND s.chain_id = ${chainId} AND s.plan_id = ${planId}
-          ORDER BY s.created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
-        `,
-        db`
-          SELECT count(*)::int AS total
-          FROM subscriber_data s
-          WHERE s.merchant = ${addr} AND s.chain_id = ${chainId} AND s.plan_id = ${planId}
-        `,
-      ])
-    : await Promise.all([
-        db<SubscriberWithPolicy[]>`
-          SELECT ${db.unsafe(selectFields)}
-          FROM subscriber_data s
-          LEFT JOIN policies p ON s.policy_id = p.id AND s.chain_id = p.chain_id
-          WHERE s.merchant = ${addr} AND s.chain_id = ${chainId}
-          ORDER BY s.created_at DESC
-          LIMIT ${limit} OFFSET ${offset}
-        `,
-        db`
-          SELECT count(*)::int AS total
-          FROM subscriber_data s
-          WHERE s.merchant = ${addr} AND s.chain_id = ${chainId}
-        `,
-      ])
+  // Build chain filter conditionally — omit to aggregate across all chains
+  const chainFilter = chainId != null ? db`AND s.chain_id = ${chainId}` : db``
+  const planFilter = planId ? db`AND s.plan_id = ${planId}` : db``
+
+  const [subscribers, countResult] = await Promise.all([
+    db<SubscriberWithPolicy[]>`
+      SELECT ${db.unsafe(selectFields)}
+      FROM subscriber_data s
+      LEFT JOIN policies p ON s.policy_id = p.id AND s.chain_id = p.chain_id
+      WHERE s.merchant = ${addr} ${chainFilter} ${planFilter}
+      ORDER BY s.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db`
+      SELECT count(*)::int AS total
+      FROM subscriber_data s
+      WHERE s.merchant = ${addr} ${chainFilter} ${planFilter}
+    `,
+  ])
 
   return { subscribers, total: countResult[0]?.total ?? 0 }
 }

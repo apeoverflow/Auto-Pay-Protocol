@@ -301,7 +301,7 @@ export async function getChargesByIdsForPayer(
 
 export async function getChargesByMerchant(
   databaseUrl: string,
-  chainId: number,
+  chainId: number | undefined,
   merchantAddress: string,
   page = 1,
   limit = 50
@@ -309,6 +309,7 @@ export async function getChargesByMerchant(
   const db = getDb(databaseUrl)
   const addr = merchantAddress.toLowerCase()
   const offset = (page - 1) * limit
+  const chainFilter = chainId != null ? db`AND c.chain_id = ${chainId}` : db``
 
   const [charges, countResult] = await Promise.all([
     db<MerchantChargeRow[]>`
@@ -318,7 +319,7 @@ export async function getChargesByMerchant(
       FROM charges c
       JOIN policies p ON c.policy_id = p.id AND c.chain_id = p.chain_id
       WHERE p.merchant = ${addr}
-        AND c.chain_id = ${chainId}
+        ${chainFilter}
         AND c.status = 'success'
       ORDER BY c.completed_at DESC NULLS LAST
       LIMIT ${limit} OFFSET ${offset}
@@ -328,7 +329,7 @@ export async function getChargesByMerchant(
       FROM charges c
       JOIN policies p ON c.policy_id = p.id AND c.chain_id = p.chain_id
       WHERE p.merchant = ${addr}
-        AND c.chain_id = ${chainId}
+        ${chainFilter}
         AND c.status = 'success'
     `,
   ])

@@ -35,10 +35,23 @@ export async function estimateGas(
 
   // Apply chain-specific gas estimation correction (e.g. Polkadot Hub overestimates ~3x)
   // Must be applied before minGasFees floor so the floor remains authoritative
-  // IMPORTANT: Only apply divisor to priority fee, NOT maxFeePerGas — dividing maxFeePerGas
-  // below the network base fee causes "Effective gas price lower than base fee" errors.
   if (chainConfig.gasEstimationDivisor && chainConfig.gasEstimationDivisor > 1) {
     const divisor = BigInt(chainConfig.gasEstimationDivisor)
+    // Fetch current base fee to use as a floor — maxFeePerGas must never go below it
+    let baseFeeFloor = 0n
+    try {
+      const block = await client.getBlock({ blockTag: 'latest' })
+      baseFeeFloor = block.baseFeePerGas ?? 0n
+    } catch {
+      // If we can't get the base fee, skip the divisor entirely to be safe
+      logger.debug('Could not fetch base fee for divisor floor — skipping gas correction')
+    }
+    if (baseFeeFloor > 0n) {
+      const adjusted = maxFeePerGas / divisor
+      // Floor at base fee + small buffer (10%) to avoid edge-case rejections
+      const floor = baseFeeFloor + (baseFeeFloor / 10n)
+      maxFeePerGas = adjusted > floor ? adjusted : floor
+    }
     maxPriorityFeePerGas = maxPriorityFeePerGas / divisor
     // Ensure division doesn't produce zero (minimum 1 wei)
     if (maxPriorityFeePerGas === 0n) maxPriorityFeePerGas = 1n
