@@ -1,5 +1,26 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/client",
+  "functions": {
+    "api/*.ts": {
+      "maxDuration": 10
+    }
+  },
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/favicon.*", "dest": "/$0" },
+    { "src": "/logo.*", "dest": "/$0" },
+    { "src": "/apple-touch-icon.*", "dest": "/$0" },
+    { "src": "/og-image.*", "dest": "/$0" },
+    { "src": "/flow-icon.*", "dest": "/$0" },
+    { "src": "/base-square.*", "dest": "/$0" },
+    { "src": "/polkadot-icon.*", "dest": "/$0" },
+    { "src": "^/$", "dest": "/api/ssr" },
+    { "src": "^/docs$", "dest": "/api/ssr" },
+    { "src": "^/terms$", "dest": "/api/ssr" },
+    { "src": "^/privacy$", "dest": "/api/ssr" },
+    { "src": "^/checkout$", "dest": "/api/ssr" },
+    { "src": "^/pay/(.+)$", "dest": "/api/ssr" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

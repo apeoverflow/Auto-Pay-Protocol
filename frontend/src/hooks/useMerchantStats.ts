@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from './useWallet'
-import { useChain } from './useChain'
 import { listPlans, fetchMerchantStats, type PlanSummary } from '../lib/relayer'
 
 interface MerchantStats {
@@ -14,7 +13,6 @@ interface MerchantStats {
 
 export function useMerchantStats(): MerchantStats {
   const { address } = useWallet()
-  const { chainConfig } = useChain()
   const [plans, setPlans] = useState<PlanSummary[]>([])
   const [activeSubscribers, setActiveSubscribers] = useState(0)
   const [totalRevenue, setTotalRevenue] = useState('0')
@@ -32,8 +30,8 @@ export function useMerchantStats(): MerchantStats {
         const planData = await listPlans(address!).catch(() => [] as PlanSummary[])
         if (!cancelled) setPlans(planData)
 
-        // Fetch subscriber count + revenue from relayer stats endpoint
-        const stats = await fetchMerchantStats(address!, chainConfig.chain.id).catch(() => null)
+        // Fetch subscriber count + revenue from relayer stats endpoint (all chains)
+        const stats = await fetchMerchantStats(address!).catch(() => null)
         if (!cancelled && stats) {
           setActiveSubscribers(stats.activeSubscribers)
           setTotalRevenue(stats.totalRevenue)
@@ -46,7 +44,7 @@ export function useMerchantStats(): MerchantStats {
 
     load()
     return () => { cancelled = true }
-  }, [address, chainConfig.chain.id])
+  }, [address])
 
   const planCounts = {
     total: plans.length,

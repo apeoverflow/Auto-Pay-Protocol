@@ -204,7 +204,7 @@ function WidgetInner({ toAddress }: { toAddress?: string }) {
 }
 
 export function IsolatedLiFiWidget({ toAddress }: { toAddress?: string }) {
-  const [container] = useState(() => document.createElement('div'))
+  const [container] = useState(() => typeof document !== 'undefined' ? document.createElement('div') : (null as unknown as HTMLDivElement))
   const rootRef = useRef<Root | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
 

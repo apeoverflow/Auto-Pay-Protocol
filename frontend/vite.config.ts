@@ -7,6 +7,9 @@ const emptyModule = resolve(__dirname, 'src/lib/empty-module.ts')
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: 'dist/client',
+  },
   resolve: {
     alias: {
       '@bigmi/react': emptyModule,

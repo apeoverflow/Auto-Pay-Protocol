@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSignMessage } from 'wagmi'
 import { useWallet } from './useWallet'
 import { fetchMerchantSubscribers, type MerchantSubscriber } from '../lib/relayer'
-import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
 
 export function useMerchantSubscribers(planId?: string) {
   const { address } = useWallet()
@@ -16,14 +15,13 @@ export function useMerchantSubscribers(planId?: string) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const chainId = CHAIN_CONFIGS[DEFAULT_CHAIN].chain.id
-
   const loadSubscribers = useCallback(async () => {
     if (!address) return
     setIsLoading(true)
     setError(null)
     try {
-      const data = await fetchMerchantSubscribers(address, signRef.current, chainId, planId, page, 50)
+      // Omit chainId to aggregate subscribers across all chains
+      const data = await fetchMerchantSubscribers(address, signRef.current, undefined, planId, page, 50)
       setSubscribers(data.subscribers)
       setTotal(data.total)
     } catch (err) {
@@ -31,7 +29,7 @@ export function useMerchantSubscribers(planId?: string) {
     } finally {
       setIsLoading(false)
     }
-  }, [address, chainId, planId, page])
+  }, [address, planId, page])
 
   useEffect(() => {
     loadSubscribers()

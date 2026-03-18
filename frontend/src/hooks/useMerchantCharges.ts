@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useWallet } from './useWallet'
-import { useChain } from './useChain'
 import { fetchMerchantCharges, type MerchantCharge } from '../lib/relayer'
 
 interface UseMerchantChargesResult {
@@ -15,7 +14,6 @@ interface UseMerchantChargesResult {
 
 export function useMerchantCharges(limit = 20): UseMerchantChargesResult {
   const { address } = useWallet()
-  const { chainConfig } = useChain()
   const [charges, setCharges] = useState<MerchantCharge[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -25,11 +23,6 @@ export function useMerchantCharges(limit = 20): UseMerchantChargesResult {
 
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), [])
 
-  // Reset to page 1 when chain changes
-  useEffect(() => {
-    setPage(1)
-  }, [chainConfig.chain.id])
-
   useEffect(() => {
     if (!address) return
     let cancelled = false
@@ -38,7 +31,8 @@ export function useMerchantCharges(limit = 20): UseMerchantChargesResult {
       setIsLoading(true)
       setError(null)
       try {
-        const result = await fetchMerchantCharges(address!, chainConfig.chain.id, page, limit)
+        // Omit chainId to aggregate charges across all chains
+        const result = await fetchMerchantCharges(address!, undefined, page, limit)
         if (!cancelled) {
           setCharges(result.charges)
           setTotal(result.total)
@@ -54,7 +48,7 @@ export function useMerchantCharges(limit = 20): UseMerchantChargesResult {
 
     load()
     return () => { cancelled = true }
-  }, [address, chainConfig.chain.id, page, limit, refreshKey])
+  }, [address, page, limit, refreshKey])
 
   return { charges, total, page, isLoading, error, setPage, refetch }
 }

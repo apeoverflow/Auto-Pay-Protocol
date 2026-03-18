@@ -36,6 +36,7 @@ interface UseCheckoutParamsReturn {
 
 export function useCheckoutParams(): UseCheckoutParamsReturn {
   return React.useMemo(() => {
+    if (typeof window === 'undefined') return { params: null, error: null }
     const search = new URLSearchParams(window.location.search)
 
     const merchant = search.get('merchant')

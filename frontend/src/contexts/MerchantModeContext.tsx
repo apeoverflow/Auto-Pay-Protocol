@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { isBrowser } from '../lib/ssr'
 
 export type AppMode = 'subscriber' | 'merchant'
 
@@ -11,6 +12,7 @@ interface MerchantModeContextValue {
 const MerchantModeContext = React.createContext<MerchantModeContextValue | null>(null)
 
 function getInitialMode(): AppMode {
+  if (!isBrowser) return 'subscriber'
   return window.location.pathname.startsWith('/merchant') ? 'merchant' : 'subscriber'
 }
 

@@ -23,7 +23,7 @@ import { submitSubscriberData } from '../lib/relayer'
 type Step = 'loading' | 'error' | 'plan_summary' | 'subscriber_info' | 'auth' | 'wallet_setup' | 'fund_wallet' | 'confirm' | 'processing' | 'success'
 
 export function CheckoutPage() {
-  const isShortLink = window.location.pathname.startsWith('/pay/')
+  const isShortLink = typeof window !== 'undefined' && window.location.pathname.startsWith('/pay/')
   const shortCheckout = useShortCheckout()
   const queryCheckout = useCheckoutParams()
 

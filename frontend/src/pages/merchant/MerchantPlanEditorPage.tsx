@@ -40,7 +40,7 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
   const { signMessageAsync } = useSignMessage()
 
   // Determine mode from URL
-  const params = new URLSearchParams(window.location.search)
+  const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
   const editId = params.get('id')
   const isEdit = !!editId
 

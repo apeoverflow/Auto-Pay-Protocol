@@ -2,7 +2,10 @@ import * as React from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import mermaid from 'mermaid/dist/mermaid.esm.min.mjs'
+// Lazy-loaded in browser only — mermaid depends on DOM APIs
+const mermaidPromise = typeof window !== 'undefined'
+  ? import('mermaid/dist/mermaid.esm.min.mjs').then(m => m.default)
+  : null
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript'
@@ -43,12 +46,12 @@ SyntaxHighlighter.registerLanguage('yaml', yaml)
 SyntaxHighlighter.registerLanguage('yml', yaml)
 SyntaxHighlighter.registerLanguage('toml', toml)
 
-mermaid.initialize({
+mermaidPromise?.then(m => m.initialize({
   startOnLoad: false,
   theme: 'neutral',
   securityLevel: 'loose',
   fontFamily: 'inherit',
-})
+}))
 
 let mermaidCounter = 0
 
@@ -66,18 +69,18 @@ function MermaidDiagram({ chart }: { chart: string }) {
     tempEl.style.left = '-9999px'
     document.body.appendChild(tempEl)
 
-    mermaid.render(id, chart).then(({ svg }) => {
+    mermaidPromise?.then(m => m.render(id, chart).then(({ svg }: { svg: string }) => {
       if (!cancelled && containerRef.current) {
         containerRef.current.innerHTML = svg
       }
-    }).catch((err) => {
+    }).catch((err: unknown) => {
       console.error('Mermaid render error:', err, '\nChart:', chart.slice(0, 200))
       if (!cancelled && containerRef.current) {
         containerRef.current.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;text-align:center;">Diagram could not be rendered</p>'
       }
     }).finally(() => {
       tempEl.remove()
-    })
+    }))
 
     return () => {
       cancelled = true
@@ -366,6 +369,7 @@ function getTextContent(children: React.ReactNode): string {
 export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
   // Read initial doc/section from URL query params (?doc=...&section=...)
   const initialParams = React.useMemo(() => {
+    if (typeof window === 'undefined') return { doc: null, section: null }
     const params = new URLSearchParams(window.location.search)
     const doc = params.get('doc') as DocId | null
     const section = params.get('section')

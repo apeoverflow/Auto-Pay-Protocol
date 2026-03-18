@@ -31,6 +31,7 @@ import {
   MerchantSettingsPage,
 } from './pages/merchant'
 import { LoadingView } from './views'
+import { SEOHead } from './components/SEOHead'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -167,10 +168,13 @@ function App() {
 
   const activeRoute = phase === 'idle' ? (effectiveRoute as Route) : displayedRoute
 
+  const seoHead = <SEOHead route={activeRoute} />
+
   // Fullscreen: Terms of Service
   if (activeRoute === '/terms') {
     return (
       <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        {seoHead}
         <div className="route-layer">
           <TermsPage onBack={() => navigate(isLoggedIn ? '/dashboard' : '/')} />
         </div>
@@ -182,6 +186,7 @@ function App() {
   if (activeRoute === '/privacy') {
     return (
       <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        {seoHead}
         <div className="route-layer">
           <PrivacyPage onBack={() => navigate(isLoggedIn ? '/dashboard' : '/')} />
         </div>
@@ -193,6 +198,7 @@ function App() {
   if (activeRoute === '/docs') {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
+        {seoHead}
         <div
           className={`route-layer ${animClass}`}
           onAnimationEnd={onAnimationEnd}
@@ -209,6 +215,7 @@ function App() {
   if (activeRoute === '/checkout' || activeRoute === '/pay') {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
+        {seoHead}
         <div className="route-layer">
           <CheckoutPage />
         </div>
@@ -220,6 +227,7 @@ function App() {
   if (activeRoute === '/') {
     return (
       <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        {seoHead}
         <div
           className={`route-layer ${animClass}`}
           onAnimationEnd={onAnimationEnd}
@@ -310,6 +318,7 @@ function App() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
+      {seoHead}
       <div
         className={`route-layer ${animClass}`}
         onAnimationEnd={onAnimationEnd}

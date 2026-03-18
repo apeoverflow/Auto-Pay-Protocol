@@ -149,7 +149,7 @@ export interface MerchantSubscribersResponse {
 export async function fetchMerchantSubscribers(
   address: string,
   signMessage: SignMessageFn,
-  chainId: number,
+  chainId?: number,
   planId?: string,
   page = 1,
   limit = 50,
@@ -157,7 +157,7 @@ export async function fetchMerchantSubscribers(
   const { baseUrl, apiKey } = resolveRelayer(address)
 
   const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/subscribers`)
-  url.searchParams.set('chain_id', String(chainId))
+  if (chainId != null) url.searchParams.set('chain_id', String(chainId))
   if (planId) url.searchParams.set('plan_id', planId)
   url.searchParams.set('page', String(page))
   url.searchParams.set('limit', String(limit))
@@ -201,6 +201,7 @@ function isValidRelayerUrl(url: string): boolean {
 }
 
 export function getCustomRelayerConfig(address: string): CustomRelayerConfig | null {
+  if (typeof window === 'undefined') return null
   try {
     const raw = localStorage.getItem(`autopay_custom_relayer_${address.toLowerCase()}`)
     if (!raw) return null
@@ -235,12 +236,14 @@ export interface MerchantStatsResponse {
 
 export async function fetchMerchantStats(
   address: string,
-  chainId: number,
+  chainId?: number,
 ): Promise<MerchantStatsResponse> {
   const { baseUrl } = resolveRelayer(address)
 
+  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/stats`)
+  if (chainId != null) url.searchParams.set('chain_id', String(chainId))
   const res = await fetch(
-    `${baseUrl}/merchants/${encodeURIComponent(address)}/stats?chain_id=${encodeURIComponent(chainId)}`,
+    url.toString(),
   )
   if (!res.ok) {
     throw new Error(`Failed to fetch merchant stats: ${res.status}`)
@@ -285,7 +288,7 @@ export interface MerchantChargesResponse {
 
 export async function fetchMerchantCharges(
   address: string,
-  chainId: number,
+  chainId?: number,
   page = 1,
   limit = 50,
 ): Promise<MerchantChargesResponse> {
@@ -295,7 +298,7 @@ export async function fetchMerchantCharges(
   if (apiKey) headers['X-API-Key'] = apiKey
 
   const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/charges`)
-  url.searchParams.set('chain_id', String(chainId))
+  if (chainId != null) url.searchParams.set('chain_id', String(chainId))
   url.searchParams.set('page', String(page))
   url.searchParams.set('limit', String(limit))
 
@@ -402,7 +405,7 @@ export interface MerchantReport {
 
 export async function fetchMerchantReports(
   address: string,
-  chainId: number,
+  chainId?: number,
 ): Promise<MerchantReport[]> {
   const { baseUrl, apiKey } = resolveRelayer(address)
 
@@ -410,7 +413,7 @@ export async function fetchMerchantReports(
   if (apiKey) headers['X-API-Key'] = apiKey
 
   const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/reports`)
-  url.searchParams.set('chain_id', String(chainId))
+  if (chainId != null) url.searchParams.set('chain_id', String(chainId))
 
   const res = await fetch(url.toString(), { headers })
   if (!res.ok) {

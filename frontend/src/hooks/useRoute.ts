@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { NavItem } from '../components/layout/Sidebar'
+import { isBrowser } from '../lib/ssr'
 
 export type Route =
   | '/'
@@ -98,16 +99,21 @@ export function isDashboardRoute(route: Route): boolean {
   return DASHBOARD_ROUTES.includes(route)
 }
 
-export function useRoute() {
-  const [route, setRoute] = useState<Route>(() => pathToRoute(window.location.pathname))
+export function useRoute(serverUrl?: string) {
+  const [route, setRoute] = useState<Route>(() => {
+    if (serverUrl) return pathToRoute(serverUrl)
+    return isBrowser ? pathToRoute(window.location.pathname) : '/'
+  })
 
   const navigate = useCallback((to: Route, search?: string) => {
+    if (!isBrowser) return
     const url = search ? `${to}${search}` : to
     window.history.pushState(null, '', url)
     setRoute(to)
   }, [])
 
   useEffect(() => {
+    if (!isBrowser) return
     const onPopState = () => setRoute(pathToRoute(window.location.pathname))
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)

@@ -24,6 +24,12 @@ interface UseShortCheckoutReturn {
   isCustomRelayer: boolean
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSSRCheckoutData(): any {
+  if (typeof window === 'undefined') return null
+  return (window as any).__SSR_CHECKOUT_DATA__ ?? null
+}
+
 export function useShortCheckout(): UseShortCheckoutReturn {
   const [params, setParams] = useState<CheckoutParams | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +37,7 @@ export function useShortCheckout(): UseShortCheckoutReturn {
   const [isCustomRelayer, setIsCustomRelayer] = useState(false)
 
   useEffect(() => {
+    if (typeof window === 'undefined') { setIsLoading(false); return }
     const pathname = window.location.pathname
     if (!pathname.startsWith('/pay/')) {
       setIsLoading(false)
@@ -40,6 +47,28 @@ export function useShortCheckout(): UseShortCheckoutReturn {
     if (!shortId) {
       setError('Missing short link ID')
       setIsLoading(false)
+      return
+    }
+
+    // Use server-prefetched data if available (injected by SSR handler)
+    const ssrData = getSSRCheckoutData()
+    if (ssrData?.link) {
+      const data = ssrData.link
+      const defaultUrl = `${window.location.origin}/dashboard`
+      setParams({
+        merchant: data.merchant as `0x${string}`,
+        metadataUrl: data.metadataUrl,
+        amount: String(data.amount),
+        interval: data.interval,
+        spendingCap: data.spendingCap ? String(data.spendingCap) : undefined,
+        ipfsMetadataUrl: data.ipfsMetadataUrl ?? undefined,
+        successUrl: data.successUrl || defaultUrl,
+        cancelUrl: data.cancelUrl || defaultUrl,
+        fields: parseFields(data.fields),
+      })
+      setIsLoading(false)
+      // Clear the SSR data so it's not reused on client navigation
+      delete (window as any).__SSR_CHECKOUT_DATA__
       return
     }
 

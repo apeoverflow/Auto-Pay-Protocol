@@ -20,6 +20,7 @@ interface StoredAcceptance {
 /** Synchronously check localStorage for a valid acceptance. */
 function checkLocalAcceptance(address: string | undefined): boolean {
   if (!address) return false
+  if (typeof window === 'undefined') return false
   try {
     const stored = localStorage.getItem(storageKey(address))
     if (stored) {
