@@ -1,5 +1,6 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { useAuth, useWallet, useRoute } from './hooks'
 import { useTerms } from './contexts/TermsContext'
 import type { Route } from './hooks/useRoute'
@@ -335,6 +336,7 @@ export default function AppWithErrorBoundary() {
   return (
     <ErrorBoundary>
       <App />
+      <SpeedInsights />
     </ErrorBoundary>
   )
 }
