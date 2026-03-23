@@ -23,6 +23,13 @@ export const CHAINS = {
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
     explorer: 'https://blockscout.polkadot.io',
   },
+  tempo: {
+    chainId: 4217,
+    rpcUrl: 'https://rpc.tempo.xyz',
+    usdc: '0x20c000000000000000000000b9537d11c60e8b50',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
+    explorer: 'https://explore.tempo.xyz',
+  },
   baseSepolia: {
     chainId: 84532,
     rpcUrl: 'https://sepolia.base.org',

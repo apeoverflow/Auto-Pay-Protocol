@@ -20,6 +20,7 @@ const preset = CHAIN_PRESETS[CHAIN] || CHAIN_PRESETS.base
 const PORT = process.env.PORT || 3002
 const MERCHANT_ADDRESS = process.env.MERCHANT_ADDRESS || '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B'
 const CHECKOUT_URL = preset.checkoutUrl
+const BLOCK_EXPLORER = preset.blockExplorer
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
 const RELAYER_URL = (process.env.RELAYER_URL || 'http://localhost:3001').trim()
 const RPC_URL = (process.env.RPC_URL || preset.rpcUrl).trim()
@@ -515,6 +516,7 @@ app.get('/api/config', (_req, res) => {
     merchantAddress: MERCHANT_ADDRESS,
     checkoutUrl: CHECKOUT_URL,
     relayerUrl: RELAYER_URL,
+    blockExplorer: BLOCK_EXPLORER,
   })
 })
 

@@ -6,20 +6,30 @@ export const CHAIN_PRESETS = {
     rpcUrl: 'https://mainnet.evm.nodes.onflow.org',
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
     checkoutUrl: 'https://flow.autopayprotocol.com/checkout',
+    blockExplorer: 'https://evm.flowscan.io',
   },
   base: {
     rpcUrl: 'https://mainnet.base.org',
     policyManager: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a',
     checkoutUrl: 'https://autopayprotocol.com/checkout',
+    blockExplorer: 'https://basescan.org',
   },
   polkadotHub: {
     rpcUrl: 'https://eth-rpc.polkadot.io/',
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
     checkoutUrl: 'https://polkadot.autopayprotocol.com/checkout',
+    blockExplorer: 'https://blockscout.polkadot.io',
+  },
+  tempo: {
+    rpcUrl: 'https://rpc.tempo.xyz',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
+    checkoutUrl: 'https://tempo.autopayprotocol.com/checkout',
+    blockExplorer: 'https://explore.tempo.xyz',
   },
   baseSepolia: {
     rpcUrl: 'https://sepolia.base.org',
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
     checkoutUrl: 'https://staging.autopayprotocol.com/checkout',
+    blockExplorer: 'https://sepolia.basescan.org',
   }
 }
