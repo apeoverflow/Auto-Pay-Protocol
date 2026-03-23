@@ -55,6 +55,24 @@
     "gasEstimationDivisor": 3,
     "enabled": true
   },
+  "tempo": {
+    "chainId": 4217,
+    "name": "Tempo",
+    "shortName": "Tempo",
+    "nativeCurrency": { "name": "USD", "symbol": "USD", "decimals": 6 },
+    "rpcUrl": "https://rpc.tempo.xyz",
+    "usdc": "0x20c000000000000000000000b9537d11c60e8b50",
+    "blockExplorer": "https://explore.tempo.xyz",
+    "blockExplorerName": "Tempo Explorer",
+    "verifierType": "custom",
+    "verifierUrl": "https://contracts.tempo.xyz",
+    "pollIntervalMs": 2000,
+    "batchSize": 10000,
+    "confirmations": 1,
+    "supportsLifi": false,
+    "checkoutBaseUrl": "https://tempo.autopayprotocol.com",
+    "enabled": true
+  },
   "baseSepolia": {
     "chainId": 84532,
     "name": "Base Sepolia",

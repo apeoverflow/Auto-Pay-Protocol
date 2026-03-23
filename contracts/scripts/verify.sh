@@ -85,6 +85,14 @@ if [ "$VERIFIER_TYPE" = "etherscan" ]; then
         --constructor-args "$CONSTRUCTOR_ARGS" \
         "$CONTRACT" \
         src/PolicyManager.sol:PolicyManager
+elif [ "$VERIFIER_TYPE" = "custom" ]; then
+    # Custom verifier (Tempo uses --verify with its own contracts.tempo.xyz endpoint)
+    forge verify-contract \
+        --chain-id "$CHAIN_ID" \
+        --verifier-url "${VERIFIER_URL}" \
+        --constructor-args "$CONSTRUCTOR_ARGS" \
+        "$CONTRACT" \
+        src/PolicyManager.sol:PolicyManager
 else
     # Blockscout (Flow EVM, etc.)
     forge verify-contract \
