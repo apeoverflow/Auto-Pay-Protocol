@@ -1,4 +1,4 @@
-export type ChainKey = 'flowEvm' | 'base' | 'baseSepolia'
+export type ChainKey = 'flowEvm' | 'base' | 'polkadotHub' | 'tempo' | 'baseSepolia'
 
 export interface MiddlewareChainConfig {
   name: string
@@ -22,6 +22,20 @@ export const chains: Record<ChainKey, MiddlewareChainConfig> = {
     rpcUrl: 'https://mainnet.base.org',
     policyManager: '0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a',
     usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  },
+  polkadotHub: {
+    name: 'Polkadot Hub',
+    chainId: 420420419,
+    rpcUrl: 'https://eth-rpc.polkadot.io/',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
+    usdc: '0x0000053900000000000000000000000001200000',
+  },
+  tempo: {
+    name: 'Tempo',
+    chainId: 4217,
+    rpcUrl: 'https://rpc.tempo.xyz',
+    policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
+    usdc: '0x20c000000000000000000000b9537d11c60e8b50',
   },
   baseSepolia: {
     name: 'Base Sepolia',
