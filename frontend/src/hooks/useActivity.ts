@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { parseAbiItem, decodeEventLog, type Log, type TransactionReceipt } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
 import { fetchActivityFromDb, type DbPolicy, type DbCharge } from '../lib/supabase'
@@ -136,7 +136,7 @@ export function invalidateActivity() {
 }
 
 export function useActivity(): UseActivityReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { publicClient, chainConfig } = useChain()
 
   const [activity, setActivity] = React.useState<ActivityItem[]>([])

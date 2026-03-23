@@ -28,6 +28,14 @@ export const polkadotHubMainnet = defineChain({
   blockExplorers: { default: { name: 'Blockscout', url: 'https://blockscout.polkadot.io' } },
 })
 
+export const tempoMainnet = defineChain({
+  id: 4217,
+  name: 'Tempo',
+  nativeCurrency: { decimals: 6, name: 'USD', symbol: 'USD' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_TEMPO_RPC || 'https://rpc.tempo.xyz'] } },
+  blockExplorers: { default: { name: 'Tempo Explorer', url: 'https://explore.tempo.xyz' } },
+})
+
 export const baseSepoliaMainnet = defineChain({
   id: 84532,
   name: 'Base Sepolia',
@@ -83,6 +91,18 @@ export const CHAIN_CONFIGS = {
     policyManager: DEPLOYMENTS[420420419]?.contracts.policyManager as `0x${string}` | undefined,
     deployBlock: DEPLOYMENTS[420420419]?.deployBlock,
     explorer: 'https://blockscout.polkadot.io',
+    supportsLifi: false,
+    enabled: true,
+  },
+  tempo: {
+    key: 'tempo',
+    chain: tempoMainnet,
+    name: 'Tempo',
+    shortName: 'Tempo',
+    usdc: '0x20c000000000000000000000b9537d11c60e8b50',
+    policyManager: DEPLOYMENTS[4217]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[4217]?.deployBlock,
+    explorer: 'https://explore.tempo.xyz',
     supportsLifi: false,
     enabled: true,
   },

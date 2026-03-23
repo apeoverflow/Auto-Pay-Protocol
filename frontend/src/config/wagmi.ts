@@ -1,3 +1,4 @@
+/* RAINBOWKIT: commented out for Dynamic/Tempo wallet migration — restore if reverting
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
   metaMaskWallet,
@@ -7,6 +8,7 @@ import {
   phantomWallet,
   injectedWallet,
 } from '@rainbow-me/rainbowkit/wallets'
+*/
 import { createConfig, http } from 'wagmi'
 import {
   mainnet, arbitrum, optimism, base, polygon, bsc, avalanche, gnosis,
@@ -80,6 +82,7 @@ const allChains = [...autoPayChains, ...wagmiChains, ...lifiExtraChains]
 
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'demo-project-id'
 
+/* RAINBOWKIT: commented out for Dynamic/Tempo wallet migration — restore if reverting
 const connectors = connectorsForWallets(
   [
     {
@@ -99,9 +102,15 @@ const connectors = connectorsForWallets(
   ],
   { appName: 'AutoPay Protocol', projectId },
 )
+*/
 
+const isTempo = (import.meta.env.VITE_DEFAULT_CHAIN || 'flowEvm') === 'tempo'
+
+// On Tempo, pass no connectors — wallets are managed by Privy, not injected.
+// Without this, wagmi auto-injects Coinbase Smart Wallet which doesn't support
+// Tempo's chain ID and causes looping errors.
 export const wagmiConfig = createConfig({
-  connectors,
   chains: allChains as any,
+  connectors: isTempo ? [] : undefined,
   transports: Object.fromEntries(allChains.map(c => [c.id, http()])),
 })

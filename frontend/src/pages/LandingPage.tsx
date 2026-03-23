@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ShieldCheck,
   BadgePercent,
@@ -17,6 +18,7 @@ import {
   Database,
   Cpu,
   Bot,
+  Star,
 } from 'lucide-react'
 import {
   motion,
@@ -36,6 +38,7 @@ const CHAIN_BRAND: Record<string, { rgb: string; hex: string; hexHover: string; 
   flowEvm:     { rgb: '0,180,108',   hex: '#00B46C', hexHover: '#009D5E', accentRgb: '0,210,130',   icon: '/flow-icon.svg',     name: 'Flow' },
   base:        { rgb: '0,0,255',     hex: '#0000FF', hexHover: '#0000DD', accentRgb: '0,100,255',   icon: '/base-square.svg',   name: 'Base' },
   polkadotHub: { rgb: '60,60,75',     hex: '#3C3C4B', hexHover: '#2E2E3B', accentRgb: '90,90,110',   icon: '/polkadot-icon.svg', name: 'Polkadot' },
+  tempo:       { rgb: '100,100,120', hex: '#646478', hexHover: '#7A7A90', accentRgb: '130,130,160', icon: '/tempo-icon.svg',    name: 'Tempo' },
 }
 const brand = CHAIN_BRAND[DEFAULT_CHAIN] ?? CHAIN_BRAND.base
 
@@ -603,11 +606,11 @@ function StepVisual({ type }: { type: 'dashboard' | 'link' | 'wallet' | 'webhook
 /* ── data ── */
 
 const ROWS = [
-  { label: 'Fee', us: '2.5% flat', them: '2.9% + 30c' },
-  { label: 'Deplatforming', us: 'Impossible', them: 'One policy change away' },
+  { label: 'Custody', us: 'Your wallet, your keys', them: 'Their servers, their rules' },
+  { label: 'Deplatforming', us: 'Impossible — smart contract', them: 'One policy change away' },
+  { label: 'Geography', us: 'Global, permissionless', them: 'US merchants only (stablecoin)' },
   { label: 'Settlement', us: 'Instant, on-chain', them: '2–7 business days' },
-  { label: 'Custody', us: 'Subscriber\'s wallet', them: 'Their servers' },
-  { label: 'Terms', us: 'Smart contract enforced', them: 'Can change anytime' },
+  { label: 'Policies', us: 'On-chain, auditable caps', them: 'Opaque, can change anytime' },
   { label: 'Chargebacks', us: 'None', them: 'Up to 120 days' },
   { label: 'Source code', us: 'Open source', them: 'Proprietary' },
 ]
@@ -777,21 +780,27 @@ const EXIT_BLOCKS = generateExitBlocks()
    Bottom 40% is solid dark base — blocks only need to cover y 0–65%. */
 
 const STEPS: { num: string; title: string; desc: string; icon: typeof LayoutDashboard; visual: 'dashboard' | 'link' | 'wallet' | 'webhook' }[] = [
-  { num: '01', title: 'Create a Plan', desc: 'Set up a subscription plan in the merchant dashboard — name, price, interval. Takes 30 seconds.', icon: LayoutDashboard, visual: 'dashboard' },
+  { num: '01', title: 'Create a Plan', desc: 'Set up a subscription plan in the merchant dashboard — name, price, interval. Import from Stripe or start fresh.', icon: LayoutDashboard, visual: 'dashboard' },
   { num: '02', title: 'Share the Link', desc: 'Copy your checkout link and drop it anywhere — your website, a button, or just send the URL directly.', icon: Link2, visual: 'link' },
-  { num: '03', title: 'Subscribers Pay', desc: 'Users connect any wallet and pay with USDC from 30+ chains. First charge is immediate, then recurring.', icon: Wallet, visual: 'wallet' },
-  { num: '04', title: 'Webhooks Fire', desc: 'Get real-time POST notifications on every charge, failure, and cancellation. Plug into your existing app logic.', icon: Webhook, visual: 'webhook' },
+  { num: '03', title: 'Users & Agents Pay', desc: 'Humans connect any wallet. Agents pay automatically. USDC from 30+ chains. First charge is immediate.', icon: Wallet, visual: 'wallet' },
+  { num: '04', title: 'Webhooks Fire', desc: 'Get real-time POST notifications on every charge, failure, and cancellation. Stripe-compatible format available.', icon: Webhook, visual: 'webhook' },
 ]
 
 /* ══════════════════════════════════════════════════════ */
 
 export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
   const prefersReduced = useReducedMotion()
+  const [showPointsModal, setShowPointsModal] = useState(false)
 
   return (
     <div className="lp-root">
       {/* dot-grid texture layer */}
       <div className="lp-dot-grid" />
+
+      {/* ── POINTS BANNER (mobile) ── */}
+      <button type="button" onClick={() => setShowPointsModal(true)} className="lp-points-banner">
+        <Star size={12} fill="currentColor" /> Earn Loyalty Points — tap to learn more
+      </button>
 
       {/* ── NAV ── */}
       <nav className="lp-nav">
@@ -804,12 +813,15 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             </span>
           </div>
           <div className="lp-nav-links">
+            <button type="button" onClick={() => setShowPointsModal(true)} className="lp-nav-link lp-nav-points">
+              <Star size={13} fill="currentColor" /> <span className="lp-nav-points-full">Loyalty Points</span><span className="lp-nav-points-short">Points</span>
+            </button>
             <button onClick={onDocs} className="lp-nav-link">Docs</button>
             <a href="https://calendly.com/kieranmarcus/30min" target="_blank" rel="noopener noreferrer" className="lp-nav-link lp-nav-demo">Schedule a Demo</a>
-            <MotionButton onClick={onOpenApp} className="lp-nav-cta">
-              Launch App <ArrowRight size={14} strokeWidth={2.5} />
-            </MotionButton>
           </div>
+          <MotionButton onClick={onOpenApp} className="lp-nav-cta">
+            Launch App <ArrowRight size={14} strokeWidth={2.5} />
+          </MotionButton>
         </div>
       </nav>
 
@@ -820,21 +832,21 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         <UsdcStream />
         <div className="lp-hero-inner">
           <SectionReveal className="lp-hero-text">
-            <motion.p variants={heroTextVariants} className="lp-eyebrow">SUBSCRIPTION RAILS YOU OWN</motion.p>
+            <motion.p variants={heroTextVariants} className="lp-eyebrow">PAYMENT RAILS YOU OWN</motion.p>
             <motion.h1 variants={heroTextVariants} className="lp-hero-h1">
-              Recurring payments{' '}
-              <em>no one can shut down</em>
+              The unified payments platform.{' '}
+              <em>No one can shut you off.</em>
             </motion.h1>
             <motion.p variants={heroTextVariants} className="lp-hero-sub">
-              Non-custodial USDC subscriptions across 30+ chains. Built for humans and AI agents alike.
-              No deplatforming. 50% cheaper than Stripe. Two lines of code.
+              Traditional and non-custodial payments. Subscriptions, one-time,
+              and per-request, unified in one package. Accept USDC from 30+ chains.
             </motion.p>
             <motion.div variants={heroTextVariants} className="lp-hero-actions">
               <MotionButton onClick={onOpenApp} className="lp-btn-primary">
                 Get Started <ArrowRight size={16} strokeWidth={2.5} />
               </MotionButton>
               <MotionButton onClick={onDocs} className="lp-btn-ghost">
-                <BookOpen size={16} /> Documentation
+                <BookOpen size={16} /> See How It Works
               </MotionButton>
             </motion.div>
           </SectionReveal>
@@ -853,17 +865,17 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         <SectionReveal className="lp-stats-bar">
           <motion.div variants={revealVariants} className="lp-stat">
             <span className="lp-stat-val"><Counter end={2.5} suffix="%" /></span>
-            <span className="lp-stat-label">Flat fee</span>
+            <span className="lp-stat-label">Flat fee, no hidden costs</span>
           </motion.div>
           <motion.div variants={revealVariants} className="lp-stat-div" />
           <motion.div variants={revealVariants} className="lp-stat">
             <span className="lp-stat-val"><Counter end={30} suffix="+" /></span>
-            <span className="lp-stat-label">Chains</span>
+            <span className="lp-stat-label">Chains supported</span>
           </motion.div>
           <motion.div variants={revealVariants} className="lp-stat-div" />
           <motion.div variants={revealVariants} className="lp-stat">
-            <span className="lp-stat-val">0</span>
-            <span className="lp-stat-label">Intermediaries</span>
+            <span className="lp-stat-val"><Counter end={0} suffix="" /></span>
+            <span className="lp-stat-label">Custody of your funds</span>
           </motion.div>
         </SectionReveal>
 
@@ -899,8 +911,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         <SectionReveal className="lp-contain">
           <motion.p variants={revealVariants} className="lp-eyebrow lp-text-center">WHY AUTOPAY</motion.p>
           <motion.h2 variants={revealVariants} className="lp-h2">
-            The numbers{' '}
-            <em>speak for themselves</em>
+            Own your rails,{' '}
+            <em>keep your revenue</em>
           </motion.h2>
 
           {/* ── Hero story card: deplatforming ── */}
@@ -910,9 +922,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                 <ShieldCheck size={20} strokeWidth={2.5} />
               </div>
               <blockquote className="lp-story-quote">
-                "Every subscription platform is a single point of failure.
+                "Every custodial payment platform is a single point of failure.
                 One policy change, one compliance decision, one terms-of-service
-                update — and a creator is disconnected from their revenue."
+                update — and you're disconnected from your revenue."
               </blockquote>
               <div className="lp-story-stat-row">
                 <div className="lp-story-stat">
@@ -932,7 +944,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               </div>
               <p className="lp-story-foot">
                 Smart contracts don't have compliance departments, ToS updates,
-                or payment holds. Once deployed, your subscription logic runs
+                or payment holds. Once deployed, your payment logic runs
                 until you decide otherwise.
               </p>
             </div>
@@ -950,7 +962,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                   <span className="lp-case-tag">SAVINGS CALCULATOR</span>
                 </div>
                 <h3 className="lp-case-title">
-                  How much are you <em>really</em> losing to fees?
+                  How much are platforms <em>really</em> taking?
                 </h3>
                 <FeeCalculator />
               </div>
@@ -1040,10 +1052,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             ))}
           </div>
           <div className="lp-contain">
-            <motion.p variants={revealVariants} className="lp-eyebrow lp-eyebrow-dim lp-text-center">AUTOPAY VS TRADITIONAL</motion.p>
+            <motion.p variants={revealVariants} className="lp-eyebrow lp-eyebrow-dim lp-text-center">AUTOPAY VS CUSTODIAL RAILS</motion.p>
             <motion.h2 variants={revealVariants} className="lp-h2 lp-h2-light">
-              Half the cost.{' '}
-              <em>None of the risk.</em>
+              Your keys.{' '}
+              <em>Your payment rails.</em>
             </motion.h2>
             {/* Terminal diff comparison — split layout */}
             <motion.div className="lp-diff" variants={containerVariants}>
@@ -1053,7 +1065,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                   <span className="lp-diff-dot lp-diff-dot--y" />
                   <span className="lp-diff-dot lp-diff-dot--g" />
                 </div>
-                <span className="lp-diff-title">compare --autopay --traditional</span>
+                <span className="lp-diff-title">compare --autopay --custodial</span>
               </div>
               <div className="lp-diff-body lp-diff-body--split">
                 {ROWS.map((r) => (
@@ -1095,10 +1107,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             <span className="lp-sf-badge-status">ONLINE</span>
           </motion.div>
           <motion.h2 variants={revealVariants} className="lp-h2 lp-agent-h2">
-            The subscription layer<br />for <em>autonomous agents.</em>
+            The payment layer<br />for <em>autonomous agents.</em>
           </motion.h2>
           <motion.p variants={revealVariants} className="lp-agent-lead">
-            Your tiered pricing already works. <em>Don't refit it into a pay-per-request model.</em>
+            Your tiered pricing already works. Don't refit it into a pay-per-request model.
             <br />AutoPay lets agents subscribe to your existing plans. Same pricing. No human in the loop.
           </motion.p>
 
@@ -1120,9 +1132,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                   <span className="lp-agent-code-file">agent.ts</span>
                   <span className="lp-sf-term-status">RUNNING</span>
                 </div>
-                <pre className="lp-agent-code-body"><code><span className="lp-ac-kw">const</span> <span className="lp-ac-var">agent</span> = <span className="lp-ac-kw">new</span> <span className="lp-ac-cls">AutoPayAgent</span>({'{'}<br />{'  '}<span className="lp-ac-prop">privateKey</span>: process.env.<span className="lp-ac-var">AGENT_KEY</span>,<br />{'  '}<span className="lp-ac-prop">chain</span>: <span className="lp-ac-str">'{DEFAULT_CHAIN}'</span>,<br />{'\u007D'})<br /><br /><span className="lp-ac-comment">{'// Wrap fetch — 402 discovery + subscribe is automatic'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">fetchWithPay</span> = <span className="lp-ac-fn">wrapFetchWithSubscription</span>(<span className="lp-ac-var">fetch</span>, <span className="lp-ac-var">agent</span>)<br /><br /><span className="lp-ac-comment">{'// Just fetch — handles 402, subscribes, retries'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">data</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">fetchWithPay</span>(<span className="lp-ac-str">'https://api.service.com/feed'</span>)<br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">json</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">data</span>.<span className="lp-ac-fn">json</span>()</code></pre>
+                <pre className="lp-agent-code-body"><code><span className="lp-ac-kw">const</span> <span className="lp-ac-var">agent</span> = <span className="lp-ac-kw">new</span> <span className="lp-ac-cls">AutoPayAgent</span>({'{'}<br />{'  '}<span className="lp-ac-prop">privateKey</span>: process.env.<span className="lp-ac-var">AGENT_KEY</span>,<br />{'  '}<span className="lp-ac-prop">chain</span>: <span className="lp-ac-str">'{DEFAULT_CHAIN}'</span>,<br />{'\u007D'})<br /><br /><span className="lp-ac-comment">{'// Handles subscriptions, x402, and MPP automatically'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">fetchWithPay</span> = <span className="lp-ac-fn">wrapFetchWithPayment</span>(<span className="lp-ac-var">fetch</span>, <span className="lp-ac-var">agent</span>)<br /><br /><span className="lp-ac-comment">{'// Just fetch — detects payment type, pays, retries'}</span><br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">data</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">fetchWithPay</span>(<span className="lp-ac-str">'https://api.service.com/feed'</span>)<br /><span className="lp-ac-kw">const</span> <span className="lp-ac-var">json</span> = <span className="lp-ac-kw">await</span> <span className="lp-ac-var">data</span>.<span className="lp-ac-fn">json</span>()</code></pre>
                 <div className="lp-agent-code-footer">
-                  Wrap <code>fetch</code> once. 402 discovery, subscription, and retry are transparent.
+                  Wrap <code>fetch</code> once. Subscriptions, x402 micropayments, and MPP sessions — all transparent.
                 </div>
               </div>
             </motion.div>
@@ -1149,6 +1161,9 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                   ))}
                 </div>
               </div>
+              <div className="lp-mcp-warning">
+                <strong>Important:</strong> Use a burner wallet with limited funds for testing only. Putting private keys into LLMs is not safe. This integration is in active development.
+              </div>
             </motion.div>
           </motion.div>
 
@@ -1171,7 +1186,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
 
           {/* Use case pills */}
           <motion.div variants={revealVariants} className="lp-agent-pills">
-            {['Data Feeds', 'LLM APIs', 'Compute Clusters', 'Vector DBs', 'Trading Signals', 'Multi-Agent Swarms'].map((label) => (
+            {['Data Feeds', 'LLM APIs', 'SaaS Subscriptions', 'Trading Signals', 'Tempo / MPP', 'Multi-Agent Swarms'].map((label) => (
               <span key={label} className="lp-agent-pill">
                 <span className="lp-sf-pill-dot" />{label}
               </span>
@@ -1195,10 +1210,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           <div className="lp-cta-orb" aria-hidden="true" />
           <motion.div variants={revealVariants} className="lp-cta-rule" />
           <motion.h2 variants={revealVariants} className="lp-cta-h2">
-            Own your<br />subscription revenue
+            Own your<br />payment rails
           </motion.h2>
           <motion.p variants={revealVariants} className="lp-cta-sub">
-            No platform risk. No bank account. Just USDC, directly to your wallet.
+            No platform risk. No custody. Non-custodial USDC payments, directly to your wallet.
           </motion.p>
           <motion.div variants={revealVariants} className="lp-cta-actions">
             <MotionButton onClick={onOpenApp} className="lp-btn-primary lp-btn-lg">
@@ -1219,7 +1234,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               <img src="/favicon-512.png" alt="" className="lp-footer-icon" />
               <div>
                 <div className="lp-footer-name">AutoPay Protocol</div>
-                <div className="lp-footer-tagline">Non-custodial crypto subscriptions</div>
+                <div className="lp-footer-tagline">Non-custodial unified crypto payments</div>
               </div>
             </div>
             <div className="lp-footer-cols">
@@ -1249,6 +1264,74 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           </div>
         </div>
       </footer>
+
+      {/* ── POINTS MODAL (portaled to body to escape route-layer transforms) ── */}
+      {showPointsModal && createPortal(
+        <div className="lp-modal-overlay" onClick={() => setShowPointsModal(false)}>
+          <div className="lp-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="lp-modal-close" onClick={() => setShowPointsModal(false)}>&times;</button>
+            <div className="lp-modal-icon">
+              <Star size={28} fill="#b8860b" color="#b8860b" />
+            </div>
+            <h3 className="lp-modal-title">Earn Loyalty Points</h3>
+            <p className="lp-modal-desc">
+              Every dollar flowing through AutoPay earns you <strong>10 loyalty points per $1 USDC</strong>.
+              Climb the leaderboard, unlock tiers from Bronze to Diamond, and earn bonus points for
+              referrals, streaks, and social engagement.
+            </p>
+            <div className="lp-modal-tiers">
+              {[
+                { name: 'Bronze', color: '#CD7F32' },
+                { name: 'Silver', color: '#888' },
+                { name: 'Gold', color: '#b8860b' },
+                { name: 'Diamond', color: '#0052FF' },
+              ].map((t) => (
+                <span key={t.name} className="lp-modal-tier" style={{ color: t.color, borderColor: `${t.color}33` }}>{t.name}</span>
+              ))}
+            </div>
+            <div className="lp-modal-features">
+              <div className="lp-modal-feat">
+                <strong>10x per $1</strong>
+                <span>Every charge earns points for payers and merchants</span>
+              </div>
+              <div className="lp-modal-feat">
+                <strong>Referrals</strong>
+                <span>Invite friends, earn 10 pts/$1 on their first charge</span>
+              </div>
+              <div className="lp-modal-feat">
+                <strong>Streaks</strong>
+                <span>Visit daily, build streaks, unlock bonus points</span>
+              </div>
+            </div>
+            <MotionButton
+              onClick={() => { setShowPointsModal(false); sessionStorage.setItem('open_points', '1'); onOpenApp() }}
+              className="lp-btn-primary lp-modal-cta"
+            >
+              Start Earning <ArrowRight size={16} strokeWidth={2.5} />
+            </MotionButton>
+          </div>
+          <style>{`
+            .lp-modal-overlay { position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;animation:lp-fade-in 0.2s ease-out;font-family:'DM Sans',system-ui,sans-serif }
+            .lp-modal { position:relative;background:white;border-radius:20px;padding:40px 36px 36px;max-width:480px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.2);animation:lp-slide-up 0.3s ease-out;text-align:center }
+            .lp-modal-close { position:absolute;top:16px;right:20px;background:none;border:none;font-size:24px;color:#7C7C82;cursor:pointer;line-height:1 }
+            .lp-modal-close:hover { color:#111 }
+            .lp-modal-icon { display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,165,0,0.08));margin-bottom:20px }
+            .lp-modal-title { font-size:22px;font-weight:700;color:#111;margin:0 0 12px;letter-spacing:-0.02em }
+            .lp-modal-desc { font-size:14px;line-height:1.6;color:#7C7C82;margin:0 0 24px }
+            .lp-modal-desc strong { color:#111 }
+            .lp-modal-tiers { display:flex;justify-content:center;gap:8px;margin-bottom:24px }
+            .lp-modal-tier { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:5px 14px;border-radius:99px;border:1px solid }
+            .lp-modal-features { display:flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:28px }
+            .lp-modal-feat { display:flex;gap:12px;align-items:baseline;font-size:13px;color:#7C7C82;padding:10px 14px;border-radius:10px;background:rgba(0,0,0,0.02);border:1px solid rgba(0,0,0,0.04) }
+            .lp-modal-feat strong { color:#111;white-space:nowrap;min-width:80px }
+            .lp-modal-cta { width:100%;justify-content:center;display:inline-flex;align-items:center;gap:6px;padding:12px 24px;border-radius:12px;border:none;background:#111;color:#fff;font-size:14px;font-weight:600;cursor:pointer }
+            .lp-modal-cta:hover { background:#333 }
+            @keyframes lp-fade-in { from{opacity:0} to{opacity:1} }
+            @keyframes lp-slide-up { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+          `}</style>
+        </div>,
+        document.body
+      )}
 
       {/* ── STYLES ── */}
       <style>{`
@@ -1582,6 +1665,25 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         }
 
         /* ── nav ── */
+        /* ── points banner (mobile only) ── */
+        .lp-points-banner {
+          display: none;
+          width: 100%;
+          padding: 8px 16px;
+          background: linear-gradient(90deg, #b8860b, #d4a017);
+          color: #fff;
+          font-family: var(--sans);
+          font-size: 12px;
+          font-weight: 600;
+          text-align: center;
+          border: none;
+          cursor: pointer;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          letter-spacing: 0.01em;
+        }
+
         .lp-nav {
           position: sticky; top: 0; z-index: 100;
           backdrop-filter: blur(20px) saturate(1.8);
@@ -1620,28 +1722,51 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           height: 16px;
           border-radius: 50%;
         }
-        .lp-nav-links { display: flex; align-items: center; gap: 24px; }
+        .lp-nav-links { display: flex; align-items: center; gap: 24px; margin-left: auto; }
         .lp-nav-link {
           background: none; border: none; font-family: var(--sans);
           font-size: 13px; font-weight: 500; color: var(--muted);
           cursor: pointer; transition: color 0.2s;
         }
         .lp-nav-link:hover { color: var(--fg); }
+        .lp-nav-points { display: inline-flex; align-items: center; gap: 5px; color: #b8860b; font-weight: 600; padding: 0; }
+        .lp-nav-points:hover { color: #8B6914; }
+        .lp-nav-points-short { display: none; }
         .lp-nav-cta {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 8px 16px; border-radius: 10px; border: none;
           background: var(--fg); color: #fff;
           font-family: var(--sans); font-size: 13px; font-weight: 600;
           cursor: pointer; transition: background 0.2s;
+          margin-left: 24px;
         }
         .lp-nav-cta:hover { background: #333; }
         @media (max-width: 639px) {
-          .lp-nav-inner { padding: 12px 16px; }
-          .lp-nav-logo { height: 28px; }
-          .lp-nav-links { gap: 12px; }
-          .lp-nav-link { font-size: 12px; }
-          .lp-nav-cta { font-size: 12px; padding: 6px 12px; white-space: nowrap; }
-          .lp-nav-demo { display: none; }
+          .lp-nav-inner {
+            padding: 10px 16px;
+            flex-wrap: wrap;
+          }
+          .lp-nav-logo { height: 26px; }
+          .lp-nav-chain-badge { display: none; }
+          .lp-nav-brand { flex: 0 0 auto; }
+          .lp-nav-cta {
+            margin-left: auto;
+            font-size: 12px; padding: 7px 14px;
+            white-space: nowrap;
+          }
+          .lp-nav-links {
+            width: 100%;
+            order: 3;
+            margin-left: 0;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.06);
+          }
+          .lp-nav-link { font-size: 12px; padding: 2px 0; }
+          .lp-nav-points { display: none; }
+          .lp-points-banner { display: flex; }
         }
 
         /* ── hero ── */
@@ -1649,7 +1774,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         .lp-hero-inner {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 48px;
+          gap: 32px;
           align-items: center;
         }
         @media (min-width: 960px) {
@@ -1923,7 +2048,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           display: flex; flex-direction: column; align-items: center; padding: 0 40px;
         }
         .lp-stat-val {
-          font-size: 32px; font-weight: 700; letter-spacing: -0.03em;
+          font-family: var(--serif); font-style: italic;
+          font-size: 36px; font-weight: 400; letter-spacing: -0.02em;
           font-variant-numeric: tabular-nums;
         }
         .lp-stat-label {
@@ -1939,7 +2065,20 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: var(--blue); color: #fff;
           font-family: var(--sans); font-size: 15px; font-weight: 600;
           cursor: pointer;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 24px rgba(var(--brand-rgb),0.16);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 24px rgba(var(--brand-rgb),0.22);
+          position: relative; overflow: hidden;
+        }
+        .lp-btn-primary::after {
+          content: '';
+          position: absolute; inset: 0;
+          background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.12) 48%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.12) 52%, transparent 60%);
+          transform: translateX(-100%);
+          animation: btnShine 12s ease-in-out infinite;
+        }
+        @keyframes btnShine {
+          0%, 100% { transform: translateX(-100%); }
+          5% { transform: translateX(200%); }
+          6% { transform: translateX(200%); }
         }
         .lp-btn-lg { padding: 16px 32px; font-size: 16px; }
         .lp-btn-ghost {
@@ -1948,6 +2087,11 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           background: transparent; color: var(--muted);
           font-family: var(--sans); font-size: 15px; font-weight: 600;
           cursor: pointer;
+          transition: color 0.2s, background 0.2s;
+        }
+        .lp-btn-ghost:hover {
+          color: var(--fg);
+          background: rgba(0,0,0,0.04);
         }
 
         /* ── sections ── */
@@ -3145,9 +3289,27 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         /* ── mobile ── */
         @media (max-width: 639px) {
           .lp-hero { padding: 48px 20px 0; }
-          .lp-stats-bar { margin-top: 40px; }
-          .lp-stat { padding: 0 20px; }
-          .lp-stat-val { font-size: 24px; }
+          .lp-stats-bar {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0;
+            padding: 20px 0;
+          }
+          .lp-stat-div { display: none; }
+          .lp-stat {
+            padding: 8px 0;
+            position: relative;
+          }
+          .lp-stat:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0; top: 15%; bottom: 15%;
+            width: 1px;
+            background: rgba(0,0,0,0.09);
+          }
+          .lp-stat-val { font-size: 22px; }
+          .lp-stat-label { font-size: 10px; text-align: center; }
           .lp-section { padding: 56px 16px; }
           .lp-h2 { font-size: 28px; }
           .lp-case-card-inner { padding: 24px 18px; }
@@ -3605,6 +3767,20 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           color: rgba(var(--accent-rgb),0.85);
         }
 
+        .lp-mcp-warning {
+          margin-top: 12px;
+          padding: 10px 14px;
+          background: rgba(234, 179, 8, 0.08);
+          border: 1px solid rgba(234, 179, 8, 0.25);
+          border-radius: 8px;
+          font-size: 12px;
+          line-height: 1.5;
+          color: rgba(255,255,255,0.7);
+        }
+        .lp-mcp-warning strong {
+          color: rgb(234, 179, 8);
+        }
+
         @media (max-width: 1023px) {
           .lp-agent-paths { grid-template-columns: 1fr; max-width: 560px; min-width: 0; }
           .lp-agent-path { min-width: 0; }
@@ -3622,6 +3798,70 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         @media (max-width: 480px) {
           .lp-agent-features { grid-template-columns: 1fr; }
         }
+
+        /* ── Points Modal ── */
+        .lp-modal-overlay {
+          position: fixed; inset: 0; z-index: 9999;
+          background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+          display: flex; align-items: center; justify-content: center;
+          padding: 20px;
+          animation: lp-fade-in 0.2s ease-out;
+        }
+        @keyframes lp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes lp-slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .lp-modal {
+          position: relative;
+          background: white; border-radius: 20px;
+          padding: 40px 36px 36px;
+          max-width: 480px; width: 100%;
+          box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+          animation: lp-slide-up 0.3s ease-out;
+          text-align: center;
+        }
+        .lp-modal-close {
+          position: absolute; top: 16px; right: 20px;
+          background: none; border: none; font-size: 24px;
+          color: var(--muted); cursor: pointer; line-height: 1;
+        }
+        .lp-modal-close:hover { color: var(--fg); }
+        .lp-modal-icon {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 56px; height: 56px; border-radius: 16px;
+          background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,165,0,0.08));
+          margin-bottom: 20px;
+        }
+        .lp-modal-title {
+          font-size: 22px; font-weight: 700; color: var(--fg);
+          margin: 0 0 12px; letter-spacing: -0.02em;
+        }
+        .lp-modal-desc {
+          font-size: 14px; line-height: 1.6; color: var(--muted);
+          margin: 0 0 24px;
+        }
+        .lp-modal-desc strong { color: var(--fg); }
+        .lp-modal-tiers {
+          display: flex; justify-content: center; gap: 8px;
+          margin-bottom: 24px;
+        }
+        .lp-modal-tier {
+          font-size: 11px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: 0.06em; padding: 5px 14px;
+          border-radius: 99px; border: 1px solid;
+        }
+        .lp-modal-features {
+          display: flex; flex-direction: column; gap: 10px;
+          text-align: left; margin-bottom: 28px;
+        }
+        .lp-modal-feat {
+          display: flex; gap: 12px; align-items: baseline;
+          font-size: 13px; color: var(--muted);
+          padding: 10px 14px; border-radius: 10px;
+          background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.04);
+        }
+        .lp-modal-feat strong {
+          color: var(--fg); white-space: nowrap; min-width: 80px;
+        }
+        .lp-modal-cta { width: 100%; justify-content: center; }
       `}</style>
     </div>
   )

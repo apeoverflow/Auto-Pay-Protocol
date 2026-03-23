@@ -4,6 +4,7 @@ import { closeDb } from './db/index.js'
 import { startIndexerLoop } from './indexer/index.js'
 import { startExecutorLoop } from './executor/index.js'
 import { startWebhookSenderLoop } from './webhooks/index.js'
+import { startPointsWorkerLoop } from './points/worker.js'
 import { createApiServer, startApiServer, stopApiServer } from './api/index.js'
 import { isStorachaEnabled } from './lib/storacha.js'
 import { createLogger } from './utils/logger.js'
@@ -81,7 +82,10 @@ export async function startRelayer() {
   // Start webhook sender loop
   const webhookPromise = startWebhookSenderLoop(config, abortController.signal)
 
-  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise])
+  // Start points worker loop
+  const pointsPromise = startPointsWorkerLoop(config, abortController.signal)
+
+  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise, pointsPromise])
 
   // Handle shutdown signals
   const shutdown = async () => {

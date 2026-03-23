@@ -1,5 +1,7 @@
 import * as React from 'react'
-import { useAccount, useSignMessage } from 'wagmi'
+import { useSignMessage } from 'wagmi'
+import { useAddress } from '../hooks/useAddress'
+import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
 
 // Bump this when ToS changes materially to require re-acceptance
 export const TERMS_VERSION = '1.0'
@@ -44,8 +46,10 @@ interface TermsContextValue {
 const TermsContext = React.createContext<TermsContextValue | null>(null)
 
 export function TermsProvider({ children }: { children: React.ReactNode }) {
-  const { address } = useAccount()
-  const { signMessageAsync } = useSignMessage()
+  const address = useAddress()
+  const { signMessageAsync: wagmiSignMessage } = useSignMessage()
+  const tempoWallet = useTempoWallet()
+  const isTempo = isTempoBuild()
 
   // Initialize synchronously from localStorage — prevents flash of ToS modal
   const [hasAccepted, setHasAccepted] = React.useState(() => checkLocalAcceptance(address))
@@ -109,7 +113,16 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
         `Date: ${new Date().toISOString()}`,
       ].join('\n')
 
-      const signature = await signMessageAsync({ message })
+      let signature: string
+      if (isTempo && tempoWallet.walletId && tempoWallet.getAccessToken) {
+        // On Tempo, sign via the relayer's Privy-backed wallet
+        const token = await tempoWallet.getAccessToken()
+        if (!token) throw new Error('Not authenticated')
+        const { tempoSignMessage } = await import('../lib/tempo-api')
+        signature = await tempoSignMessage(token, tempoWallet.walletId, tempoWallet.address || address!, message)
+      } else {
+        signature = await wagmiSignMessage({ message })
+      }
 
       // Save to relayer (authoritative record with signature verification)
       if (RELAYER_URL) {
@@ -140,7 +153,7 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsAccepting(false)
     }
-  }, [address, signMessageAsync])
+  }, [address, wagmiSignMessage, isTempo, tempoWallet])
 
   const value = React.useMemo(
     () => ({

@@ -39,6 +39,17 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     enabled: true,
     gasEstimationDivisor: 3,
   },
+  tempo: {
+    chainId: 4217,
+    name: 'Tempo',
+    rpcUrl: process.env.TEMPO_RPC || 'https://rpc.tempo.xyz',
+    policyManagerAddress: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345' as `0x${string}`,
+    startBlock: 10151466,
+    pollIntervalMs: 2000,
+    batchSize: 10000,
+    confirmations: 1,
+    enabled: true,
+  },
   baseSepolia: {
     chainId: 84532,
     name: 'Base Sepolia',
@@ -65,6 +76,20 @@ export const DEPLOYMENTS = {
     },
     "addresses": {
       "usdc": "0xF1815bd50389c46847f0Bda824eC8da914045D14",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
+  "4217": {
+    "chainId": 4217,
+    "chainName": "tempo",
+    "deployedAt": "2026-03-19T00:00:00Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 10151466,
+    "contracts": {
+      "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+    },
+    "addresses": {
+      "usdc": "0x20c000000000000000000000b9537d11c60e8b50",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },

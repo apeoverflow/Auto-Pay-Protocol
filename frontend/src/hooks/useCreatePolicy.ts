@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { decodeEventLog, type Hex } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
+import { isTempoBuild, useTempoWallet } from '../contexts/TempoWalletContext'
+import { tempoCreatePolicy } from '../lib/tempo-api'
 import { useWallet } from '../contexts/WalletContext'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
@@ -17,9 +19,11 @@ interface UseCreatePolicyReturn {
 }
 
 export function useCreatePolicy(): UseCreatePolicyReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { fetchBalance } = useWallet()
   const { walletClient, publicClient, chainConfig } = useChain()
+  const tempoWallet = useTempoWallet()
+  const isTempo = isTempoBuild()
 
   const [policyId, setPolicyId] = React.useState<`0x${string}`>()
   const [hash, setHash] = React.useState<Hex>()
@@ -29,7 +33,7 @@ export function useCreatePolicy(): UseCreatePolicyReturn {
 
   const createPolicy = React.useCallback(
     async (params: CreatePolicyParams): Promise<`0x${string}`> => {
-      if (!address || !walletClient || !publicClient) {
+      if (!address || !publicClient) {
         throw new Error('Wallet not connected')
       }
 
@@ -44,18 +48,40 @@ export function useCreatePolicy(): UseCreatePolicyReturn {
       setHash(undefined)
 
       try {
-        const txHash = await walletClient.writeContract({
-          address: chainConfig.policyManager,
-          abi: PolicyManagerAbi,
-          functionName: 'createPolicy',
-          args: [
-            params.merchant,
-            params.chargeAmount,
-            params.interval,
-            params.spendingCap,
-            params.metadataUrl,
-          ],
-        })
+        let txHash: `0x${string}`
+
+        if (isTempo && tempoWallet.getAccessToken && tempoWallet.walletId && tempoWallet.address) {
+          // Tempo: create policy via relayer
+          const token = await tempoWallet.getAccessToken()
+          if (!token) throw new Error('Not authenticated')
+          const result = await tempoCreatePolicy(token, tempoWallet.walletId, tempoWallet.address, {
+            merchant: params.merchant,
+            chargeAmount: params.chargeAmount.toString(),
+            interval: params.interval,
+            spendingCap: params.spendingCap.toString(),
+            metadataUrl: params.metadataUrl,
+          })
+          txHash = result.hash as `0x${string}`
+          // If the relayer already parsed the policyId, use it
+          if (result.policyId) {
+            setPolicyId(result.policyId as `0x${string}`)
+          }
+        } else {
+          // Standard chains: create policy via client-side walletClient
+          if (!walletClient) throw new Error('Wallet not connected')
+          txHash = await walletClient.writeContract({
+            address: chainConfig.policyManager,
+            abi: PolicyManagerAbi,
+            functionName: 'createPolicy',
+            args: [
+              params.merchant,
+              params.chargeAmount,
+              params.interval,
+              params.spendingCap,
+              params.metadataUrl,
+            ],
+          })
+        }
 
         setHash(txHash)
         setStatus('Waiting for confirmation...')

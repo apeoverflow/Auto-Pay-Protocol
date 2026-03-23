@@ -1,9 +1,11 @@
 import * as React from 'react'
 import { type Hex } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
 import { parseContractError } from '../types/policy'
+import { isTempoBuild, useTempoWallet } from '../contexts/TempoWalletContext'
+import { tempoRevokePolicy } from '../lib/tempo-api'
 
 interface UseRevokePolicyReturn {
   revokePolicy: (policyId: `0x${string}`) => Promise<Hex>
@@ -15,8 +17,10 @@ interface UseRevokePolicyReturn {
 }
 
 export function useRevokePolicy(): UseRevokePolicyReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { walletClient, publicClient, chainConfig } = useChain()
+  const tempoWallet = useTempoWallet()
+  const isTempo = isTempoBuild()
 
   const [hash, setHash] = React.useState<Hex>()
   const [status, setStatus] = React.useState('')
@@ -25,7 +29,7 @@ export function useRevokePolicy(): UseRevokePolicyReturn {
 
   const revokePolicy = React.useCallback(
     async (policyId: `0x${string}`): Promise<Hex> => {
-      if (!address || !walletClient || !publicClient) {
+      if (!address || !publicClient) {
         throw new Error('Wallet not connected')
       }
 
@@ -39,12 +43,22 @@ export function useRevokePolicy(): UseRevokePolicyReturn {
       setHash(undefined)
 
       try {
-        const txHash = await walletClient.writeContract({
-          address: chainConfig.policyManager,
-          abi: PolicyManagerAbi,
-          functionName: 'revokePolicy',
-          args: [policyId],
-        })
+        let txHash: Hex
+
+        if (isTempo && tempoWallet.getAccessToken && tempoWallet.walletId && tempoWallet.address) {
+          const token = await tempoWallet.getAccessToken()
+          if (!token) throw new Error('Not authenticated')
+          const result = await tempoRevokePolicy(token, tempoWallet.walletId, tempoWallet.address, policyId)
+          txHash = result.hash as Hex
+        } else {
+          if (!walletClient) throw new Error('Wallet not connected')
+          txHash = await walletClient.writeContract({
+            address: chainConfig.policyManager,
+            abi: PolicyManagerAbi,
+            functionName: 'revokePolicy',
+            args: [policyId],
+          })
+        }
 
         setHash(txHash)
         setStatus('Waiting for confirmation...')

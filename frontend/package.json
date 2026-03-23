@@ -16,6 +16,7 @@
     "@lifi/widget": "^3.40.8",
     "@metamask/sdk": "^0.34.0",
     "@noble/hashes": "^2.0.1",
+    "@privy-io/react-auth": "^3.18.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
@@ -23,6 +24,7 @@
     "@supabase/supabase-js": "^2.95.1",
     "@tanstack/react-query": "^5.90.20",
     "bs58": "^6.0.0",
+    "buffer": "^6.0.3",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -37,6 +39,7 @@
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "tempo.ts": "^0.14.2",
     "valtio": "^1.13.2",
     "vaul": "^1.1.2",
     "viem": "^2.21.27",
@@ -54,6 +57,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.0.3",
-    "vite": "^5.4.18"
+    "vite": "^5.4.18",
+    "vite-plugin-node-polyfills": "^0.25.0"
   }
 }

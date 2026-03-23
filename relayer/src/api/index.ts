@@ -19,8 +19,13 @@ import { handleNonceRequest, authenticateMerchant, destroyAuthStore } from './au
 import { getMerchant, clearMerchantWebhook, updateMerchantWebhook } from '../db/merchants.js'
 import { generateWebhookSecret } from '../webhooks/signer.js'
 import { SlidingWindowRateLimiter, type RateLimitResult } from './rate-limit.js'
+import { getLeaderboard, getPointsBalance, getWalletRank, getPointsHistory, getPointsActions, getOrCreateReferralCode, getReferralStats, getReferralByCode, isAlreadyReferred, createReferral, awardPoints, hasPointsEvent, countTodayEvents, updateStreak } from '../db/points.js'
+import { insertPayment, getPaymentsByAddress } from '../db/payments.js'
+import { recoverMessageAddress } from 'viem'
 import { checkGeoblock, initGeoblock } from './geo-block.js'
 import { getLogoStorage } from '../lib/logo-storage.js'
+import { createFeePayerHandler, handleFeePayerRequest } from './fee-payer.js'
+import { handleTempoCreateWallet, handleTempoApprove, handleTempoCreatePolicy, handleTempoRevokePolicy, handleTempoFund, handleTempoSignMessage } from './tempo-transactions.js'
 import sharp from 'sharp'
 
 const logger = createLogger('api')
@@ -30,6 +35,10 @@ const nonceRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxReq
 const authRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
 const checkoutLinkRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
 const payerQueryRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 })
+const pointsReadRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
+const pointsTrackRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 10 })
+const paymentsWriteRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 10 })
+const paymentsReadRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 60 })
 
 // Valid image content types for logo uploads
 // SVG intentionally excluded — serving SVGs as image/svg+xml is an XSS vector
@@ -107,7 +116,7 @@ function parsePath(url: string): { path: string; params: URLSearchParams } {
 function setCorsHeaders(res: ServerResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Address, X-Signature, X-Nonce, X-API-Key')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Address, X-Signature, X-Nonce, X-API-Key')
 }
 
 // Parse JSON body from request
@@ -369,6 +378,21 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
   // Pre-load GeoIP database for country-based request blocking
   await initGeoblock()
 
+  // Initialize Tempo fee payer — uses a dedicated key to isolate blast radius from relayer ops.
+  // Falls back to RELAYER_PRIVATE_KEY if TEMPO_FEE_PAYER_KEY is not set.
+  const feePayerHandler = (() => {
+    const feePayerKey = (process.env.TEMPO_FEE_PAYER_KEY || config.privateKey) as `0x${string}`
+    if (feePayerKey === config.privateKey) {
+      logger.warn('TEMPO_FEE_PAYER_KEY not set — using RELAYER_PRIVATE_KEY for fee sponsorship (not recommended for production)')
+    }
+    try {
+      return createFeePayerHandler(feePayerKey)
+    } catch (err: any) {
+      logger.warn({ err: err.message }, 'Tempo fee payer not initialized (non-fatal)')
+      return null
+    }
+  })()
+
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     setCorsHeaders(res)
 
@@ -376,6 +400,31 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
     if (req.method === 'OPTIONS') {
       res.writeHead(204)
       res.end()
+      return
+    }
+
+    // Tempo server-side transaction endpoints (Privy Node SDK)
+    if (req.url?.startsWith('/api/tempo/') && req.method === 'POST') {
+      const tempoPath = req.url.replace(/\?.*$/, '')
+      if (tempoPath === '/api/tempo/create-wallet') { handleTempoCreateWallet(req, res); return }
+      if (tempoPath === '/api/tempo/approve') { handleTempoApprove(req, res); return }
+      if (tempoPath === '/api/tempo/create-policy') { handleTempoCreatePolicy(req, res); return }
+      if (tempoPath === '/api/tempo/revoke-policy') { handleTempoRevokePolicy(req, res); return }
+      if (tempoPath === '/api/tempo/fund') { handleTempoFund(req, res); return }
+      if (tempoPath === '/api/tempo/sign-message') { handleTempoSignMessage(req, res); return }
+      res.writeHead(404, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Unknown Tempo endpoint' }))
+      return
+    }
+
+    // Tempo fee payer endpoint — must be before geoblock/auth since it handles its own auth
+    if (req.url?.startsWith('/fee-payer')) {
+      if (!feePayerHandler) {
+        res.writeHead(503, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Fee payer not available' }))
+        return
+      }
+      handleFeePayerRequest(feePayerHandler, req, res)
       return
     }
 
@@ -431,6 +480,15 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             merchantCheckoutLinks: '/merchants/:address/checkout-links',
             merchantCheckoutLinkCreate: 'POST /merchants/:address/checkout-links',
             merchantCheckoutLinkDelete: 'DELETE /merchants/:address/checkout-links/:shortId',
+            pointsLeaderboard: '/points/leaderboard?period=all|monthly|weekly&page=1&limit=50',
+            pointsBalance: '/points/:address',
+            pointsHistory: '/points/:address/history?page=1&limit=20',
+            pointsActions: '/points/actions',
+            pointsTrack: 'POST /points/track',
+            pointsReferral: '/points/referral/:address',
+            pointsReferralRegister: 'POST /points/referral/register',
+            paymentsTrack: 'POST /payments',
+            paymentsList: '/payments?address=0x...&limit=50&offset=0',
           },
         }))
         return
@@ -1502,6 +1560,401 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         }
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ deleted: true }))
+        return
+      }
+
+      // ── Points API ──────────────────────────────────────────────
+
+      // GET /points/leaderboard
+      if (path === '/points/leaderboard' && req.method === 'GET') {
+        const ipKey = getClientIp(req)
+        const rateResult = pointsReadRateLimiter.check(ipKey)
+        if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+
+        const period = (params.get('period') || 'all') as 'all' | 'monthly' | 'weekly'
+        const page = Math.max(1, parseInt(params.get('page') || '1'))
+        const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50')))
+
+        const { entries, total } = await getLeaderboard(config.databaseUrl, period, page, limit)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          leaderboard: entries,
+          pagination: { page, limit, total, total_pages: Math.ceil(total / limit) },
+          period,
+        }))
+        return
+      }
+
+      // GET /points/actions
+      if (path === '/points/actions' && req.method === 'GET') {
+        const actions = await getPointsActions(config.databaseUrl)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          actions: actions.map((a: any) => ({
+            action_id: a.action_id,
+            display_name: a.display_name,
+            description: a.description,
+            points: a.points,
+            points_per_usdc: a.points_per_usdc ? Number(a.points_per_usdc) : null,
+            category: a.category,
+            frequency: a.frequency,
+            source_type: a.source_type,
+          })),
+          tiers: [
+            { name: 'bronze', threshold: 0, color: '#CD7F32' },
+            { name: 'silver', threshold: 2500, color: '#C0C0C0' },
+            { name: 'gold', threshold: 10000, color: '#FFD700' },
+            { name: 'diamond', threshold: 50000, color: '#0052FF' },
+          ],
+        }))
+        return
+      }
+
+      // POST /points/track (off-chain action tracking)
+      if (path === '/points/track' && req.method === 'POST') {
+        const body = await parseBody(req)
+        if (!body) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid JSON body' }))
+          return
+        }
+
+        const { action_id, wallet, signature, timestamp } = body as any
+        if (!action_id || !wallet || !signature || !timestamp) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing required fields: action_id, wallet, signature, timestamp' }))
+          return
+        }
+
+        const normalizedWallet = wallet.toLowerCase()
+
+        // Rate limit per wallet
+        const walletRate = pointsTrackRateLimiter.check(normalizedWallet)
+        if (!walletRate.allowed) { sendRateLimited(res, walletRate); return }
+
+        // Timestamp freshness (5 min)
+        const now = Math.floor(Date.now() / 1000)
+        if (Math.abs(now - timestamp) > 300) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'timestamp_expired' }))
+          return
+        }
+
+        // Verify signature
+        try {
+          const message = `AutoPay Points\nAction: ${action_id}\nWallet: ${normalizedWallet}\nTimestamp: ${timestamp}`
+          const recovered = await recoverMessageAddress({ message, signature })
+          if (recovered.toLowerCase() !== normalizedWallet) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ success: false, error: 'invalid_signature' }))
+            return
+          }
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'invalid_signature' }))
+          return
+        }
+
+        // Validate action exists and is off-chain
+        const actions = await getPointsActions(config.databaseUrl)
+        const action = (actions as any[]).find((a: any) => a.action_id === action_id && a.source_type === 'off-chain' && a.enabled)
+        if (!action) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'invalid_action' }))
+          return
+        }
+
+        // Frequency checks
+        if (action.frequency === 'once') {
+          const exists = await hasPointsEvent(config.databaseUrl, normalizedWallet, action_id)
+          if (exists) {
+            res.writeHead(409, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ success: false, error: 'already_earned' }))
+            return
+          }
+        } else if (action.frequency === 'daily_cap') {
+          const todayCount = await countTodayEvents(config.databaseUrl, normalizedWallet, action_id)
+          if (todayCount >= (action.frequency_cap || 1)) {
+            res.writeHead(409, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ success: false, error: 'daily_cap_reached' }))
+            return
+          }
+        }
+
+        // Generate idempotency key
+        const today = new Date().toISOString().slice(0, 10)
+        const idempotencyKey = action.frequency === 'daily_cap'
+          ? `${action_id}:${normalizedWallet}:${today}`
+          : `${action_id}:${normalizedWallet}`
+
+        const awarded = await awardPoints(config.databaseUrl, {
+          action_id,
+          wallet: normalizedWallet,
+          points: action.points,
+          usdc_amount: null,
+          chain_id: null,
+          source_type: 'off-chain',
+          source_ref: `track:${randomUUID()}`,
+          idempotency_key: idempotencyKey,
+        })
+
+        if (!awarded) {
+          res.writeHead(409, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'already_earned' }))
+          return
+        }
+
+        // Handle streak for daily_checkin
+        let currentStreak = 0
+        if (action_id === 'daily_checkin') {
+          currentStreak = await updateStreak(config.databaseUrl, normalizedWallet)
+
+          // Auto-award streak milestones
+          if (currentStreak === 7) {
+            await awardPoints(config.databaseUrl, {
+              action_id: 'streak_7d', wallet: normalizedWallet, points: 5,
+              usdc_amount: null, chain_id: null, source_type: 'derived',
+              source_ref: `streak:${normalizedWallet}:${today}`,
+              idempotency_key: `streak_7d:${normalizedWallet}:${today}`,
+            })
+          }
+          if (currentStreak === 30) {
+            await awardPoints(config.databaseUrl, {
+              action_id: 'streak_30d', wallet: normalizedWallet, points: 15,
+              usdc_amount: null, chain_id: null, source_type: 'derived',
+              source_ref: `streak:${normalizedWallet}:${today}`,
+              idempotency_key: `streak_30d:${normalizedWallet}:${today}`,
+            })
+          }
+        }
+
+        const balance = await getPointsBalance(config.databaseUrl, normalizedWallet)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          success: true,
+          points_awarded: action.points,
+          action: action_id,
+          total_points: balance?.total_points ?? action.points,
+          current_streak: currentStreak || undefined,
+        }))
+        return
+      }
+
+      // GET /points/referral/:address
+      const pointsReferralMatch = path.match(/^\/points\/referral\/(0x[0-9a-fA-F]{40})$/)
+      if (pointsReferralMatch && req.method === 'GET') {
+        const address = pointsReferralMatch[1].toLowerCase()
+        const code = await getOrCreateReferralCode(config.databaseUrl, address)
+        const stats = await getReferralStats(config.databaseUrl, address)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          referral_code: code,
+          referral_url: `https://autopayprotocol.com/?ref=${code}`,
+          ...stats,
+        }))
+        return
+      }
+
+      // POST /points/referral/register
+      if (path === '/points/referral/register' && req.method === 'POST') {
+        const body = await parseBody(req)
+        if (!body) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid JSON body' }))
+          return
+        }
+
+        const { referral_code, referred_wallet, signature, timestamp } = body as any
+        if (!referral_code || !referred_wallet || !signature || !timestamp) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing required fields' }))
+          return
+        }
+
+        const normalizedReferred = referred_wallet.toLowerCase()
+
+        // Verify signature
+        try {
+          const message = `AutoPay Referral\nCode: ${referral_code}\nWallet: ${normalizedReferred}\nTimestamp: ${timestamp}`
+          const recovered = await recoverMessageAddress({ message, signature })
+          if (recovered.toLowerCase() !== normalizedReferred) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ success: false, error: 'invalid_signature' }))
+            return
+          }
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'invalid_signature' }))
+          return
+        }
+
+        // Validate referral code
+        const codeRow = await getReferralByCode(config.databaseUrl, referral_code)
+        if (!codeRow) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'invalid_code' }))
+          return
+        }
+
+        // Check code expiry (30 days)
+        const codeAge = Date.now() - new Date(codeRow.created_at).getTime()
+        if (codeAge > 30 * 24 * 60 * 60 * 1000) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'code_expired' }))
+          return
+        }
+
+        // Self-referral check
+        if (codeRow.wallet === normalizedReferred) {
+          res.writeHead(409, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'self_referral' }))
+          return
+        }
+
+        // Already referred check
+        if (await isAlreadyReferred(config.databaseUrl, normalizedReferred)) {
+          res.writeHead(409, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'already_referred' }))
+          return
+        }
+
+        await createReferral(config.databaseUrl, codeRow.wallet, normalizedReferred, referral_code)
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          success: true,
+          referrer: codeRow.wallet,
+          status: 'pending',
+          message: 'Referral recorded. Points awarded after your first recurring charge.',
+        }))
+        return
+      }
+
+      // GET /points/:address (must be after /points/leaderboard, /points/actions, etc.)
+      const pointsAddressMatch = path.match(/^\/points\/(0x[0-9a-fA-F]{40})$/)
+      if (pointsAddressMatch && req.method === 'GET') {
+        const ipKey = getClientIp(req)
+        const rateResult = pointsReadRateLimiter.check(ipKey)
+        if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+
+        const address = pointsAddressMatch[1].toLowerCase()
+        const balance = await getPointsBalance(config.databaseUrl, address)
+        const rankAll = await getWalletRank(config.databaseUrl, address, 'all')
+        const rankMonthly = await getWalletRank(config.databaseUrl, address, 'monthly')
+        const rankWeekly = await getWalletRank(config.databaseUrl, address, 'weekly')
+        const history = await getPointsHistory(config.databaseUrl, address, 1, 5)
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          wallet: address,
+          total_points: balance?.total_points ?? 0,
+          total_usdc_volume: balance?.total_usdc_volume ?? 0,
+          monthly_points: balance?.monthly_points ?? 0,
+          weekly_points: balance?.weekly_points ?? 0,
+          rank: { all_time: rankAll, monthly: rankMonthly, weekly: rankWeekly },
+          tier: balance?.tier ?? 'bronze',
+          current_streak: balance?.current_streak ?? 0,
+          longest_streak: balance?.longest_streak ?? 0,
+          leaderboard_eligible: balance?.leaderboard_eligible ?? false,
+          recent_events: history.events,
+        }))
+        return
+      }
+
+      // GET /points/:address/history
+      const pointsHistoryMatch = path.match(/^\/points\/(0x[0-9a-fA-F]{40})\/history$/)
+      if (pointsHistoryMatch && req.method === 'GET') {
+        const ipKey = getClientIp(req)
+        const rateResult = pointsReadRateLimiter.check(ipKey)
+        if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+
+        const address = pointsHistoryMatch[1].toLowerCase()
+        const page = Math.max(1, parseInt(params.get('page') || '1'))
+        const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '20')))
+
+        const { events, total } = await getPointsHistory(config.databaseUrl, address, page, limit)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          events,
+          pagination: { page, limit, total, total_pages: Math.ceil(total / limit) },
+        }))
+        return
+      }
+
+      // ── Payments API ────────────────────────────────────────
+
+      // POST /payments — track a one-time USDC send
+      if (path === '/payments' && req.method === 'POST') {
+        const ipKey = getClientIp(req)
+        const rateResult = paymentsWriteRateLimiter.check(ipKey)
+        if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+
+        const body = await parseBody(req)
+        if (!body) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Invalid JSON' })); return }
+
+        const { chainId, from, to, amount, txHash, blockNumber, note } = body as any
+        if (!chainId || !from || !to || !amount || !txHash) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing required fields: chainId, from, to, amount, txHash' }))
+          return
+        }
+
+        // Validate formats
+        const ADDR_RE = /^0x[0-9a-fA-F]{40}$/
+        const TX_RE = /^0x[0-9a-fA-F]{64}$/
+        if (!ADDR_RE.test(from) || !ADDR_RE.test(to)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid address format' }))
+          return
+        }
+        if (!TX_RE.test(txHash)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid txHash format' }))
+          return
+        }
+        try { if (BigInt(amount) <= 0n) throw new Error() } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid amount' }))
+          return
+        }
+        if (note && typeof note === 'string' && note.length > 280) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Note too long (max 280 chars)' }))
+          return
+        }
+
+        const id = await insertPayment(config.databaseUrl, chainId, from, to, amount, txHash, blockNumber, note)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ id, txHash }))
+        return
+      }
+
+      // GET /payments?address=0x...&limit=50&offset=0
+      if (path === '/payments' && req.method === 'GET') {
+        const ipKey = getClientIp(req)
+        const rateResult = paymentsReadRateLimiter.check(ipKey)
+        if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+
+        const address = params.get('address')
+        if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Valid address query param required' }))
+          return
+        }
+
+        const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50')))
+        const offset = Math.max(0, parseInt(params.get('offset') || '0'))
+
+        const { payments, total } = await getPaymentsByAddress(config.databaseUrl, address, limit, offset)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          payments: payments.map((p: any) => ({
+            id: p.id, chainId: p.chain_id, from: p.from_address, to: p.to_address,
+            amount: p.amount, txHash: p.tx_hash, blockNumber: p.block_number,
+            note: p.note, createdAt: p.created_at,
+          })),
+          total,
+        }))
         return
       }
 

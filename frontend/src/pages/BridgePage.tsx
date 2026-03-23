@@ -2,7 +2,8 @@ import * as React from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { useChain } from '../contexts/ChainContext'
 import { useWallet } from '../hooks'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
+/* RAINBOWKIT: was import { useConnectModal } from '@rainbow-me/rainbowkit' */
+import { useConnectModal } from '../contexts/ConnectModalContext'
 import { LiFiWidget, type WidgetConfig, ChainType } from '@lifi/widget'
 import { EVM } from '@lifi/sdk'
 import { useAccount, useConfig } from 'wagmi'
@@ -143,6 +144,15 @@ function FundingGuidePage() {
         icon: <Globe className="h-5 w-5 text-violet-600" />,
         bgColor: 'bg-violet-50',
         href: 'https://app.snowbridge.network/',
+      },
+    ] : []),
+    ...(chainConfig.chain.id === 4217 ? [
+      {
+        title: 'Stargate (LayerZero)',
+        description: 'Bridge USDC from any chain to Tempo via Stargate',
+        icon: <ArrowUpRight className="h-5 w-5 text-blue-600" />,
+        bgColor: 'bg-blue-50',
+        href: 'https://stargate.finance/',
       },
     ] : []),
   ]

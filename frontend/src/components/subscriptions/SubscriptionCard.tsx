@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useDisplayName } from '../../hooks/useEns'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { formatUSDC, formatInterval } from '../../types/subscriptions'
@@ -76,8 +77,10 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
 
   const [logoFailed, setLogoFailed] = useState(false)
 
-  // Metadata-derived display values (fall back to address-based defaults)
-  const displayName = metadata?.merchant?.name || metadata?.plan?.name || formatAddress(policy.merchant)
+  // ENS resolution for merchant address
+  const { displayName: ensName } = useDisplayName(policy.merchant)
+  // Metadata-derived display values (fall back to ENS, then truncated address)
+  const displayName = metadata?.merchant?.name || metadata?.plan?.name || ensName
   const planName = metadata?.plan?.name
   const merchantLogo = !logoFailed ? metadata?.merchant?.logo : undefined
   const avatarLetters = metadata?.merchant?.name

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useAccount, useDisconnect } from 'wagmi'
+import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
 
 interface AuthContextValue {
   isLoggedIn: boolean
@@ -14,14 +15,21 @@ function shortenAddress(address: string): string {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isConnected, address } = useAccount()
-  const { disconnect } = useDisconnect()
+  const { isConnected: wagmiConnected, address: wagmiAddress } = useAccount()
+  const { disconnect: wagmiDisconnect } = useDisconnect()
+  const tempoWallet = useTempoWallet()
+  const isTempo = isTempoBuild()
+
+  // For Tempo builds, use Privy wallet state; otherwise use wagmi
+  const isConnected = isTempo ? tempoWallet.isConnected : wagmiConnected
+  const address = isTempo ? tempoWallet.address : wagmiAddress
+  const disconnect = isTempo ? tempoWallet.logout : () => wagmiDisconnect()
 
   const value = React.useMemo(
     () => ({
       isLoggedIn: isConnected,
       username: address ? shortenAddress(address) : '',
-      logout: () => disconnect(),
+      logout: disconnect,
     }),
     [isConnected, address, disconnect]
   )

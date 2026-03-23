@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { type Hex } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
 import { useChain } from '../contexts/ChainContext'
 import { erc20Abi } from '../config/contracts'
 import { parseContractError } from '../types/policy'
@@ -16,7 +16,7 @@ interface UseApprovalReturn {
 }
 
 export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { publicClient, walletClient, chainConfig } = useChain()
 
   const [allowance, setAllowance] = React.useState<bigint>(0n)

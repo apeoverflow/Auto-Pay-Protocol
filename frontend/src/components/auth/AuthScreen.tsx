@@ -18,6 +18,7 @@ const CHAIN_ICONS: Record<string, string> = {
   flowEvm: '/flow-icon.svg',
   base: '/base-square.svg',
   polkadotHub: '/polkadot-icon.svg',
+  tempo: '/tempo-icon.svg',
 }
 
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {

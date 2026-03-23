@@ -28,6 +28,13 @@ export const CHAINS = {
     "usdc": "0x0000053900000000000000000000000001200000",
     "blockExplorer": "https://blockscout.polkadot.io"
   },
+  "tempo": {
+    "id": 4217,
+    "name": "Tempo",
+    "rpcUrl": "https://rpc.tempo.xyz",
+    "usdc": "0x20c000000000000000000000b9537d11c60e8b50",
+    "blockExplorer": "https://explore.tempo.xyz"
+  },
   "baseSepolia": {
     "id": 84532,
     "name": "Base Sepolia",
@@ -50,6 +57,20 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
     },
     "addresses": {
       "usdc": "0xF1815bd50389c46847f0Bda824eC8da914045D14",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
+  "4217": {
+    "chainId": 4217,
+    "chainName": "tempo",
+    "deployedAt": "2026-03-19T00:00:00Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 10151466,
+    "contracts": {
+      "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+    },
+    "addresses": {
+      "usdc": "0x20c000000000000000000000b9537d11c60e8b50",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },

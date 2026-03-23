@@ -8,11 +8,12 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { ArrowRight, CreditCard, Activity, ChevronRight, Clock, Send, Loader2, ArrowDownUp } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { useWallet, usePolicies, useMetadataBatch } from '../hooks'
+import { usePayments } from '../hooks/usePayments'
 import { useChain } from '../contexts/ChainContext'
 import { formatUSDC } from '../types/subscriptions'
 
 interface DashboardPageProps {
-  onNavigate: (page: 'subscriptions' | 'activity' | 'bridge') => void
+  onNavigate: (page: 'subscriptions' | 'activity' | 'payments' | 'bridge') => void
 }
 
 // Generate color theme based on merchant address
@@ -180,6 +181,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { chainConfig } = useChain()
   const [copied, setCopied] = React.useState(false)
   const [sendOpen, setSendOpen] = React.useState(false)
+  const [dashView, setDashView] = React.useState<'subscriptions' | 'payments'>('subscriptions')
+  const { payments, isLoading: paymentsLoading } = usePayments()
 
   const handleCopy = () => {
     if (address) {
@@ -276,14 +279,27 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             <CardHeader className="flex flex-row items-center justify-between py-3.5 px-5 flex-shrink-0 border-b border-border/50">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-primary/5">
-                  <CreditCard className="h-4 w-4 text-primary" />
+                  {dashView === 'subscriptions' ? <CreditCard className="h-4 w-4 text-primary" /> : <Send className="h-4 w-4 text-primary" />}
                 </div>
-                <CardTitle className="text-[15px] font-semibold">Active Subscriptions</CardTitle>
+                <div className="flex gap-1 bg-muted/50 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setDashView('subscriptions')}
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${dashView === 'subscriptions' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Subscriptions
+                  </button>
+                  <button
+                    onClick={() => setDashView('payments')}
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${dashView === 'payments' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Payments
+                  </button>
+                </div>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onNavigate('subscriptions')}
+                onClick={() => onNavigate(dashView === 'subscriptions' ? 'subscriptions' : 'subscriptions')}
                 className="text-muted-foreground h-8 text-xs hover:text-primary gap-1.5 group/btn flex-shrink-0 px-3"
               >
                 View all
@@ -291,7 +307,40 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               </Button>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-5">
-              <SubscriptionsList compact />
+              {dashView === 'subscriptions' ? (
+                <SubscriptionsList compact />
+              ) : paymentsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : payments.length === 0 ? (
+                <div className="text-center py-8">
+                  <Send className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">No payments yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {payments.slice(0, 5).map((p) => {
+                    const isSent = p.from.toLowerCase() === address?.toLowerCase()
+                    const usdcAmount = (Number(BigInt(p.amount)) / 1_000_000).toFixed(2)
+                    const other = isSent ? p.to : p.from
+                    return (
+                      <div key={p.txHash} className="flex items-center gap-3 py-2 border-b border-border/10 last:border-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${isSent ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                          {isSent ? '↑' : '↓'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-mono truncate block">{other.slice(0, 6)}...{other.slice(-4)}</span>
+                          <span className="text-[10px] text-muted-foreground">{new Date(p.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <span className={`text-xs font-semibold tabular-nums ${isSent ? 'text-red-600' : 'text-green-600'}`}>
+                          {isSent ? '-' : '+'}{usdcAmount}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

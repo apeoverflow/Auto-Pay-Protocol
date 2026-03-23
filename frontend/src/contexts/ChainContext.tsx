@@ -7,6 +7,7 @@ import {
   type ChainKey,
   type ChainConfig,
 } from '../config/chains'
+import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
 
 interface ChainContextValue {
   chainKey: ChainKey
@@ -26,28 +27,43 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
   const chainKey = DEFAULT_CHAIN
   const chainConfig = CHAIN_CONFIGS[chainKey]
   const requiredChainId = chainConfig.chain.id
-  const { data: walletClient } = useWalletClient({ chainId: requiredChainId })
+  const isTempo = isTempoBuild()
+
+  // Standard wagmi wallet (non-Tempo chains)
+  const { data: wagmiWalletClient } = useWalletClient({ chainId: requiredChainId })
   const { chainId: connectedChainId, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
   const [suppressAutoSwitch, setSuppressAutoSwitch] = React.useState(false)
 
+  // Tempo wallet (local keypair — only used when VITE_DEFAULT_CHAIN=tempo)
+  const tempoWallet = useTempoWallet()
+
   // Auto-switch wallet to the required chain when connected on the wrong one
-  // Suppressed on the bridge page where cross-chain operation is needed
+  // Suppressed on the bridge page and for Tempo (no injected wallet)
   React.useEffect(() => {
-    if (suppressAutoSwitch) return
+    if (suppressAutoSwitch || isTempo) return
     if (isConnected && connectedChainId && connectedChainId !== requiredChainId) {
       switchChain?.({ chainId: requiredChainId })
     }
-  }, [isConnected, connectedChainId, requiredChainId, switchChain, suppressAutoSwitch])
+  }, [isConnected, connectedChainId, requiredChainId, switchChain, suppressAutoSwitch, isTempo])
 
   // Create a public client for reading chain data
   const publicClient = React.useMemo(() => {
+    // For Tempo, use the TempoWallet's publicClient
+    if (isTempo && tempoWallet.publicClient) {
+      return tempoWallet.publicClient as PublicClient
+    }
     if (!chainConfig) return null
     return createPublicClient({
       chain: chainConfig.chain,
       transport: http(chainConfig.chain.rpcUrls.default.http[0]),
     })
-  }, [chainKey])
+  }, [chainKey, isTempo, tempoWallet.publicClient])
+
+  // For Tempo, use the TempoWallet's walletClient; otherwise use wagmi's
+  const walletClient = isTempo
+    ? (tempoWallet.walletClient as unknown as UseWalletClientReturnType['data'])
+    : wagmiWalletClient
 
   const value = React.useMemo(
     () => ({

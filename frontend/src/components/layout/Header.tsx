@@ -5,19 +5,24 @@ import { Copy, Check, RefreshCw, Menu, HelpCircle } from 'lucide-react'
 import * as React from 'react'
 import type { NavItem } from './Sidebar'
 import { evmToSS58, shortenSS58 } from '../../lib/ss58'
+import { fetchPointsBalance } from '../../lib/relayer'
+import { useDisplayName } from '../../hooks/useEns'
 
 const POLKADOT_HUB_CHAIN_ID = 420420419
 
 interface HeaderProps {
   currentPage?: NavItem
   onMenuToggle?: () => void
+  onNavigate?: (page: NavItem) => void
 }
 
 const pageTitles: Record<NavItem, string> = {
   dashboard: 'Dashboard',
   subscriptions: 'Subscriptions',
   activity: 'Activity',
+  payments: 'Payments',
   bridge: 'Bridge Funds',
+  points: 'Loyalty Points',
   demo: 'SDK Demo',
   docs: 'Documentation',
   settings: 'Settings',
@@ -29,12 +34,25 @@ const pageTitles: Record<NavItem, string> = {
   'merchant-settings': 'Merchant Settings',
 }
 
-export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps) {
+export function Header({ currentPage = 'dashboard', onMenuToggle, onNavigate }: HeaderProps) {
   const { address, balance, fetchBalance } = useWallet()
   const { chainConfig } = useChain()
   const [copied, setCopied] = React.useState(false)
   const [copiedUsdc, setCopiedUsdc] = React.useState(false)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
+  const [totalPoints, setTotalPoints] = React.useState<number | null>(null)
+  const [pointsTier, setPointsTier] = React.useState<string>('bronze')
+
+  // Fetch points balance
+  React.useEffect(() => {
+    if (!address) return
+    fetchPointsBalance(address)
+      .then((data) => {
+        setTotalPoints(data.total_points)
+        setPointsTier(data.tier)
+      })
+      .catch(() => {})
+  }, [address])
 
   const isPolkadot = chainConfig.chain.id === POLKADOT_HUB_CHAIN_ID
   const ss58Address = isPolkadot && address ? evmToSS58(address) : null
@@ -53,6 +71,8 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
     await fetchBalance()
     setTimeout(() => setIsRefreshing(false), 500)
   }
+
+  const { displayName: ensDisplayName, isEns } = useDisplayName(address)
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
@@ -93,16 +113,38 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
           title={`USDC: ${chainConfig.usdc}`}
           className="flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/60 px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm shadow-blue-500/5 transition-all hover:shadow-md hover:border-blue-200/80 active:scale-[0.97] cursor-pointer"
         >
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">
-            {copiedUsdc ? (
+          {copiedUsdc ? (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm">
               <Check className="h-2.5 w-2.5 text-white" />
-            ) : (
-              <span className="text-[10px] font-bold text-white">$</span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <img src="/logos/usdc.svg" alt="USDC" className="h-5 w-5 rounded-full" />
+          )}
           <span className="text-xs sm:text-sm font-semibold text-foreground tabular-nums">{formatBalance(balance)}</span>
           <span className="hidden sm:inline text-xs text-muted-foreground font-medium">USDC</span>
         </button>
+
+        {/* Points pill */}
+        {totalPoints !== null && (
+          <button
+            onClick={() => onNavigate?.('points')}
+            className="flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/60 px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm shadow-amber-500/5 transition-all hover:shadow-md hover:border-amber-300/80 active:scale-[0.97] cursor-pointer"
+            title="View Points & Leaderboard"
+          >
+            <img src="/logos/autopay-icon-white.svg" alt="" className="h-5 w-5 rounded-md" style={{ background: '#1D1D1F', padding: 2 }} />
+            <span className="text-xs sm:text-sm font-semibold text-foreground tabular-nums">
+              {totalPoints >= 1000 ? `${(totalPoints / 1000).toFixed(1)}k` : totalPoints.toLocaleString()}
+            </span>
+            <span className={`hidden sm:inline text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
+              pointsTier === 'diamond' ? 'bg-blue-100 text-blue-700' :
+              pointsTier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
+              pointsTier === 'silver' ? 'bg-gray-100 text-gray-700' :
+              'bg-amber-100 text-amber-800'
+            }`}>
+              {pointsTier}
+            </span>
+          </button>
+        )}
 
         {/* Refresh */}
         <Button
@@ -123,8 +165,8 @@ export function Header({ currentPage = 'dashboard', onMenuToggle }: HeaderProps)
             onClick={handleCopy}
             className="flex items-center gap-1.5 rounded-full bg-muted/30 border border-border/50 px-3 py-1.5 transition-colors hover:bg-muted/50 active:bg-muted/60"
           >
-            <span className="font-mono text-xs text-muted-foreground">
-              {ss58Address ? shortenSS58(ss58Address) : address && formatAddress(address)}
+            <span className={`text-xs text-muted-foreground ${isEns ? 'font-medium' : 'font-mono'}`}>
+              {ss58Address ? shortenSS58(ss58Address) : isEns ? ensDisplayName : address && formatAddress(address)}
             </span>
             {copied ? (
               <Check className="h-3 w-3 text-success flex-shrink-0" />

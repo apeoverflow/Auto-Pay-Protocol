@@ -15,6 +15,7 @@
     { "src": "/flow-icon.*", "dest": "/$0" },
     { "src": "/base-square.*", "dest": "/$0" },
     { "src": "/polkadot-icon.*", "dest": "/$0" },
+    { "src": "/tempo-icon.*", "dest": "/$0" },
     { "src": "^/$", "dest": "/api/ssr" },
     { "src": "^/docs$", "dest": "/api/ssr" },
     { "src": "^/terms$", "dest": "/api/ssr" },
