@@ -17,6 +17,10 @@ import { generateAndUploadReport, generateAndSaveReport } from '../reports/uploa
 import { buildReceipt, uploadChargeReceipt } from '../reports/receipt.js'
 import { handleNonceRequest, authenticateMerchant, destroyAuthStore } from './auth.js'
 import { getMerchant, clearMerchantWebhook, updateMerchantWebhook } from '../db/merchants.js'
+import { getMerchantAccount, createMerchantAccount } from '../db/merchant-accounts.js'
+import { isWhitelisted, getWhitelist, addToWhitelist, removeFromWhitelist } from '../db/whitelist.js'
+import { createVerificationCode, verifyCode } from '../db/verification-codes.js'
+import { sendVerificationCode as sendVerificationCodeEmail } from '../emails/index.js'
 import { generateWebhookSecret } from '../webhooks/signer.js'
 import { SlidingWindowRateLimiter, type RateLimitResult } from './rate-limit.js'
 import { getLeaderboard, getPointsBalance, getWalletRank, getPointsHistory, getPointsActions, getOrCreateReferralCode, getReferralStats, getReferralByCode, isAlreadyReferred, createReferral, awardPoints, hasPointsEvent, countTodayEvents, updateStreak } from '../db/points.js'
@@ -45,6 +49,9 @@ const paymentsReadRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000,
 const VALID_IMAGE_TYPES = new Set([
   'image/png', 'image/jpeg', 'image/gif', 'image/webp',
 ])
+
+// Minimum subscription charge amount (USDC). Whitelisted addresses can bypass this.
+const MIN_CHARGE_AMOUNT = 10
 
 // Valid billing intervals
 const VALID_INTERVALS = ['seconds', 'minutes', 'daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly']
@@ -200,7 +207,8 @@ function sanitizeLogo(metadata: PlanMetadata): void {
 }
 
 // Validate billing object (all fields required when billing is present)
-function validateBilling(billing: Record<string, unknown>): { valid: true } | { valid: false; error: string } {
+// minAmount defaults to MIN_CHARGE_AMOUNT; pass 0 for whitelisted merchants
+function validateBilling(billing: Record<string, unknown>, minAmount = MIN_CHARGE_AMOUNT): { valid: true } | { valid: false; error: string } {
   const { amount, interval, cap, currency } = billing
 
   if (amount === undefined) return { valid: false, error: 'billing.amount is required' }
@@ -210,6 +218,10 @@ function validateBilling(billing: Record<string, unknown>): { valid: true } | { 
   const parsedAmount = Number(amount)
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
     return { valid: false, error: 'billing.amount must be a positive number' }
+  }
+
+  if (minAmount > 0 && parsedAmount < minAmount) {
+    return { valid: false, error: `billing.amount must be at least $${minAmount}` }
   }
 
   if (!VALID_INTERVALS.includes(interval as string)) {
@@ -233,13 +245,16 @@ function validateBilling(billing: Record<string, unknown>): { valid: true } | { 
 }
 
 // Validate billing for PATCH (partial — fields are optional since we merge with existing)
-function validateBillingPartial(billing: Record<string, unknown>): { valid: true } | { valid: false; error: string } {
+function validateBillingPartial(billing: Record<string, unknown>, minAmount = MIN_CHARGE_AMOUNT): { valid: true } | { valid: false; error: string } {
   const { amount, interval, cap, currency } = billing
 
   if (amount !== undefined) {
     const parsed = Number(amount)
     if (isNaN(parsed) || parsed <= 0) {
       return { valid: false, error: 'billing.amount must be a positive number' }
+    }
+    if (minAmount > 0 && parsed < minAmount) {
+      return { valid: false, error: `billing.amount must be at least $${minAmount}` }
     }
   }
 
@@ -520,6 +535,186 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         return
       }
 
+      // Email verification: send code and verify code
+      if (path === '/auth/send-code' && req.method === 'POST') {
+        try {
+          const body = await parseBody(req)
+          const email = body.email as string
+          if (!email || typeof email !== 'string' || !email.includes('@')) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Valid email required' }))
+            return
+          }
+          const code = await createVerificationCode(config.databaseUrl, email)
+          await sendVerificationCodeEmail(email, code)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ sent: true }))
+        } catch (err) {
+          logger.error({ err }, 'Failed to send verification code')
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Failed to send verification email' }))
+        }
+        return
+      }
+
+      if (path === '/auth/verify-code' && req.method === 'POST') {
+        try {
+          const body = await parseBody(req)
+          const email = body.email as string
+          const code = body.code as string
+          if (!email || !code) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Email and code required' }))
+            return
+          }
+          const valid = await verifyCode(config.databaseUrl, email, code)
+          if (!valid) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Invalid or expired code' }))
+            return
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ verified: true }))
+        } catch (err) {
+          logger.error({ err }, 'Failed to verify code')
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Verification failed' }))
+        }
+        return
+      }
+
+      // Merchant account check (GET) and registration (POST)
+      const merchantAccountMatch = path.match(/^\/merchants\/([^/]+)\/account$/)
+      if (merchantAccountMatch) {
+        const address = merchantAccountMatch[1]
+        if (!isValidAddress(address)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid merchant address' }))
+          return
+        }
+
+        if (req.method === 'GET') {
+          try {
+            const account = await getMerchantAccount(config.databaseUrl, address)
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ registered: !!account }))
+          } catch (err) {
+            logger.error({ err }, 'Failed to check merchant account')
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Internal server error' }))
+          }
+          return
+        }
+
+        if (req.method === 'POST') {
+          try {
+            const body = await parseBody(req)
+            const email = body.email as string
+
+            if (!email || typeof email !== 'string' || !email.includes('@')) {
+              res.writeHead(400, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'Valid email required' }))
+              return
+            }
+
+            // Always require wallet signature to link email to address
+            // (unconditional — AUTH_ENABLED only gates plan management, not account creation)
+            const verified = await authenticateMerchant(req, res, address)
+            if (!verified) return
+
+            const account = await createMerchantAccount(config.databaseUrl, address, email)
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ registered: true, email: account.email }))
+          } catch (err) {
+            logger.error({ err }, 'Failed to create merchant account')
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Internal server error' }))
+          }
+          return
+        }
+      }
+
+      // Whitelist check — public endpoint for frontend to check if an address bypasses the $10 min
+      const whitelistCheckMatch = path.match(/^\/whitelist\/(0x[a-fA-F0-9]{40})$/)
+      if (whitelistCheckMatch && req.method === 'GET') {
+        try {
+          const address = whitelistCheckMatch[1]
+          const result = await isWhitelisted(config.databaseUrl, address)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ whitelisted: result, minAmount: result ? 0 : MIN_CHARGE_AMOUNT }))
+        } catch (err) {
+          logger.error({ err }, 'Failed to check whitelist')
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Internal server error' }))
+        }
+        return
+      }
+
+      // Whitelist management — admin only (requires ADMIN_KEY env var)
+      if (path === '/admin/whitelist') {
+        const adminKey = process.env.ADMIN_KEY
+        const authHeader = req.headers['authorization']
+        if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
+          res.writeHead(401, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Unauthorized' }))
+          return
+        }
+
+        if (req.method === 'GET') {
+          try {
+            const list = await getWhitelist(config.databaseUrl)
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify(list))
+          } catch (err) {
+            logger.error({ err }, 'Failed to get whitelist')
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Internal server error' }))
+          }
+          return
+        }
+
+        if (req.method === 'POST') {
+          try {
+            const body = await parseBody(req)
+            const address = body.address as string
+            const note = body.note as string | undefined
+            if (!address || !isValidAddress(address)) {
+              res.writeHead(400, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'Valid address required' }))
+              return
+            }
+            const entry = await addToWhitelist(config.databaseUrl, address, note)
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify(entry))
+          } catch (err) {
+            logger.error({ err }, 'Failed to add to whitelist')
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Internal server error' }))
+          }
+          return
+        }
+
+        if (req.method === 'DELETE') {
+          try {
+            const body = await parseBody(req)
+            const address = body.address as string
+            if (!address || !isValidAddress(address)) {
+              res.writeHead(400, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'Valid address required' }))
+              return
+            }
+            const removed = await removeFromWhitelist(config.databaseUrl, address)
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ removed }))
+          } catch (err) {
+            logger.error({ err }, 'Failed to remove from whitelist')
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Internal server error' }))
+          }
+          return
+        }
+      }
+
       // Merchant stats
       const merchantStatsMatch = path.match(/^\/merchants\/([^/]+)\/stats$/)
       if (merchantStatsMatch && req.method === 'GET') {
@@ -742,7 +937,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         // Auth: per-merchant API key → signature auth
         const reportKeyAuth = await authenticateByMerchantApiKey(req, res, config, address)
         if (reportKeyAuth === 'rate_limited') return
-        if (!reportKeyAuth && AUTH_ENABLED) {
+        if (!reportKeyAuth) {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -789,7 +984,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         // Auth: per-merchant API key → signature auth
         const csvKeyAuth = await authenticateByMerchantApiKey(req, res, config, address)
         if (csvKeyAuth === 'rate_limited') return
-        if (!csvKeyAuth && AUTH_ENABLED) {
+        if (!csvKeyAuth) {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -944,7 +1139,8 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        if (AUTH_ENABLED) {
+        // Webhook secret rotation always requires auth (credential management)
+        {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -972,7 +1168,8 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        if (AUTH_ENABLED) {
+        // Webhook management always requires auth (PUT returns secret in plaintext)
+        {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -1043,8 +1240,9 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           return
         }
 
-        // All API key management requires signature auth
-        if (AUTH_ENABLED) {
+        // API key management always requires signature auth (unconditional —
+        // an unauthenticated POST would mint credentials for any address)
+        {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -1078,7 +1276,8 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
           return
         }
-        if (AUTH_ENABLED) {
+        // API key revocation always requires auth
+        {
           const rateResult = authRateLimiter.check(address.toLowerCase())
           if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
           const verified = await authenticateMerchant(req, res, address)
@@ -1273,16 +1472,15 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         const merchantKeyAuthSubs = await authenticateByMerchantApiKey(req, res, config, address)
         if (merchantKeyAuthSubs === 'rate_limited') return
         if (!merchantKeyAuthSubs) {
-          if (AUTH_ENABLED) {
-            const statsApiKey = process.env.STATS_API_KEY
-            const providedKey = req.headers['x-api-key'] as string | undefined
-            const hasValidApiKey = statsApiKey && providedKey === statsApiKey
-            if (!hasValidApiKey) {
-              const rateResult = authRateLimiter.check(address.toLowerCase())
-              if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
-              const verified = await authenticateMerchant(req, res, address)
-              if (!verified) return
-            }
+          // Fallback: global STATS_API_KEY → wallet signature
+          const statsApiKey = process.env.STATS_API_KEY
+          const providedKey = req.headers['x-api-key'] as string | undefined
+          const hasValidApiKey = statsApiKey && providedKey === statsApiKey
+          if (!hasValidApiKey) {
+            const rateResult = authRateLimiter.check(address.toLowerCase())
+            if (!rateResult.allowed) { sendRateLimited(res, rateResult); return }
+            const verified = await authenticateMerchant(req, res, address)
+            if (!verified) return
           }
         }
         const chainId = params.get('chain_id')
@@ -2169,9 +2367,13 @@ async function handleCreatePlan(
     return
   }
 
+  // Check whitelist to determine minimum charge amount
+  const whitelisted = await isWhitelisted(config.databaseUrl, merchantAddress)
+  const minAmount = whitelisted ? 0 : MIN_CHARGE_AMOUNT
+
   // Validate billing if present
   if (metadata.billing) {
-    const billingResult = validateBilling(metadata.billing as unknown as Record<string, unknown>)
+    const billingResult = validateBilling(metadata.billing as unknown as Record<string, unknown>, minAmount)
     if (!billingResult.valid) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: billingResult.error }))
@@ -2330,9 +2532,13 @@ async function handleUpdatePlan(
     return
   }
 
+  // Check whitelist to determine minimum charge amount
+  const whitelisted = await isWhitelisted(config.databaseUrl, merchantAddress)
+  const minAmount = whitelisted ? 0 : MIN_CHARGE_AMOUNT
+
   // Validate billing if present
   if (metadata.billing) {
-    const billingResult = validateBilling(metadata.billing as unknown as Record<string, unknown>)
+    const billingResult = validateBilling(metadata.billing as unknown as Record<string, unknown>, minAmount)
     if (!billingResult.valid) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: billingResult.error }))
@@ -2498,9 +2704,13 @@ async function handlePatchPlan(
     }
   }
 
+  // Check whitelist to determine minimum charge amount
+  const whitelisted = await isWhitelisted(config.databaseUrl, merchantAddress)
+  const minAmount = whitelisted ? 0 : MIN_CHARGE_AMOUNT
+
   // Validate incoming billing patch fields (partial — not all required)
   if (patchFields.billing) {
-    const partialResult = validateBillingPartial(patchFields.billing as Record<string, unknown>)
+    const partialResult = validateBillingPartial(patchFields.billing as Record<string, unknown>, minAmount)
     if (!partialResult.valid) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: partialResult.error }))
@@ -2515,7 +2725,7 @@ async function handlePatchPlan(
 
   // Validate merged billing has all required fields
   if (merged.billing) {
-    const billingResult = validateBilling(merged.billing as unknown as Record<string, unknown>)
+    const billingResult = validateBilling(merged.billing as unknown as Record<string, unknown>, minAmount)
     if (!billingResult.valid) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: billingResult.error }))

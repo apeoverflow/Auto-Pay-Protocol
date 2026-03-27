@@ -14,6 +14,57 @@ export const isSupabaseConfigured = (): boolean => {
   return supabase !== null
 }
 
+// --- Supabase Auth helpers (email verification code via Confirm signup template) ---
+
+export async function sendEmailCode(email: string): Promise<{ error: string | null }> {
+  if (!supabase) return { error: 'Supabase not configured' }
+
+  // Try signUp first (sends Confirm signup email with {{ .Token }})
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: crypto.randomUUID(),
+  })
+
+  // If user already exists (identities array is empty), resend the confirmation
+  if (!error && data.user && data.user.identities?.length === 0) {
+    const { error: resendError } = await supabase.auth.resend({
+      email,
+      type: 'signup',
+    })
+    return { error: resendError?.message ?? null }
+  }
+
+  return { error: error?.message ?? null }
+}
+
+export async function verifyOtp(email: string, token: string): Promise<{ error: string | null; userId: string | null }> {
+  if (!supabase) return { error: 'Supabase not configured', userId: null }
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'signup',
+  })
+
+  return { error: error?.message ?? null, userId: data.user?.id ?? null }
+}
+
+export async function getAuthUser() {
+  if (!supabase) return null
+  const { data } = await supabase.auth.getUser()
+  return data.user
+}
+
+export async function signOut() {
+  if (!supabase) return
+  await supabase.auth.signOut()
+}
+
+export function onAuthStateChange(callback: (event: string, session: unknown) => void) {
+  if (!supabase) return { data: { subscription: { unsubscribe: () => {} } } }
+  return supabase.auth.onAuthStateChange(callback)
+}
+
 // Database types matching the relayer schema
 export interface DbPolicy {
   id: string

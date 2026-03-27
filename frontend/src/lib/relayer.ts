@@ -1093,3 +1093,96 @@ export async function getPayments(address: string, limit = 50, offset = 0): Prom
   if (!res.ok) throw new Error('Failed to fetch payments')
   return res.json()
 }
+
+// --- Whitelist (minimum charge bypass) ---
+
+/** Default minimum subscription charge in USDC */
+export const MIN_CHARGE_AMOUNT = 10
+
+/** Check if an address is whitelisted (can bypass $10 minimum) */
+export async function checkWhitelist(address: string): Promise<{ whitelisted: boolean; minAmount: number }> {
+  const { baseUrl } = resolveRelayer(address)
+  try {
+    const res = await fetch(`${baseUrl}/whitelist/${address.toLowerCase()}`)
+    if (!res.ok) return { whitelisted: false, minAmount: MIN_CHARGE_AMOUNT }
+    return res.json()
+  } catch {
+    return { whitelisted: false, minAmount: MIN_CHARGE_AMOUNT }
+  }
+}
+
+// --- Email verification (via relayer + Resend) ---
+
+/** Send a 6-digit verification code to an email address */
+export async function sendEmailCode(email: string): Promise<{ error: string | null }> {
+  const baseUrl = import.meta.env.VITE_RELAYER_URL || ''
+  if (!baseUrl) return { error: 'Relayer not configured' }
+  try {
+    const res = await fetch(`${baseUrl}/auth/send-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Failed to send code' }))
+      return { error: data.error || 'Failed to send code' }
+    }
+    return { error: null }
+  } catch {
+    return { error: 'Could not reach server' }
+  }
+}
+
+/** Verify a 6-digit code */
+export async function verifyEmailCode(email: string, code: string): Promise<{ error: string | null }> {
+  const baseUrl = import.meta.env.VITE_RELAYER_URL || ''
+  if (!baseUrl) return { error: 'Relayer not configured' }
+  try {
+    const res = await fetch(`${baseUrl}/auth/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Verification failed' }))
+      return { error: data.error || 'Verification failed' }
+    }
+    return { error: null }
+  } catch {
+    return { error: 'Could not reach server' }
+  }
+}
+
+// --- Merchant account registration ---
+
+/** Check if a merchant wallet has a registered account */
+export async function checkMerchantAccount(address: string): Promise<{ registered: boolean }> {
+  const { baseUrl } = resolveRelayer(address)
+  const res = await fetch(`${baseUrl}/merchants/${address.toLowerCase()}/account`)
+  if (!res.ok) throw new Error('Failed to check merchant account')
+  return res.json()
+}
+
+/** Register a merchant account (link email to wallet via wallet signature) */
+export async function registerMerchantAccount(
+  address: string,
+  email: string,
+  signMessage: SignMessageFn
+): Promise<{ registered: boolean; email: string }> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+
+  const authHeaders = await getAuthHeaders(address, signMessage)
+  Object.assign(headers, authHeaders)
+
+  const res = await fetch(`${baseUrl}/merchants/${address.toLowerCase()}/account`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Registration failed' }))
+    throw new Error(err.error || 'Registration failed')
+  }
+  return res.json()
+}

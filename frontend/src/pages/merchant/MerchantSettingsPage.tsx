@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { useWallet } from '../../hooks/useWallet'
-import { useSignMessage } from 'wagmi'
+import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 import {
   Copy,
   Check,
@@ -78,7 +78,7 @@ function formatDate(dateStr: string) {
 export function MerchantSettingsPage() {
   const { address } = useWallet()
   const { chainConfig } = useChain()
-  const { signMessageAsync } = useSignMessage()
+  const { signMessageAsync } = useSignMessageCompat()
   const [copiedEndpoint, setCopiedEndpoint] = React.useState(false)
   const [copiedRowIdx, setCopiedRowIdx] = React.useState<number | null>(null)
 

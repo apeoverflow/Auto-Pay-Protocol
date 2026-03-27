@@ -32,6 +32,7 @@ import {
   MerchantSubscribersPage,
   MerchantSettingsPage,
 } from './pages/merchant'
+import { MerchantRegistrationGate } from './components/merchant/MerchantRegistrationGate'
 import { LoadingView } from './views'
 import { SEOHead } from './components/SEOHead'
 
@@ -306,9 +307,9 @@ function App() {
       case '/merchant/plans':
         return <MerchantPlansPage onNavigate={handleSidebarNavigate} />
       case '/merchant/plans/new':
-        return <MerchantPlanEditorPage navigate={navigate} />
+        return <MerchantRegistrationGate><MerchantPlanEditorPage navigate={navigate} /></MerchantRegistrationGate>
       case '/merchant/plans/edit':
-        return <MerchantPlanEditorPage navigate={navigate} />
+        return <MerchantRegistrationGate><MerchantPlanEditorPage navigate={navigate} /></MerchantRegistrationGate>
       case '/merchant/subscribers':
         return <MerchantSubscribersPage />
       case '/merchant/receipts':

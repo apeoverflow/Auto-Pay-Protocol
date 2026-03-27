@@ -7,8 +7,8 @@ import { PlanPreviewCard } from '../../components/shared/PlanPreviewCard'
 import { PricingCard } from '../../components/shared/PricingCard'
 import { useMerchantPlan } from '../../hooks/useMerchantPlan'
 import { useWallet } from '../../hooks/useWallet'
-import { createPlan, updatePlan, uploadLogo } from '../../lib/relayer'
-import { useSignMessage } from 'wagmi'
+import { createPlan, updatePlan, uploadLogo, checkWhitelist, MIN_CHARGE_AMOUNT } from '../../lib/relayer'
+import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 import { Loader2, Save, Rocket, Upload, X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import type { Route } from '../../hooks/useRoute'
 
@@ -37,7 +37,7 @@ interface MerchantPlanEditorPageProps {
 
 export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps) {
   const { address } = useWallet()
-  const { signMessageAsync } = useSignMessage()
+  const { signMessageAsync } = useSignMessageCompat()
 
   // Determine mode from URL
   const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
@@ -45,6 +45,13 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
   const isEdit = !!editId
 
   const { plan: existingPlan, isLoading: loadingPlan } = useMerchantPlan(editId)
+
+  // Minimum charge amount (lowered for whitelisted merchants)
+  const [minAmount, setMinAmount] = React.useState(MIN_CHARGE_AMOUNT)
+  React.useEffect(() => {
+    if (!address) return
+    checkWhitelist(address).then(({ minAmount: m }) => setMinAmount(m))
+  }, [address])
 
   // Step state
   const [currentStep, setCurrentStep] = React.useState(0)
@@ -108,9 +115,15 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
     if (!address) return
     if (!planName.trim() || !description.trim() || !merchantName.trim()) {
       setError('Plan name, description, and merchant name are required.')
-      // Jump to the step with the missing field
       if (!planName.trim() || !description.trim()) setCurrentStep(0)
       else if (!merchantName.trim()) setCurrentStep(1)
+      return
+    }
+
+    // Enforce minimum charge amount
+    if (amount && minAmount > 0 && parseFloat(amount) < minAmount) {
+      setError(`Minimum subscription amount is $${minAmount} USDC.`)
+      setCurrentStep(2)
       return
     }
 
@@ -410,15 +423,20 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
             {/* Step 3: Billing */}
             {currentStep === 2 && (
               <>
-                <Input
-                  label="Amount (USDC)"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="9.99"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
+                <div>
+                  <Input
+                    label="Amount (USDC)"
+                    type="number"
+                    step="0.01"
+                    min={minAmount || 0}
+                    placeholder={minAmount > 0 ? `${minAmount}.00` : '9.99'}
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                  {minAmount > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-1">Minimum ${minAmount} USDC per charge</p>
+                  )}
+                </div>
                 <div className="space-y-1 md:space-y-2">
                   <label className="text-[12px] md:text-sm font-medium leading-none text-foreground">
                     Interval

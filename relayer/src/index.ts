@@ -89,10 +89,13 @@ export async function startRelayer() {
 
   // Handle shutdown signals
   const shutdown = async () => {
-    if (shuttingDown) return // Prevent multiple shutdown calls
+    if (shuttingDown) {
+      logger.info('Forced shutdown')
+      process.exit(1)
+    }
     shuttingDown = true
 
-    logger.info('Shutting down...')
+    logger.info('Shutting down (Ctrl+C again to force)...')
 
     // Signal all loops to stop
     abortController.abort()

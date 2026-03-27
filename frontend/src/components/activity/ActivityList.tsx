@@ -7,8 +7,8 @@ import { Activity, Filter, ChevronLeft, ChevronRight, Loader2 } from 'lucide-rea
 import { Button } from '../ui/button'
 import { useAccount } from 'wagmi'
 import { useChain } from '../../contexts/ChainContext'
-import { useWalletClient } from 'wagmi'
 import { uploadPayerChargeReceipts } from '../../lib/relayer'
+import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 
 interface ActivityListProps {
   showAll?: boolean
@@ -30,7 +30,7 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
   const { activity, isLoading, error, refetch } = useActivity()
   const { address } = useAccount()
   const { chainConfig } = useChain()
-  const { data: walletClient } = useWalletClient()
+  const { signMessageAsync } = useSignMessageCompat()
   const metadataUrls = React.useMemo(() => activity.map(a => a.metadataUrl || null), [activity])
   const metadataMap = useMetadataBatch(metadataUrls)
   const [filter, setFilter] = React.useState<FilterType>('all')
@@ -38,14 +38,14 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
   const [uploadingReceiptId, setUploadingReceiptId] = React.useState<number | null>(null)
 
   const handleRequestReceipt = React.useCallback(async (chargeDbId: number) => {
-    if (!address || !walletClient) return
+    if (!address) return
     setUploadingReceiptId(chargeDbId)
     try {
       await uploadPayerChargeReceipts(
         address,
         [chargeDbId],
         chainConfig.chain.id,
-        (args) => walletClient.signMessage({ message: args.message, account: address }),
+        signMessageAsync,
       )
       await refetch()
     } catch (err) {
@@ -53,7 +53,7 @@ export function ActivityList({ showAll = false, limit = 5, compact = false }: Ac
     } finally {
       setUploadingReceiptId(null)
     }
-  }, [address, walletClient, chainConfig.chain.id, refetch])
+  }, [address, signMessageAsync, chainConfig.chain.id, refetch])
 
   // Reset page when filter changes
   React.useEffect(() => { setPage(0) }, [filter])

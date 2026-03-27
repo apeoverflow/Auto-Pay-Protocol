@@ -18,7 +18,7 @@ import {
   SuccessStep,
   SubscriberInfoStep,
 } from '../components/checkout'
-import { submitSubscriberData } from '../lib/relayer'
+import { submitSubscriberData, checkWhitelist, MIN_CHARGE_AMOUNT } from '../lib/relayer'
 
 type Step = 'loading' | 'error' | 'plan_summary' | 'subscriber_info' | 'auth' | 'wallet_setup' | 'fund_wallet' | 'confirm' | 'processing' | 'success'
 
@@ -58,6 +58,19 @@ export function CheckoutPage() {
     const totalNeeded = parseFloat(params.amount) + GAS_ESTIMATE_USDC
     return parseFloat(balance) >= totalNeeded
   }, [balance, params?.amount])
+
+  // Validate minimum charge amount (whitelisted merchants can bypass)
+  React.useEffect(() => {
+    if (!params?.amount || !params?.merchant) return
+    const parsedAmount = parseFloat(params.amount)
+    if (parsedAmount >= MIN_CHARGE_AMOUNT) return
+    // Below minimum — check if merchant is whitelisted
+    checkWhitelist(params.merchant).then(({ whitelisted }) => {
+      if (!whitelisted) {
+        setFetchError(`Minimum subscription amount is $${MIN_CHARGE_AMOUNT} USDC.`)
+      }
+    })
+  }, [params?.amount, params?.merchant])
 
   // Fetch display metadata on mount (plan name, description, features, merchant branding)
   // Falls back to IPFS metadata URL if the primary (relayer) URL fails

@@ -18,7 +18,7 @@ function loadMigrations(): Migration[] {
 
   // Load SQL migration files
   // 009 was removed (receipt_upload_status — never deployed to production, replaced by on-demand upload)
-  const files = ['001_initial_schema.sql', '002_metadata.sql', '003_consecutive_failures.sql', '004_filecoin_storage.sql', '005_plan_status.sql', '006_plan_composite_key.sql', '007_report_json_cache.sql', '008_subscriber_data.sql', '010_merchant_api_keys.sql', '011_checkout_links.sql', '012_enable_rls.sql', '013_unique_charge_tx.sql', '014_fix_double_counted_charges.sql', '015_purge_dead_webhooks.sql', '016_terms_acceptances.sql', '017_points.sql', '018_points_backfill_reset.sql', '019_points_profile.sql', '020_payments.sql', '021_tempo_wallets.sql']
+  const files = ['001_initial_schema.sql', '002_metadata.sql', '003_consecutive_failures.sql', '004_filecoin_storage.sql', '005_plan_status.sql', '006_plan_composite_key.sql', '007_report_json_cache.sql', '008_subscriber_data.sql', '010_merchant_api_keys.sql', '011_checkout_links.sql', '012_enable_rls.sql', '013_unique_charge_tx.sql', '014_fix_double_counted_charges.sql', '015_purge_dead_webhooks.sql', '016_terms_acceptances.sql', '017_points.sql', '018_points_backfill_reset.sql', '019_points_profile.sql', '020_payments.sql', '021_tempo_wallets.sql', '022_merchant_accounts.sql', '023_whitelist_addresses.sql', '024_fix_rls_policies.sql', '025_fix_missing_rls.sql', '026_email_verification_codes.sql']
 
   for (const file of files) {
     const sql = readFileSync(join(__dirname, file), 'utf-8')

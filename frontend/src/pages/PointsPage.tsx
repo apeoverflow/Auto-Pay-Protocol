@@ -8,7 +8,7 @@ import {
   ExternalLink, Share2, Users, Send, ChevronDown, Loader2,
 } from 'lucide-react'
 import { trackPointsAction, fetchReferralInfo } from '../lib/relayer'
-import { useSignMessage } from 'wagmi'
+import { useSignMessageCompat } from '../hooks/useSignMessageCompat'
 import { useDisplayName } from '../hooks/useEns'
 
 // ── Deterministic avatar from address ────────────────────────
@@ -155,7 +155,7 @@ const fmtPts = (p: number) => p >= 10000 ? `${(p / 1000).toFixed(1)}k` : p.toLoc
 
 export function PointsPage() {
   const { address } = useWallet()
-  const { signMessageAsync } = useSignMessage()
+  const { signMessageAsync } = useSignMessageCompat()
   const [period, setPeriod] = useState<'all' | 'monthly' | 'weekly'>('all')
   const [page, setPage] = useState(1)
   const [showAllRewards, setShowAllRewards] = useState(false)
