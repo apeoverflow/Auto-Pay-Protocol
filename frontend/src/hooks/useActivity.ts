@@ -135,6 +135,15 @@ export function invalidateActivity() {
   for (const fn of activityListeners) fn()
 }
 
+// ── Module-level receipt broadcaster for optimistic updates across all instances ──
+type ReceiptHandler = (receipt: TransactionReceipt) => void
+const receiptListeners = new Set<ReceiptHandler>()
+
+/** Add activity items from a tx receipt to all useActivity() instances immediately */
+export function addGlobalActivityFromReceipt(receipt: TransactionReceipt) {
+  for (const fn of receiptListeners) fn(receipt)
+}
+
 export function useActivity(): UseActivityReturn {
   const address = useAddress()
   const { publicClient, chainConfig } = useChain()
@@ -369,6 +378,12 @@ export function useActivity(): UseActivityReturn {
     activityListeners.add(handler)
     return () => { activityListeners.delete(handler) }
   }, [fetchActivity])
+
+  // Subscribe to cross-instance receipt broadcasts
+  React.useEffect(() => {
+    receiptListeners.add(addActivityFromReceipt)
+    return () => { receiptListeners.delete(addActivityFromReceipt) }
+  }, [addActivityFromReceipt])
 
   return {
     activity,

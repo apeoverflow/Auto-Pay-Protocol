@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { type Hex } from 'viem'
+import { type Hex, type TransactionReceipt } from 'viem'
 import { useAddress } from './useAddress'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
@@ -8,7 +8,7 @@ import { isTempoBuild, useTempoWallet } from '../contexts/TempoWalletContext'
 import { tempoRevokePolicy } from '../lib/tempo-api'
 
 interface UseRevokePolicyReturn {
-  revokePolicy: (policyId: `0x${string}`) => Promise<Hex>
+  revokePolicy: (policyId: `0x${string}`) => Promise<{ hash: Hex; receipt: TransactionReceipt }>
   hash: Hex | undefined
   status: string
   error: string | null
@@ -28,7 +28,7 @@ export function useRevokePolicy(): UseRevokePolicyReturn {
   const [isLoading, setIsLoading] = React.useState(false)
 
   const revokePolicy = React.useCallback(
-    async (policyId: `0x${string}`): Promise<Hex> => {
+    async (policyId: `0x${string}`): Promise<{ hash: Hex; receipt: TransactionReceipt }> => {
       if (!address || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -63,11 +63,11 @@ export function useRevokePolicy(): UseRevokePolicyReturn {
         setHash(txHash)
         setStatus('Waiting for confirmation...')
 
-        await publicClient.waitForTransactionReceipt({ hash: txHash })
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
 
         setStatus('Subscription cancelled')
 
-        return txHash
+        return { hash: txHash, receipt }
       } catch (err) {
         const message = parseContractError(err)
         setError(message)
