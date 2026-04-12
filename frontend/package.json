@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview --outDir dist/client"
+    "build": "npm run sync-docs && tsc && vite build",
+    "preview": "vite preview --outDir dist/client",
+    "sync-docs": "rm -rf public/docs && mkdir -p public/docs && cp ../documentation/*.md public/docs/"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.4.0",

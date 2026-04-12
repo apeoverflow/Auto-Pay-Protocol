@@ -1,0 +1,103 @@
+# AutoPay Protocol
+
+> Non-custodial crypto subscription payment protocol built on USDC.
+> Users keep full custody of funds. Merchants receive automatic recurring payments.
+> Works alongside Stripe, not instead of it. Multi-chain (Flow EVM, Base, Tempo).
+> Protocol fee: 2.5% per charge. SDK: `@autopayprotocol/sdk` on npm.
+
+AutoPay lets merchants accept recurring USDC payments without building payment infrastructure. Users approve USDC spending to the PolicyManager smart contract, create a subscription policy (merchant, amount, interval, spending cap), and a relayer charges them automatically each billing cycle. The first charge executes immediately on subscription creation.
+
+Funds never leave the user's wallet until charged. Users can revoke policies at any time. After 3 consecutive failed charges (insufficient balance/allowance), policies are auto-cancelled.
+
+## Getting Started
+
+- [Overview](https://autopayprotocol.com/docs/overview.md): What AutoPay is, how it works, who these docs are for
+- [Subscriber Guide](https://autopayprotocol.com/docs/subscriber-guide.md): How to subscribe, fund your wallet, manage subscriptions
+- [Merchant Guide](https://autopayprotocol.com/docs/merchant-guide.md): Accept payments, create plans, manage subscribers
+
+## SDK Integration
+
+- [Backend SDK Guide](https://autopayprotocol.com/docs/sdk-backend.md): Install `@autopayprotocol/sdk`, create checkout URLs, verify webhooks, handle events
+- [Checkout Example](https://autopayprotocol.com/docs/merchant-checkout-example.md): Full working merchant integration with webhook handling
+
+## Agent Economy
+
+- [Agent SDK Quickstart](https://autopayprotocol.com/docs/agent-sdk-quickstart.md): Build autonomous AI agents that pay for services with USDC
+- [Agent SDK Reference](https://autopayprotocol.com/docs/agent-sdk-reference.md): Full API reference for agent integrations
+- [MCP Server Reference](https://autopayprotocol.com/docs/mcp-reference.md): Model Context Protocol server for AI tool use
+- [Middleware Reference](https://autopayprotocol.com/docs/middleware-reference.md): Express/Fastify middleware for payment-gated endpoints
+- [Agent Architecture](https://autopayprotocol.com/docs/AGENT_ARCHITECTURE.md): How agents, MCP, and middleware fit together
+
+## Relayer (Self-Hosting)
+
+- [Local Setup](https://autopayprotocol.com/docs/relayer-local-setup.md): Run the relayer locally with Docker
+- [Configuration](https://autopayprotocol.com/docs/relayer-configuration.md): Environment variables, chain config, feature flags
+- [Operations](https://autopayprotocol.com/docs/relayer-operations.md): Monitoring, troubleshooting, database management
+- [Deployment](https://autopayprotocol.com/docs/relayer-deployment.md): Deploy to Railway, Docker, or any Node.js host
+
+## Key Concepts
+
+- [Webhook Events](https://autopayprotocol.com/docs/sdk-backend.md): policy.created, charge.succeeded, charge.failed, policy.revoked, policy.completed, policy.cancelled_by_failure
+- [Checkout Flow](https://autopayprotocol.com/docs/sdk-backend.md): Hosted checkout page — redirect users, parse success callback
+
+## API Reference
+
+- Relayer API root: GET / returns full endpoint listing
+- Plan management: GET/POST/PUT/PATCH/DELETE /merchants/:address/plans
+- Subscribers: GET /merchants/:address/subscribers
+- Charges: GET /merchants/:address/charges
+- Webhooks: GET/PUT /merchants/:address/webhook
+- Payer policies: GET /payers/:address/policies
+- Auth: EIP-191 wallet signatures (GET /auth/nonce, then sign)
+- API keys: POST /merchants/:address/api-keys for programmatic access
+
+## Contract Addresses
+
+- Flow EVM (747): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC `0xF1815bd50389c46847f0Bda824eC8da914045D14`
+- Base (8453): PolicyManager `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a`, USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+- Tempo (4217): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC.e `0x20c000000000000000000000b9537d11c60e8b50`
+- Base Sepolia (84532): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+
+## SDK Quick Reference
+
+```typescript
+import { createCheckoutUrl, verifyWebhook, formatUSDC, parseUSDC } from '@autopayprotocol/sdk'
+
+// Create a checkout URL
+const url = createCheckoutUrl({
+  merchant: '0x...',
+  amount: 9.99,
+  interval: 'monthly',
+  metadataUrl: 'https://relayer.autopayprotocol.com/metadata/0x.../pro',
+  successUrl: 'https://yoursite.com/success',
+  cancelUrl: 'https://yoursite.com/cancel',
+})
+
+// Verify webhook in your server
+const event = verifyWebhook(rawBody, signature, webhookSecret)
+if (event.type === 'charge.succeeded') {
+  // Grant/extend access
+}
+```
+
+## Claude Code Integration
+
+Install the AutoPay skill for Claude Code to get context-aware integration help:
+
+```bash
+mkdir -p .claude/skills/autopay-integrate && curl -s https://autopayprotocol.com/claude-skill.md -o .claude/skills/autopay-integrate/SKILL.md
+```
+
+Then use `/autopay-integrate` in Claude Code:
+
+```
+/autopay-integrate Express webhook handler
+/autopay-integrate Next.js checkout with existing plan
+/autopay-integrate Python Flask subscription server
+```
+
+## Optional
+
+- [npm: @autopayprotocol/sdk](https://www.npmjs.com/package/@autopayprotocol/sdk): SDK package on npm
+- [LiFi Bridge](https://li.fi/): Cross-chain USDC bridging (30+ chains)
+- [RainbowKit](https://www.rainbowkit.com/): Wallet connection UI

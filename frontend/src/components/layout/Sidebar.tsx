@@ -252,6 +252,15 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
                   <Calendar className="h-3.5 w-3.5" />
                   Schedule a Demo
                 </a>
+                <a
+                  href="https://x.com/autopayprotocol"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 text-white/35 hover:text-white/60"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  Follow on X
+                </a>
               </div>
             )}
           </div>

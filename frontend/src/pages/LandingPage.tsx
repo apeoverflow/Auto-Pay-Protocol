@@ -817,6 +817,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
               <Star size={13} fill="currentColor" /> <span className="lp-nav-points-full">Loyalty Points</span><span className="lp-nav-points-short">Points</span>
             </button>
             <button onClick={onDocs} className="lp-nav-link">Docs</button>
+            <a href="https://x.com/autopayprotocol" target="_blank" rel="noopener noreferrer" className="lp-nav-link" aria-label="X (Twitter)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
             <a href="https://calendly.com/kieranmarcus/30min" target="_blank" rel="noopener noreferrer" className="lp-nav-link lp-nav-demo">Schedule a Demo</a>
           </div>
           <MotionButton onClick={onOpenApp} className="lp-nav-cta">
@@ -1250,6 +1251,10 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
                 <a href="https://www.npmjs.com/package/@autopayprotocol/agent-sdk" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> Agent SDK</a>
                 <a href="https://www.npmjs.com/package/@autopayprotocol/mcp" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> MCP Server</a>
                 <a href="https://www.npmjs.com/package/@autopayprotocol/middleware" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><Package size={13} /> Middleware</a>
+              </div>
+              <div className="lp-footer-col">
+                <div className="lp-footer-col-title">Community</div>
+                <a href="https://x.com/autopayprotocol" target="_blank" rel="noopener noreferrer" className="lp-footer-link"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> X (Twitter)</a>
               </div>
               <div className="lp-footer-col">
                 <div className="lp-footer-col-title">Legal</div>

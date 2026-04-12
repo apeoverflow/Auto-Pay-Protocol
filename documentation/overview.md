@@ -1,5 +1,11 @@
 # AutoPay Overview
 
+> **Building with AI?** Use our [llms.txt](/llms.txt) for a machine-readable protocol summary, or install the [Claude Code skill](/claude-skill.md) for guided integration help:
+> ```bash
+> mkdir -p .claude/skills/autopay-integrate && curl -s https://autopayprotocol.com/claude-skill.md -o .claude/skills/autopay-integrate/SKILL.md
+> ```
+> Then use `/autopay-integrate` in Claude Code (e.g. `/autopay-integrate Express webhook handler`).
+
 ## What is AutoPay?
 
 AutoPay is a non-custodial crypto subscription payment protocol. It lets users pay for recurring services with USDC while keeping full control of their funds. Merchants receive payments automatically each billing cycle without building any payment infrastructure.
