@@ -14,6 +14,8 @@ import {
   mainnet, arbitrum, optimism, base, polygon, bsc, avalanche, gnosis,
   zkSync, linea, scroll, blast, mantle, celo, moonbeam, metis, boba,
   cronos, mode, ronin, sei, sonic, flare, telos, lisk,
+  // Circle Gateway testnet source chains (for bridging USDC to Arc Testnet)
+  sepolia, avalancheFuji, baseSepolia, sonicTestnet, worldchainSepolia, seiTestnet,
 } from 'wagmi/chains'
 import { defineChain } from 'viem'
 import { CHAIN_CONFIGS } from './chains'
@@ -27,6 +29,8 @@ const wagmiChains = [
   mainnet, arbitrum, optimism, base, polygon, bsc, avalanche, gnosis,
   zkSync, linea, scroll, blast, mantle, celo, moonbeam, metis, boba,
   cronos, mode, ronin, sei, sonic, flare, telos, lisk,
+  // Circle Gateway testnet sources
+  sepolia, avalancheFuji, baseSepolia, sonicTestnet, worldchainSepolia, seiTestnet,
 ].filter(c => !autoPayChainIds.has(c.id))
 
 // Additional LiFi-supported EVM chains (minimal definitions for chain switching)

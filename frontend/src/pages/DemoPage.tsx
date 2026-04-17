@@ -33,6 +33,7 @@ const CHECKOUT_BASE_URLS: Record<ChainKey, string> = {
   polkadotHub: 'https://polkadot.autopayprotocol.com',
   tempo: 'https://tempo.autopayprotocol.com',
   baseSepolia: 'https://staging.autopayprotocol.com',
+  arcTestnet: 'https://arc.autopayprotocol.com',
 }
 import { parseContractError } from '../types/policy'
 import { ToastContainer, useToast } from '../components/ui/toast'

@@ -36,6 +36,14 @@ export const tempoMainnet = defineChain({
   blockExplorers: { default: { name: 'Tempo Explorer', url: 'https://explore.tempo.xyz' } },
 })
 
+export const arcTestnetMainnet = defineChain({
+  id: 5042002,
+  name: 'Arc Testnet',
+  nativeCurrency: { decimals: 6, name: 'USDC', symbol: 'USDC' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_ARC_TESTNET_RPC || 'https://rpc.testnet.arc.network'] } },
+  blockExplorers: { default: { name: 'Arcscan', url: 'https://testnet.arcscan.app' } },
+})
+
 export const baseSepoliaMainnet = defineChain({
   id: 84532,
   name: 'Base Sepolia',
@@ -103,6 +111,18 @@ export const CHAIN_CONFIGS = {
     policyManager: DEPLOYMENTS[4217]?.contracts.policyManager as `0x${string}` | undefined,
     deployBlock: DEPLOYMENTS[4217]?.deployBlock,
     explorer: 'https://explore.tempo.xyz',
+    supportsLifi: false,
+    enabled: true,
+  },
+  arcTestnet: {
+    key: 'arcTestnet',
+    chain: arcTestnetMainnet,
+    name: 'Arc Testnet',
+    shortName: 'Arc',
+    usdc: '0x3600000000000000000000000000000000000000',
+    policyManager: DEPLOYMENTS[5042002]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[5042002]?.deployBlock,
+    explorer: 'https://testnet.arcscan.app',
     supportsLifi: false,
     enabled: true,
   },

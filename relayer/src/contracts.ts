@@ -50,6 +50,17 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     confirmations: 1,
     enabled: true,
   },
+  arcTestnet: {
+    chainId: 5042002,
+    name: 'Arc Testnet',
+    rpcUrl: process.env.ARC_TESTNET_RPC || 'https://rpc.testnet.arc.network',
+    policyManagerAddress: '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1' as `0x${string}`,
+    startBlock: 26573469,
+    pollIntervalMs: 5000,
+    batchSize: 5000,
+    confirmations: 2,
+    enabled: true,
+  },
   baseSepolia: {
     chainId: 84532,
     name: 'Base Sepolia',
@@ -118,6 +129,20 @@ export const DEPLOYMENTS = {
     },
     "addresses": {
       "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
+  "5042002": {
+    "chainId": 5042002,
+    "chainName": "arcTestnet",
+    "deployedAt": "2026-02-12T02:51:00Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 26573469,
+    "contracts": {
+      "policyManager": "0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1"
+    },
+    "addresses": {
+      "usdc": "0x3600000000000000000000000000000000000000",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },

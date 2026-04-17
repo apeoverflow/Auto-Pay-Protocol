@@ -10,6 +10,7 @@ import { useAccount, useConfig } from 'wagmi'
 import { getConnectorClient } from 'wagmi/actions'
 import { createWalletClient, custom } from 'viem'
 import { Globe, CircleDollarSign, Zap, Shield, ExternalLink, Wallet, ArrowUpRight, Copy, Check } from 'lucide-react'
+import { FundWalletCard } from '../components/FundWallet/FundWalletCard'
 
 
 const STEPS = [
@@ -228,6 +229,65 @@ function FundingGuidePage() {
   )
 }
 
+function ArcGatewayBridge() {
+  const { address } = useWallet()
+  const { setSuppressAutoSwitch } = useChain()
+
+  // Suppress ChainContext auto-switch — the source wallet needs to stay on
+  // Ethereum Sepolia (or whichever source chain the user picks) during bridging.
+  useEffect(() => {
+    setSuppressAutoSwitch(true)
+    return () => setSuppressAutoSwitch(false)
+  }, [setSuppressAutoSwitch])
+
+  if (!address) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        <div className="w-full max-w-md text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <Wallet className="w-6 h-6 text-primary" />
+          </div>
+          <h2 className="text-lg font-semibold">Connect your Arc wallet first</h2>
+          <p className="text-sm text-muted-foreground">
+            Once your Arc wallet is connected, you can bridge USDC from Ethereum Sepolia or other testnets via Circle Gateway.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-start pt-6 pb-12 px-4">
+      <div className="w-full max-w-md space-y-5">
+        {/* Step indicators */}
+        <div className="bridge-steps">
+          {[
+            { icon: Globe,          title: 'Pick source',        iconColor: 'text-blue-600' },
+            { icon: CircleDollarSign, title: 'Deposit to Gateway', iconColor: 'text-emerald-600' },
+            { icon: Zap,            title: 'Sign & mint on Arc', iconColor: 'text-amber-600' },
+            { icon: Shield,         title: 'Ready to subscribe', iconColor: 'text-violet-600' },
+          ].map((step, i, arr) => (
+            <div key={i} className="bridge-step">
+              <step.icon className={`h-3.5 w-3.5 ${step.iconColor}`} />
+              <span>{step.title}</span>
+              {i < arr.length - 1 && <div className="bridge-step-connector" />}
+            </div>
+          ))}
+        </div>
+
+        <div className="text-center">
+          <h2 className="text-lg font-semibold">Bridge USDC to Arc Testnet</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Powered by <span className="font-medium">Circle Gateway</span> — ~instant cross-chain USDC
+          </p>
+        </div>
+
+        <FundWalletCard destinationAddress={address} />
+      </div>
+    </div>
+  )
+}
+
 export function BridgePage() {
   const { address } = useWallet()
   const { openConnectModal } = useConnectModal()
@@ -327,6 +387,11 @@ export function BridgePage() {
     }),
     [address, openConnectModal, wagmiConfig, connector, chainConfig],
   )
+
+  // Arc — use Circle Gateway (instant USDC transfers from testnet source chains)
+  if (chainConfig.chain.id === 5042002) {
+    return <ArcGatewayBridge />
+  }
 
   // If the chain doesn't support LiFi, show the funding guidance page instead
   if (!chainConfig.supportsLifi) {

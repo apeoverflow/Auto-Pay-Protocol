@@ -26,6 +26,12 @@ export const CHAIN_PRESETS = {
     checkoutUrl: 'https://tempo.autopayprotocol.com/checkout',
     blockExplorer: 'https://explore.tempo.xyz',
   },
+  arcTestnet: {
+    rpcUrl: 'https://rpc.testnet.arc.network',
+    policyManager: '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1',
+    checkoutUrl: 'https://arc.autopayprotocol.com/checkout',
+    blockExplorer: 'https://testnet.arcscan.app',
+  },
   baseSepolia: {
     rpcUrl: 'https://sepolia.base.org',
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',

@@ -30,6 +30,13 @@ export const CHAINS = {
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',
     explorer: 'https://explore.tempo.xyz',
   },
+  arcTestnet: {
+    chainId: 5042002,
+    rpcUrl: 'https://rpc.testnet.arc.network',
+    usdc: '0x3600000000000000000000000000000000000000',
+    policyManager: '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1',
+    explorer: 'https://testnet.arcscan.app',
+  },
   baseSepolia: {
     chainId: 84532,
     rpcUrl: 'https://sepolia.base.org',

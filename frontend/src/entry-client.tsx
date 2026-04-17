@@ -13,6 +13,7 @@ import { WalletProvider } from './contexts/WalletContext'
 import { TermsProvider } from './contexts/TermsContext'
 import { MerchantModeProvider } from './contexts/MerchantModeContext'
 import { TempoWalletProvider, isTempoBuild } from './contexts/TempoWalletContext'
+import { ArcWalletProvider } from './contexts/ArcWalletContext'
 import { ConnectModalProvider } from './contexts/ConnectModalContext'
 import { wagmiConfig } from './config/wagmi'
 import { DEFAULT_CHAIN } from './config/chains'
@@ -24,6 +25,7 @@ const CHAIN_PRIMARY: Record<string, string> = {
   base: '221.2 83.2% 53.3%',    // #3B82F6 blue (default)
   polkadotHub: '256 30% 28%',   // dark purple/slate
   tempo: '0 0% 10%',            // near-black
+  arcTestnet: '217 70% 14%',    // Arc deep navy (matches arc-logo.jpg)
 }
 const chainPrimary = CHAIN_PRIMARY[DEFAULT_CHAIN]
 if (chainPrimary) {
@@ -87,7 +89,8 @@ const AppTree = (
       <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}>
         <PrivyWrapper>
           <TempoWalletProvider>
-            <ConnectModalProvider>
+            <ArcWalletProvider>
+              <ConnectModalProvider>
               <ChainProvider>
                 <AuthProvider>
                   <WalletProvider>
@@ -99,7 +102,8 @@ const AppTree = (
                   </WalletProvider>
                 </AuthProvider>
               </ChainProvider>
-            </ConnectModalProvider>
+              </ConnectModalProvider>
+            </ArcWalletProvider>
           </TempoWalletProvider>
         </PrivyWrapper>
       </React.Suspense>

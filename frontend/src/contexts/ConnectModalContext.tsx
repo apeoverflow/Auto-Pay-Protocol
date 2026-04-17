@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import { useConnect } from 'wagmi'
 import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
+import { isArcBuild, useArcWallet } from './ArcWalletContext'
 
 interface ConnectModalContextValue {
   isOpen: boolean
@@ -20,35 +21,71 @@ export function ConnectModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
   const { connectors, connect } = useConnect()
   const tempoWallet = useTempoWallet()
+  const arcWallet = useArcWallet()
   const isTempo = isTempoBuild()
+  const isArc = isArcBuild()
+
+  // Arc passkey UX state
+  const [arcUsername, setArcUsername] = useState('')
+  const [arcError, setArcError] = useState<string | null>(null)
+  const [arcBusy, setArcBusy] = useState<'register' | 'login' | null>(null)
 
   const openConnectModal = useCallback(() => {
     if (isTempo) {
-      // On Tempo, delegate to Privy's login modal
-      // If already connected OR if Privy is authenticated but wallet creation
-      // failed (isReady but no wallet), don't call login again — it would
-      // trigger a "user is already logged in" warning from Privy.
       if (!tempoWallet.isConnected) {
         tempoWallet.login()
       }
     } else {
-      // On other chains, show our custom connect modal
       setIsOpen(true)
     }
   }, [isTempo, tempoWallet])
 
-  const closeConnectModal = useCallback(() => setIsOpen(false), [])
+  const closeConnectModal = useCallback(() => {
+    setIsOpen(false)
+    setArcError(null)
+    setArcBusy(null)
+  }, [])
 
   const handleConnect = useCallback((connector: typeof connectors[number]) => {
+    // On Arc, flag that the user picked the browser wallet path so ChainContext
+    // falls through to wagmi instead of looking at ArcWallet.
+    if (isArc) arcWallet.selectWagmi()
     connect({ connector })
     setIsOpen(false)
-  }, [connect])
+  }, [connect, isArc, arcWallet])
+
+  const handlePasskeyRegister = useCallback(async () => {
+    setArcError(null)
+    setArcBusy('register')
+    try {
+      await arcWallet.loginPasskey(arcUsername || undefined)
+      setIsOpen(false)
+    } catch (err) {
+      setArcError(err instanceof Error ? err.message : 'Failed to register passkey')
+    } finally {
+      setArcBusy(null)
+    }
+  }, [arcWallet, arcUsername])
+
+  const handlePasskeyLogin = useCallback(async () => {
+    setArcError(null)
+    setArcBusy('login')
+    try {
+      await arcWallet.connectPasskey()
+      setIsOpen(false)
+    } catch (err) {
+      setArcError(err instanceof Error ? err.message : 'Failed to login with passkey')
+    } finally {
+      setArcBusy(null)
+    }
+  }, [arcWallet])
+
+  const hasExistingPasskey = typeof window !== 'undefined' && !!localStorage.getItem('autopay-arc-passkey-credential-id')
 
   return (
     <ConnectModalContext.Provider value={{ isOpen, openConnectModal, closeConnectModal }}>
       {children}
 
-      {/* Connect modal — only shown for non-Tempo chains */}
       {isOpen && !isTempo && (
         <>
           <div
@@ -68,6 +105,53 @@ export function ConnectModalProvider({ children }: { children: ReactNode }) {
                   </svg>
                 </button>
               </div>
+
+              {/* Arc-specific: show passkey option above browser wallet */}
+              {isArc && (
+                <div className="mb-5">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Passkey Wallet
+                  </div>
+                  <div className="flex flex-col gap-2 p-4 rounded-xl border border-border bg-background/50">
+                    {!hasExistingPasskey && (
+                      <input
+                        type="text"
+                        placeholder="Username (optional)"
+                        value={arcUsername}
+                        onChange={(e) => setArcUsername(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    )}
+                    <div className="flex gap-2">
+                      {hasExistingPasskey && (
+                        <button
+                          onClick={handlePasskeyLogin}
+                          disabled={!!arcBusy}
+                          className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                        >
+                          {arcBusy === 'login' ? 'Signing in…' : 'Sign in with Passkey'}
+                        </button>
+                      )}
+                      <button
+                        onClick={handlePasskeyRegister}
+                        disabled={!!arcBusy}
+                        className={`${hasExistingPasskey ? 'flex-1' : 'w-full'} px-4 py-2 rounded-lg border border-border bg-background text-sm font-medium hover:bg-muted/50 disabled:opacity-50 transition-colors`}
+                      >
+                        {arcBusy === 'register' ? 'Creating…' : hasExistingPasskey ? 'Create new' : 'Create Passkey Wallet'}
+                      </button>
+                    </div>
+                    {arcError && (
+                      <div className="text-xs text-red-500 mt-1">{arcError}</div>
+                    )}
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Uses your device's biometrics (Touch ID / Face ID / Windows Hello). Creates a Circle smart account — no seed phrase.
+                    </p>
+                  </div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-5 mb-2">
+                    Or use a Browser Wallet
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col gap-2">
                 {connectors.map((connector) => (

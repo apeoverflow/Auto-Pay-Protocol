@@ -5,6 +5,7 @@ import { USDC_DECIMALS } from '../config'
 import { erc20Abi } from '../config/contracts'
 import { useChain } from './ChainContext'
 import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
+import { isArcBuild, useArcWallet } from './ArcWalletContext'
 import { tempoApprove } from '../lib/tempo-api'
 
 interface WalletContextValue {
@@ -24,10 +25,20 @@ const WalletContext = React.createContext<WalletContextValue | null>(null)
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { address: wagmiAddress, chainId: connectedChainId } = useAccount()
   const tempoWallet = useTempoWallet()
+  const arcWallet = useArcWallet()
   const isTempo = isTempoBuild()
+  const isArc = isArcBuild()
+  const isArcPasskey = isArc && arcWallet.isPasskeyMode
 
-  // Use Tempo wallet address when on Tempo, otherwise wagmi
-  const address = isTempo ? tempoWallet.address ?? undefined : wagmiAddress
+  // Address source follows the active wallet mode:
+  //  - Tempo: server-side Privy wallet
+  //  - Arc passkey: Circle smart account
+  //  - Everything else: wagmi-connected browser wallet
+  const address = isTempo
+    ? tempoWallet.address ?? undefined
+    : isArcPasskey
+      ? arcWallet.address ?? undefined
+      : wagmiAddress
 
   const { publicClient, walletClient, chainConfig } = useChain()
   const { switchChainAsync } = useSwitchChain()
@@ -150,9 +161,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setSetupError(null)
 
     // If wallet is on the wrong chain, trigger a switch first
-    // Skip for Tempo — there's no injected wallet to switch
+    // Skip for Tempo and Arc passkey — there's no injected wallet to switch
     const requiredChainId = chainConfig.chain.id
-    if (!isTempo && connectedChainId !== requiredChainId) {
+    if (!isTempo && !isArcPasskey && connectedChainId !== requiredChainId) {
       try {
         setSetupStatus(`Switching to ${chainConfig.name}...`)
         await switchChainAsync({ chainId: requiredChainId })

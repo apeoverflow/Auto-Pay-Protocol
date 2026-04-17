@@ -69,7 +69,7 @@ export interface ChainConfig {
   checkoutBaseUrl: string
 }
 
-export type ChainKey = 'flowEvm' | 'base' | 'polkadotHub' | 'tempo' | 'baseSepolia'
+export type ChainKey = 'flowEvm' | 'base' | 'polkadotHub' | 'tempo' | 'arcTestnet' | 'baseSepolia'
 
 export const chains: Record<ChainKey, ChainConfig> = {
   flowEvm: {
@@ -99,6 +99,13 @@ export const chains: Record<ChainKey, ChainConfig> = {
     usdc: '0x20c000000000000000000000b9537d11c60e8b50',
     explorer: 'https://explore.tempo.xyz',
     checkoutBaseUrl: 'https://tempo.autopayprotocol.com',
+  },
+  arcTestnet: {
+    name: 'Arc Testnet',
+    chainId: 5042002,
+    usdc: '0x3600000000000000000000000000000000000000',
+    explorer: 'https://testnet.arcscan.app',
+    checkoutBaseUrl: 'https://arc.autopayprotocol.com',
   },
   baseSepolia: {
     name: 'Base Sepolia',

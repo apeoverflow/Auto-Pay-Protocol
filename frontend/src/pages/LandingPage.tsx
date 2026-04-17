@@ -39,6 +39,8 @@ const CHAIN_BRAND: Record<string, { rgb: string; hex: string; hexHover: string; 
   base:        { rgb: '0,0,255',     hex: '#0000FF', hexHover: '#0000DD', accentRgb: '0,100,255',   icon: '/base-square.svg',   name: 'Base' },
   polkadotHub: { rgb: '60,60,75',     hex: '#3C3C4B', hexHover: '#2E2E3B', accentRgb: '90,90,110',   icon: '/polkadot-icon.svg', name: 'Polkadot' },
   tempo:       { rgb: '100,100,120', hex: '#646478', hexHover: '#7A7A90', accentRgb: '130,130,160', icon: '/tempo-icon.svg',    name: 'Tempo' },
+  arcTestnet:  { rgb: '123,155,204', hex: '#7B9BCC', hexHover: '#6285BC', accentRgb: '160,185,220', icon: '/arc-logo.jpg',      name: 'Arc Testnet' },
+  baseSepolia: { rgb: '0,0,255',     hex: '#0000FF', hexHover: '#0000DD', accentRgb: '0,100,255',   icon: '/base-square.svg',   name: 'Base Sepolia' },
 }
 const brand = CHAIN_BRAND[DEFAULT_CHAIN] ?? CHAIN_BRAND.base
 
@@ -1726,6 +1728,8 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           width: 16px;
           height: 16px;
           border-radius: 50%;
+          object-fit: cover;
+          flex-shrink: 0;
         }
         .lp-nav-links { display: flex; align-items: center; gap: 24px; margin-left: auto; }
         .lp-nav-link {

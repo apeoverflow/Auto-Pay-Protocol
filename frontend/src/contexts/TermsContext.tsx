@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useSignMessage } from 'wagmi'
 import { useAddress } from '../hooks/useAddress'
 import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
+import { isArcBuild, useArcWallet } from './ArcWalletContext'
 
 // Bump this when ToS changes materially to require re-acceptance
 export const TERMS_VERSION = '1.0'
@@ -49,7 +50,9 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
   const address = useAddress()
   const { signMessageAsync: wagmiSignMessage } = useSignMessage()
   const tempoWallet = useTempoWallet()
+  const arcWallet = useArcWallet()
   const isTempo = isTempoBuild()
+  const isArcPasskey = isArcBuild() && arcWallet.isPasskeyMode
 
   // Initialize synchronously from localStorage — prevents flash of ToS modal
   const [hasAccepted, setHasAccepted] = React.useState(() => checkLocalAcceptance(address))
@@ -120,25 +123,34 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
         if (!token) throw new Error('Not authenticated')
         const { tempoSignMessage } = await import('../lib/tempo-api')
         signature = await tempoSignMessage(token, tempoWallet.walletId, tempoWallet.address || address!, message)
+      } else if (isArcPasskey) {
+        // On Arc passkey mode, sign via the Circle smart account (WebAuthn prompt)
+        signature = await arcWallet.signMessage(message)
       } else {
         signature = await wagmiSignMessage({ message })
       }
 
-      // Save to relayer (authoritative record with signature verification)
+      // Save to relayer (authoritative record). Best-effort — if the relayer
+      // is unreachable (dev, offline, etc.) we still honor the signature
+      // locally so the user can proceed.
       if (RELAYER_URL) {
-        const res = await fetch(`${RELAYER_URL}/terms/accept`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            address: address.toLowerCase(),
-            version: TERMS_VERSION,
-            message,
-            signature,
-          }),
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error((err as { error?: string }).error || 'Failed to record acceptance')
+        try {
+          const res = await fetch(`${RELAYER_URL}/terms/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              address: address.toLowerCase(),
+              version: TERMS_VERSION,
+              message,
+              signature,
+            }),
+          })
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            console.warn('[Terms] Relayer rejected acceptance:', (err as { error?: string }).error)
+          }
+        } catch (err) {
+          console.warn('[Terms] Relayer unreachable, falling back to localStorage:', err)
         }
       }
 
@@ -153,7 +165,7 @@ export function TermsProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsAccepting(false)
     }
-  }, [address, wagmiSignMessage, isTempo, tempoWallet])
+  }, [address, wagmiSignMessage, isTempo, tempoWallet, isArcPasskey, arcWallet])
 
   const value = React.useMemo(
     () => ({

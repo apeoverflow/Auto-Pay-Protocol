@@ -73,6 +73,24 @@
     "checkoutBaseUrl": "https://tempo.autopayprotocol.com",
     "enabled": true
   },
+  "arcTestnet": {
+    "chainId": 5042002,
+    "name": "Arc Testnet",
+    "shortName": "Arc",
+    "nativeCurrency": { "name": "USDC", "symbol": "USDC", "decimals": 6 },
+    "rpcUrl": "https://rpc.testnet.arc.network",
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "blockExplorer": "https://testnet.arcscan.app",
+    "blockExplorerName": "Arcscan",
+    "verifierType": "blockscout",
+    "verifierUrl": "https://testnet.arcscan.app/api/",
+    "pollIntervalMs": 5000,
+    "batchSize": 5000,
+    "confirmations": 2,
+    "supportsLifi": false,
+    "checkoutBaseUrl": "https://arc.autopayprotocol.com",
+    "enabled": true
+  },
   "baseSepolia": {
     "chainId": 84532,
     "name": "Base Sepolia",

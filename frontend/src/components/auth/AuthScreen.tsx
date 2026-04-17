@@ -19,6 +19,8 @@ const CHAIN_ICONS: Record<string, string> = {
   base: '/base-square.svg',
   polkadotHub: '/polkadot-icon.svg',
   tempo: '/tempo-icon.svg',
+  arcTestnet: '/arc-logo.jpg',
+  baseSepolia: '/base-square.svg',
 }
 
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {
