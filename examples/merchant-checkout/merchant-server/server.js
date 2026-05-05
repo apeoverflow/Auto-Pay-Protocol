@@ -4,6 +4,7 @@ import { verifyWebhook } from '@autopayprotocol/sdk'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { createClient } from '@supabase/supabase-js'
+import ws from 'ws'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -30,7 +31,11 @@ const PLAN_IDS = process.env.PLAN_IDS ? process.env.PLAN_IDS.split(',').map(s =>
 // Supabase connection (same DB as relayer, merchant tables)
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jlafnlrurqqalgvxshgz.supabase.co'
 const SUPABASE_KEY = process.env.SUPABASE_KEY || ''
-const supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null
+const supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY, {
+  realtime: {
+    transport: ws,
+  },
+}) : null
 
 const app = express()
 
