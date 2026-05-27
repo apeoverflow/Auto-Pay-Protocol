@@ -91,7 +91,6 @@ export function parseChargeSucceeded(log: Log): ChargeSucceededEvent | null {
       payer: `0x${string}`
       merchant: `0x${string}`
       amount: bigint
-      protocolFee: bigint
     }
 
     return {
@@ -99,7 +98,6 @@ export function parseChargeSucceeded(log: Log): ChargeSucceededEvent | null {
       payer: args.payer,
       merchant: args.merchant,
       amount: args.amount,
-      protocolFee: args.protocolFee,
       blockNumber: log.blockNumber!,
       transactionHash: log.transactionHash!,
     }

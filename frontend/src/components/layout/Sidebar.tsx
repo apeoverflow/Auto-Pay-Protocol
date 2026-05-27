@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '../../lib/utils'
 import {
   LayoutDashboard,
@@ -16,6 +17,11 @@ import {
   BarChart3,
   Users,
   Calendar,
+  Star,
+  Play,
+  ChevronDown,
+  Send,
+  ShieldCheck,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { useAuth } from '../../hooks'
@@ -23,8 +29,9 @@ import { useMerchantMode } from '../../hooks/useMerchantMode'
 import type { AppMode } from '../../contexts/MerchantModeContext'
 
 export type NavItem =
-  | 'dashboard' | 'subscriptions' | 'activity' | 'bridge' | 'settings' | 'demo' | 'docs'
+  | 'dashboard' | 'subscriptions' | 'activity' | 'payments' | 'bridge' | 'points' | 'settings' | 'demo' | 'docs'
   | 'merchant-overview' | 'merchant-plans' | 'merchant-receipts' | 'merchant-reports' | 'merchant-subscribers' | 'merchant-settings'
+  | 'admin-fees'
 
 interface SidebarProps {
   currentPage: NavItem
@@ -38,6 +45,7 @@ const subscriberNavItems: { id: NavItem; label: string; icon: React.ReactNode }[
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'subscriptions', label: 'Subscriptions', icon: <CreditCard className="h-4 w-4" /> },
   { id: 'activity', label: 'Activity', icon: <Activity className="h-4 w-4" /> },
+  { id: 'payments', label: 'Payments', icon: <Send className="h-4 w-4" /> },
   { id: 'bridge', label: 'Bridge Funds', icon: <ArrowDownUp className="h-4 w-4" /> },
   { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
 ]
@@ -54,13 +62,14 @@ const merchantNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] 
 
 // Beta/Developer items (shown at bottom)
 const betaNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
-  { id: 'demo', label: 'SDK Demo', icon: <Beaker className="h-4 w-4" /> },
+  { id: 'points', label: 'Loyalty Points', icon: <Star className="h-4 w-4" /> },
   { id: 'docs', label: 'Docs', icon: <BookOpen className="h-4 w-4" /> },
 ]
 
 export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }: SidebarProps) {
   const { logout } = useAuth()
   const { mode, setMode, isMerchant } = useMerchantMode()
+  const [demosOpen, setDemosOpen] = useState(false)
   const navItems = isMerchant
     ? merchantNavItems
     : subscriberNavItems
@@ -189,29 +198,104 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
                 {item.label}
               </button>
             ))}
-            <a
-              href="https://merchant-checkout-demo-production.up.railway.app/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200 text-white/40 hover:bg-white/[0.04] hover:text-white/60"
+            {/* Demos submenu */}
+            <button
+              onClick={() => setDemosOpen(!demosOpen)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200',
+                currentPage === 'demo'
+                  ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                  : 'text-white/40 hover:bg-white/[0.04] hover:text-white/60'
+              )}
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-md text-current">
-                <ExternalLink className="h-4 w-4" />
+              <span className={cn(
+                'flex h-6 w-6 items-center justify-center rounded-md transition-all duration-200',
+                currentPage === 'demo'
+                  ? 'bg-amber-500/20 text-amber-300'
+                  : 'text-current'
+              )}>
+                <Play className="h-4 w-4" />
               </span>
-              Live Demo
-            </a>
-            <a
-              href="https://calendly.com/kieranmarcus/30min"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200 text-white/40 hover:bg-white/[0.04] hover:text-white/60"
-            >
-              <span className="flex h-6 w-6 items-center justify-center rounded-md text-current">
-                <Calendar className="h-4 w-4" />
-              </span>
-              Schedule a Demo
-            </a>
+              Demos
+              <ChevronDown className={cn(
+                'ml-auto h-3.5 w-3.5 transition-transform duration-200',
+                demosOpen && 'rotate-180'
+              )} />
+            </button>
+            {demosOpen && (
+              <div className="ml-5 space-y-0.5 border-l border-white/[0.06] pl-3">
+                <button
+                  onClick={() => onNavigate('demo')}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200',
+                    currentPage === 'demo'
+                      ? 'text-amber-300'
+                      : 'text-white/35 hover:text-white/60'
+                  )}
+                >
+                  <Beaker className="h-3.5 w-3.5" />
+                  SDK Demo
+                </button>
+                <a
+                  href="https://merchant-checkout-demo-production.up.railway.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 text-white/35 hover:text-white/60"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Live Demo
+                </a>
+                <a
+                  href="https://calendly.com/kieranmarcus/30min"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 text-white/35 hover:text-white/60"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  Schedule a Demo
+                </a>
+                <a
+                  href="https://x.com/autopayprotocol"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 text-white/35 hover:text-white/60"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  Follow on X
+                </a>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Admin */}
+        <div className="px-3 pb-2">
+          <div className="mb-2 flex items-center gap-2 px-3">
+            <div className="h-px flex-1 bg-white/[0.08]" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/20">
+              Admin
+            </span>
+            <div className="h-px flex-1 bg-white/[0.08]" />
+          </div>
+          <button
+            onClick={() => onNavigate('admin-fees')}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200',
+              currentPage === 'admin-fees'
+                ? 'bg-white/[0.12] text-white shadow-sm'
+                : 'text-white/40 hover:bg-white/[0.04] hover:text-white/60'
+            )}
+          >
+            <span className={cn(
+              'flex h-6 w-6 items-center justify-center rounded-md transition-all duration-200',
+              currentPage === 'admin-fees'
+                ? 'bg-primary text-white'
+                : 'text-current'
+            )}>
+              <ShieldCheck className="h-4 w-4" />
+            </span>
+            Merchant Fees
+          </button>
         </div>
 
         {/* Footer / Logout */}

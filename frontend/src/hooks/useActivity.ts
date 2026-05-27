@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { parseAbiItem, decodeEventLog, type Log, type TransactionReceipt } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
 import { fetchActivityFromDb, type DbPolicy, type DbCharge } from '../lib/supabase'
@@ -31,7 +31,7 @@ interface UseActivityReturn {
 
 // Event signatures from ArcPolicyManager (for contract fallback)
 const ChargeSucceededEvent = parseAbiItem(
-  'event ChargeSucceeded(bytes32 indexed policyId, address indexed payer, address indexed merchant, uint128 amount, uint128 protocolFee)'
+  'event ChargeSucceeded(bytes32 indexed policyId, address indexed payer, address indexed merchant, uint128 amount)'
 )
 
 const PolicyCreatedEvent = parseAbiItem(
@@ -135,8 +135,17 @@ export function invalidateActivity() {
   for (const fn of activityListeners) fn()
 }
 
+// ── Module-level receipt broadcaster for optimistic updates across all instances ──
+type ReceiptHandler = (receipt: TransactionReceipt) => void
+const receiptListeners = new Set<ReceiptHandler>()
+
+/** Add activity items from a tx receipt to all useActivity() instances immediately */
+export function addGlobalActivityFromReceipt(receipt: TransactionReceipt) {
+  for (const fn of receiptListeners) fn(receipt)
+}
+
 export function useActivity(): UseActivityReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { publicClient, chainConfig } = useChain()
 
   const [activity, setActivity] = React.useState<ActivityItem[]>([])
@@ -369,6 +378,12 @@ export function useActivity(): UseActivityReturn {
     activityListeners.add(handler)
     return () => { activityListeners.delete(handler) }
   }, [fetchActivity])
+
+  // Subscribe to cross-instance receipt broadcasts
+  React.useEffect(() => {
+    receiptListeners.add(addActivityFromReceipt)
+    return () => { receiptListeners.delete(addActivityFromReceipt) }
+  }, [addActivityFromReceipt])
 
   return {
     activity,

@@ -30,3 +30,10 @@ CLAUDE.md
 
 # Branding
 branding/
+
+# Media (slides, video)
+media/
+
+# Claude skills
+.agents/
+.claude/skills/

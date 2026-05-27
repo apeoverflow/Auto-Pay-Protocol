@@ -1,10 +1,11 @@
 import * as React from 'react'
 import { parseUnits, type Hex } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
 import { useWallet } from '../contexts/WalletContext'
 import { useChain } from '../contexts/ChainContext'
 import { erc20Abi } from '../config/contracts'
 import { USDC_DECIMALS } from '../config'
+import { trackPayment } from '../lib/relayer'
 
 interface UseTransferReturn {
   hash: Hex | undefined
@@ -15,7 +16,7 @@ interface UseTransferReturn {
 }
 
 export function useTransfer(): UseTransferReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { fetchBalance } = useWallet()
   const { walletClient, publicClient, chainConfig } = useChain()
   const [hash, setHash] = React.useState<Hex>()
@@ -41,7 +42,17 @@ export function useTransfer(): UseTransferReturn {
         setHash(txHash)
         setStatus('Waiting for confirmation...')
 
-        await publicClient.waitForTransactionReceipt({ hash: txHash })
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+        // Track the payment on the relayer (fire-and-forget)
+        trackPayment({
+          chainId: chainConfig.chain.id,
+          from: address,
+          to,
+          amount: parseUnits(amount, USDC_DECIMALS).toString(),
+          txHash,
+          blockNumber: receipt.blockNumber ? Number(receipt.blockNumber) : undefined,
+        })
 
         setStatus('Confirmed')
         await fetchBalance()

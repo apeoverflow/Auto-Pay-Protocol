@@ -137,7 +137,16 @@
     const txHash = params.get('tx_hash')
     const card = document.getElementById('card')
 
+    let blockExplorer = ''
+
     async function verify() {
+      // Fetch chain config (block explorer URL etc.)
+      try {
+        const cfgRes = await fetch('/api/config')
+        const cfg = await cfgRes.json()
+        blockExplorer = cfg.blockExplorer || ''
+      } catch {}
+
       // If no params at all, show generic unverified
       if (!policyId) {
         showResult(false, 'No policy ID provided')
@@ -200,7 +209,7 @@
             <div class="detail-row">
               <span class="label">Transaction</span>
               <span class="value">
-                <a href="https://testnet.arcscan.app/tx/${txHash}" target="_blank" rel="noopener" style="color: #6366f1; text-decoration: none;">${txHash.slice(0, 10)}...${txHash.slice(-6)}</a>
+                <a href="${blockExplorer}/tx/${txHash}" target="_blank" rel="noopener" style="color: #6366f1; text-decoration: none;">${txHash.slice(0, 10)}...${txHash.slice(-6)}</a>
               </span>
             </div>
             <div class="detail-row">

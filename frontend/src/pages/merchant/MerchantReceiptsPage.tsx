@@ -6,7 +6,7 @@ import { useChain } from '../../hooks/useChain'
 import { useWallet } from '../../hooks/useWallet'
 import { uploadChargeReceipts } from '../../lib/relayer'
 import { Loader2, ExternalLink, ChevronLeft, ChevronRight, Upload } from 'lucide-react'
-import { useSignMessage } from 'wagmi'
+import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 
 const IPFS_GATEWAY = 'https://w3s.link/ipfs'
 const PAGE_SIZE = 20
@@ -37,7 +37,7 @@ export function MerchantReceiptsPage() {
   const { charges, total, page, isLoading, error, setPage, refetch } = useMerchantCharges(PAGE_SIZE)
   const { chainConfig } = useChain()
   const { address } = useWallet()
-  const { signMessageAsync } = useSignMessage()
+  const { signMessageAsync } = useSignMessageCompat()
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const [selected, setSelected] = useState<Set<number>>(new Set())

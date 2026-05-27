@@ -69,7 +69,7 @@ export interface ChainConfig {
   checkoutBaseUrl: string
 }
 
-export type ChainKey = 'flowEvm' | 'base' | 'polkadotHub' | 'baseSepolia'
+export type ChainKey = 'flowEvm' | 'base' | 'polkadotHub' | 'tempo' | 'arcTestnet' | 'arbitrum' | 'baseSepolia'
 
 export const chains: Record<ChainKey, ChainConfig> = {
   flowEvm: {
@@ -92,6 +92,27 @@ export const chains: Record<ChainKey, ChainConfig> = {
     usdc: '0x0000053900000000000000000000000001200000',
     explorer: 'https://blockscout.polkadot.io',
     checkoutBaseUrl: 'https://polkadot.autopayprotocol.com',
+  },
+  tempo: {
+    name: 'Tempo',
+    chainId: 4217,
+    usdc: '0x20c000000000000000000000b9537d11c60e8b50',
+    explorer: 'https://explore.tempo.xyz',
+    checkoutBaseUrl: 'https://tempo.autopayprotocol.com',
+  },
+  arcTestnet: {
+    name: 'Arc Testnet',
+    chainId: 5042002,
+    usdc: '0x3600000000000000000000000000000000000000',
+    explorer: 'https://testnet.arcscan.app',
+    checkoutBaseUrl: 'https://arc.autopayprotocol.com',
+  },
+  arbitrum: {
+    name: 'Arbitrum One',
+    chainId: 42161,
+    usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    explorer: 'https://arbiscan.io',
+    checkoutBaseUrl: 'https://arbitrum.autopayprotocol.com',
   },
   baseSepolia: {
     name: 'Base Sepolia',

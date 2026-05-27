@@ -8,6 +8,7 @@ export type Route =
   | '/dashboard'
   | '/subscriptions'
   | '/activity'
+  | '/payments'
   | '/bridge'
   | '/settings'
   | '/demo'
@@ -21,21 +22,25 @@ export type Route =
   | '/merchant/reports'
   | '/merchant/subscribers'
   | '/merchant/settings'
+  | '/admin/fees'
   | '/pay'
+  | '/leaderboard'
   | '/terms'
   | '/privacy'
 
 type RouteLayout = 'landing' | 'auth' | 'dashboard' | 'fullscreen'
 
 const DASHBOARD_ROUTES: Route[] = [
-  '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo',
+  '/dashboard', '/subscriptions', '/activity', '/payments', '/bridge', '/settings', '/demo',
   '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/receipts', '/merchant/reports', '/merchant/subscribers', '/merchant/settings',
+  '/admin/fees',
 ]
 
 const ROUTE_TO_NAV: Record<string, NavItem> = {
   '/dashboard': 'dashboard',
   '/subscriptions': 'subscriptions',
   '/activity': 'activity',
+  '/payments': 'payments',
   '/bridge': 'bridge',
   '/settings': 'settings',
   '/demo': 'demo',
@@ -48,13 +53,16 @@ const ROUTE_TO_NAV: Record<string, NavItem> = {
   '/merchant/reports': 'merchant-reports',
   '/merchant/subscribers': 'merchant-subscribers',
   '/merchant/settings': 'merchant-settings',
+  '/admin/fees': 'admin-fees',
 }
 
 const NAV_TO_ROUTE: Record<NavItem, Route> = {
   dashboard: '/dashboard',
   subscriptions: '/subscriptions',
   activity: '/activity',
+  payments: '/payments',
   bridge: '/bridge',
+  points: '/dashboard',
   settings: '/settings',
   demo: '/demo',
   docs: '/docs',
@@ -64,11 +72,13 @@ const NAV_TO_ROUTE: Record<NavItem, Route> = {
   'merchant-reports': '/merchant/reports',
   'merchant-subscribers': '/merchant/subscribers',
   'merchant-settings': '/merchant/settings',
+  'admin-fees': '/admin/fees',
 }
 
 const VALID_ROUTES: Route[] = [
-  '/', '/app', '/dashboard', '/subscriptions', '/activity', '/bridge', '/settings', '/demo', '/docs', '/checkout', '/pay', '/terms', '/privacy',
+  '/', '/app', '/dashboard', '/subscriptions', '/activity', '/payments', '/bridge', '/settings', '/demo', '/docs', '/checkout', '/pay', '/leaderboard', '/terms', '/privacy',
   '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/receipts', '/merchant/reports', '/merchant/subscribers', '/merchant/settings',
+  '/admin/fees',
 ]
 
 function pathToRoute(pathname: string): Route {
@@ -83,7 +93,7 @@ function pathToRoute(pathname: string): Route {
 export function getRouteLayout(route: Route): RouteLayout {
   if (route === '/') return 'landing'
   if (route === '/app') return 'auth'
-  if (route === '/docs' || route === '/checkout' || route === '/pay' || route === '/terms' || route === '/privacy') return 'fullscreen'
+  if (route === '/docs' || route === '/checkout' || route === '/pay' || route === '/leaderboard' || route === '/terms' || route === '/privacy') return 'fullscreen'
   return 'dashboard'
 }
 

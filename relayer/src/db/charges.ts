@@ -32,8 +32,7 @@ export async function createChargeRecord(
 export async function markChargeSuccess(
   databaseUrl: string,
   chargeId: number,
-  txHash: string,
-  protocolFee: string
+  txHash: string
 ): Promise<boolean> {
   const db = getDb(databaseUrl)
   const normalizedHash = txHash.toLowerCase()
@@ -50,7 +49,6 @@ export async function markChargeSuccess(
     SET
       status = 'success',
       tx_hash = ${normalizedHash},
-      protocol_fee = ${protocolFee},
       completed_at = NOW()
     WHERE id = ${chargeId}
   `

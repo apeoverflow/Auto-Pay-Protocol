@@ -1,12 +1,14 @@
 import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
+
 import { SpeedInsights } from '@vercel/speed-insights/react'
+
+/* RAINBOWKIT: was import { useConnectModal } from '@rainbow-me/rainbowkit' */
+import { useConnectModal } from './contexts/ConnectModalContext'
 import { useAuth, useWallet, useRoute } from './hooks'
 import { useTerms } from './contexts/TermsContext'
 import type { Route } from './hooks/useRoute'
 import { getRouteLayout, navItemToRoute, routeToNavItem } from './hooks/useRoute'
 import type { NavItem } from './components/layout/Sidebar'
-import { AuthScreen } from './components/auth'
 import { DashboardLayout } from './components/layout'
 import {
   DashboardPage,
@@ -20,6 +22,8 @@ import {
   LandingPage,
   TermsPage,
   PrivacyPage,
+  LeaderboardPage,
+  PaymentsPage,
 } from './pages'
 import { TermsAcceptanceModal } from './components/shared/TermsAcceptanceModal'
 import {
@@ -31,6 +35,8 @@ import {
   MerchantSubscribersPage,
   MerchantSettingsPage,
 } from './pages/merchant'
+import { AdminFeesPage } from './pages/admin/AdminFeesPage'
+import { MerchantRegistrationGate } from './components/merchant/MerchantRegistrationGate'
 import { LoadingView } from './views'
 import { SEOHead } from './components/SEOHead'
 
@@ -72,6 +78,7 @@ function App() {
   const { isLoggedIn } = useAuth()
   const { address, isLoading } = useWallet()
   const { route, navigate } = useRoute()
+  /* RAINBOWKIT: was useConnectModal() from '@rainbow-me/rainbowkit' — restore if reverting */
   const { openConnectModal } = useConnectModal()
   const { hasAcceptedTerms, isChecking: isCheckingTerms } = useTerms()
 
@@ -224,6 +231,18 @@ function App() {
     )
   }
 
+  // Full-screen leaderboard
+  if (activeRoute === '/leaderboard') {
+    return (
+      <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        {seoHead}
+        <div className="route-layer">
+          <LeaderboardPage />
+        </div>
+      </div>
+    )
+  }
+
   // Landing page
   if (activeRoute === '/') {
     return (
@@ -248,20 +267,10 @@ function App() {
     )
   }
 
-  // Auth screen (not connected) — fullscreen routes handle their own auth
-  // When user just disconnected, wasLoggedIn is still true for this render —
-  // skip the auth screen so we don't flash it before navigating to landing
-  if (activeRoute === '/app' || (!isLoggedIn && !wasLoggedIn.current && getRouteLayout(activeRoute) !== 'fullscreen')) {
-    return (
-      <div className="relative h-screen w-screen overflow-hidden">
-        <div
-          className={`route-layer ${animClass}`}
-          onAnimationEnd={onAnimationEnd}
-        >
-          <AuthScreen onNavigateDocs={() => animatedNavigate('/docs')} />
-        </div>
-      </div>
-    )
+  // Not connected — redirect to landing (fullscreen routes handle their own auth)
+  if (!isLoggedIn && !wasLoggedIn.current && getRouteLayout(activeRoute) !== 'fullscreen') {
+    navigate('/')
+    return null
   }
 
   // Dashboard routes (requires connected wallet)
@@ -288,6 +297,8 @@ function App() {
         return <SubscriptionsPage />
       case '/activity':
         return <ActivityPage />
+      case '/payments':
+        return <PaymentsPage />
       case '/bridge':
         return <BridgePage />
       case '/settings':
@@ -300,9 +311,9 @@ function App() {
       case '/merchant/plans':
         return <MerchantPlansPage onNavigate={handleSidebarNavigate} />
       case '/merchant/plans/new':
-        return <MerchantPlanEditorPage navigate={navigate} />
+        return <MerchantRegistrationGate><MerchantPlanEditorPage navigate={navigate} /></MerchantRegistrationGate>
       case '/merchant/plans/edit':
-        return <MerchantPlanEditorPage navigate={navigate} />
+        return <MerchantRegistrationGate><MerchantPlanEditorPage navigate={navigate} /></MerchantRegistrationGate>
       case '/merchant/subscribers':
         return <MerchantSubscribersPage />
       case '/merchant/receipts':
@@ -311,6 +322,8 @@ function App() {
         return <MerchantReportsPage />
       case '/merchant/settings':
         return <MerchantSettingsPage />
+      case '/admin/fees':
+        return <AdminFeesPage />
       case '/dashboard':
       default:
         return <DashboardPage onNavigate={(page) => handleSidebarNavigate(page)} />

@@ -29,3 +29,6 @@ export { useMerchantPlan } from './useMerchantPlan'
 export { useMerchantStats } from './useMerchantStats'
 export { useMerchantCharges } from './useMerchantCharges'
 export { useMerchantReports } from './useMerchantReports'
+
+// Cross-wallet signing (works on both wagmi and Tempo/Privy)
+export { useSignMessageCompat } from './useSignMessageCompat'

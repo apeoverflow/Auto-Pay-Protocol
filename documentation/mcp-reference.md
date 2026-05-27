@@ -2,6 +2,8 @@
 
 Complete reference for `@autopayprotocol/mcp` — a [Model Context Protocol](https://modelcontextprotocol.io) server that exposes AutoPay subscription operations as tools for AI agents running in Claude Code, Cursor, Windsurf, and other MCP-compatible environments.
 
+> **Important: Use a burner wallet with limited funds for testing only.** Putting private keys into LLMs is not safe. MCP config files may be stored in plaintext, and LLM providers may log tool inputs. This integration is in active development — do not use wallets that hold significant funds.
+
 ## Installation
 
 ```bash

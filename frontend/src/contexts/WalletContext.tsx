@@ -4,6 +4,9 @@ import { useAccount, useSwitchChain } from 'wagmi'
 import { USDC_DECIMALS } from '../config'
 import { erc20Abi } from '../config/contracts'
 import { useChain } from './ChainContext'
+import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
+import { isArcBuild, useArcWallet } from './ArcWalletContext'
+import { tempoApprove } from '../lib/tempo-api'
 
 interface WalletContextValue {
   address: `0x${string}` | undefined
@@ -20,7 +23,23 @@ interface WalletContextValue {
 const WalletContext = React.createContext<WalletContextValue | null>(null)
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const { address, chainId: connectedChainId } = useAccount()
+  const { address: wagmiAddress, chainId: connectedChainId } = useAccount()
+  const tempoWallet = useTempoWallet()
+  const arcWallet = useArcWallet()
+  const isTempo = isTempoBuild()
+  const isArc = isArcBuild()
+  const isArcPasskey = isArc && arcWallet.isPasskeyMode
+
+  // Address source follows the active wallet mode:
+  //  - Tempo: server-side Privy wallet
+  //  - Arc passkey: Circle smart account
+  //  - Everything else: wagmi-connected browser wallet
+  const address = isTempo
+    ? tempoWallet.address ?? undefined
+    : isArcPasskey
+      ? arcWallet.address ?? undefined
+      : wagmiAddress
+
   const { publicClient, walletClient, chainConfig } = useChain()
   const { switchChainAsync } = useSwitchChain()
   const [balance, setBalance] = React.useState<string | null>(null)
@@ -75,19 +94,31 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, [publicClient, address, chainConfig.usdc, chainConfig.policyManager])
 
-  // Core approval logic — called when walletClient is available
+  // Core approval logic — called when walletClient is available (or via relayer for Tempo)
   const executeApproval = React.useCallback(async () => {
-    if (!walletClient || !publicClient || !address || !chainConfig.policyManager) return
+    if (!publicClient || !address || !chainConfig.policyManager) return
 
     setSetupStatus('Approving USDC...')
 
     try {
-      const hash = await walletClient.writeContract({
-        address: chainConfig.usdc,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [chainConfig.policyManager, chainConfig.chain.id === 420420419 ? maxUint128 : maxUint256],
-      })
+      let hash: `0x${string}`
+
+      if (isTempo && tempoWallet.getAccessToken && tempoWallet.walletId && tempoWallet.address) {
+        // Tempo: approve via relayer (server-side Privy wallet)
+        const token = await tempoWallet.getAccessToken()
+        if (!token) throw new Error('Not authenticated')
+        const result = await tempoApprove(token, tempoWallet.walletId, tempoWallet.address)
+        hash = result.hash as `0x${string}`
+      } else {
+        // Standard chains: approve via client-side walletClient
+        if (!walletClient) return
+        hash = await walletClient.writeContract({
+          address: chainConfig.usdc,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [chainConfig.policyManager, chainConfig.chain.id === 420420419 ? maxUint128 : maxUint256],
+        })
+      }
 
       setSetupStatus('Confirming...')
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
@@ -108,7 +139,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setIsSettingUp(false)
       setPendingApproval(false)
     }
-  }, [walletClient, publicClient, address, chainConfig])
+  }, [walletClient, publicClient, address, chainConfig, isTempo, tempoWallet])
 
   // When walletClient appears after a chain switch and we have a pending approval, continue
   React.useEffect(() => {
@@ -130,8 +161,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setSetupError(null)
 
     // If wallet is on the wrong chain, trigger a switch first
+    // Skip for Tempo and Arc passkey — there's no injected wallet to switch
     const requiredChainId = chainConfig.chain.id
-    if (connectedChainId !== requiredChainId) {
+    if (!isTempo && !isArcPasskey && connectedChainId !== requiredChainId) {
       try {
         setSetupStatus(`Switching to ${chainConfig.name}...`)
         await switchChainAsync({ chainId: requiredChainId })

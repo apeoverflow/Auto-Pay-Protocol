@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { type Hex } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
 import { useWallet } from '../contexts/WalletContext'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
@@ -17,7 +17,7 @@ interface UseChargeReturn {
 }
 
 export function useCharge(): UseChargeReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { fetchBalance } = useWallet()
   const { publicClient, walletClient, chainConfig } = useChain()
 

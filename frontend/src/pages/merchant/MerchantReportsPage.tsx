@@ -5,7 +5,7 @@ import { useMerchantReports, type MerchantReport } from '../../hooks/useMerchant
 import { useWallet } from '../../hooks/useWallet'
 import { useChain } from '../../hooks/useChain'
 import { fetchMerchantReportData, generateMerchantReport, downloadMerchantReportCsv } from '../../lib/relayer'
-import { useSignMessage } from 'wagmi'
+import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 import {
   Loader2, ExternalLink, FileText, Eye, Plus, Download, Check, Share2,
   DollarSign, TrendingUp, Users, Zap, ArrowUpRight, ArrowDownRight, X,
@@ -72,7 +72,7 @@ export function MerchantReportsPage() {
   const { reports, isLoading, error, refetch } = useMerchantReports()
   const { address } = useWallet()
   const { chainConfig } = useChain()
-  const { signMessageAsync } = useSignMessage()
+  const { signMessageAsync } = useSignMessageCompat()
   const [viewedReport, setViewedReport] = useState<{ period: string; data: ReportData } | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
   const [viewError, setViewError] = useState<string | null>(null)

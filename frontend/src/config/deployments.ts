@@ -28,6 +28,27 @@ export const CHAINS = {
     "usdc": "0x0000053900000000000000000000000001200000",
     "blockExplorer": "https://blockscout.polkadot.io"
   },
+  "tempo": {
+    "id": 4217,
+    "name": "Tempo",
+    "rpcUrl": "https://rpc.tempo.xyz",
+    "usdc": "0x20c000000000000000000000b9537d11c60e8b50",
+    "blockExplorer": "https://explore.tempo.xyz"
+  },
+  "arcTestnet": {
+    "id": 5042002,
+    "name": "Arc Testnet",
+    "rpcUrl": "https://rpc.testnet.arc.network",
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "blockExplorer": "https://testnet.arcscan.app"
+  },
+  "arbitrum": {
+    "id": 42161,
+    "name": "Arbitrum One",
+    "rpcUrl": "https://arb1.arbitrum.io/rpc",
+    "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "blockExplorer": "https://arbiscan.io"
+  },
   "baseSepolia": {
     "id": 84532,
     "name": "Base Sepolia",
@@ -53,6 +74,20 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },
+  "4217": {
+    "chainId": 4217,
+    "chainName": "tempo",
+    "deployedAt": "2026-03-19T00:00:00Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 10151466,
+    "contracts": {
+      "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345"
+    },
+    "addresses": {
+      "usdc": "0x20c000000000000000000000b9537d11c60e8b50",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
   "8453": {
     "chainId": 8453,
     "chainName": "base",
@@ -67,6 +102,20 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },
+  "42161": {
+    "chainId": 42161,
+    "chainName": "arbitrum",
+    "deployedAt": "2026-05-27T17:14:34Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 467275367,
+    "contracts": {
+      "policyManager": "0x1a448bBe108828E60717d37A4BE652C0C6871438"
+    },
+    "addresses": {
+      "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
   "84532": {
     "chainId": 84532,
     "chainName": "baseSepolia",
@@ -78,6 +127,20 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
     },
     "addresses": {
       "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
+  "5042002": {
+    "chainId": 5042002,
+    "chainName": "arcTestnet",
+    "deployedAt": "2026-02-12T02:51:00Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 26573469,
+    "contracts": {
+      "policyManager": "0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1"
+    },
+    "addresses": {
+      "usdc": "0x3600000000000000000000000000000000000000",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },

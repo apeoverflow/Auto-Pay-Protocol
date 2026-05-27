@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard'
 import { SubscriptionDetail } from '../components/subscriptions/SubscriptionDetail'
-import { usePolicies, useRevokePolicy, useChain, useMetadataBatch, invalidateActivity } from '../hooks'
+import { usePolicies, useRevokePolicy, useChain, useMetadataBatch } from '../hooks'
+import { addGlobalActivityFromReceipt } from '../hooks/useActivity'
 import type { OnChainPolicy } from '../types/policy'
 import { Search, CreditCard, Loader2, ExternalLink } from 'lucide-react'
 import { Input } from '../components/ui/input'
@@ -29,10 +30,11 @@ export function SubscriptionsPage() {
   const handleCancel = async (policyId: `0x${string}`) => {
     try {
       setRevokingId(policyId)
-      await revokePolicy(policyId)
+      const { receipt } = await revokePolicy(policyId)
+      // Optimistically add cancel to all activity lists from the tx receipt
+      addGlobalActivityFromReceipt(receipt)
       // Refresh policy state from contract (don't wait for indexer)
       await refreshPolicyFromContract(policyId)
-      invalidateActivity()
       setSelectedPolicy(null)
     } catch (err) {
       console.error('Failed to cancel subscription:', err)

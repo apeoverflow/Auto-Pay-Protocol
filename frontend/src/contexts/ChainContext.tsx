@@ -7,6 +7,8 @@ import {
   type ChainKey,
   type ChainConfig,
 } from '../config/chains'
+import { isTempoBuild, useTempoWallet } from './TempoWalletContext'
+import { isArcBuild, useArcWallet } from './ArcWalletContext'
 
 interface ChainContextValue {
   chainKey: ChainKey
@@ -26,28 +28,58 @@ export function ChainProvider({ children }: { children: React.ReactNode }) {
   const chainKey = DEFAULT_CHAIN
   const chainConfig = CHAIN_CONFIGS[chainKey]
   const requiredChainId = chainConfig.chain.id
-  const { data: walletClient } = useWalletClient({ chainId: requiredChainId })
+  const isTempo = isTempoBuild()
+
+  // Standard wagmi wallet (non-Tempo chains)
+  const { data: wagmiWalletClient } = useWalletClient({ chainId: requiredChainId })
   const { chainId: connectedChainId, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
   const [suppressAutoSwitch, setSuppressAutoSwitch] = React.useState(false)
 
-  // Auto-switch wallet to the required chain when connected on the wrong one
-  // Suppressed on the bridge page where cross-chain operation is needed
+  // Tempo wallet (local keypair — only used when VITE_DEFAULT_CHAIN=tempo)
+  const tempoWallet = useTempoWallet()
+
+  // Arc wallet (passkey/Circle smart account — only used when VITE_DEFAULT_CHAIN=arcTestnet)
+  const arcWallet = useArcWallet()
+  const isArc = isArcBuild()
+  const isArcPasskey = isArc && arcWallet.isPasskeyMode
+
+  // Auto-switch wallet to the required chain when connected on the wrong one.
+  // Suppressed on the bridge page, for Tempo (no injected wallet), and for Arc
+  // passkey mode (also no injected wallet).
   React.useEffect(() => {
-    if (suppressAutoSwitch) return
+    if (suppressAutoSwitch || isTempo || isArcPasskey) return
     if (isConnected && connectedChainId && connectedChainId !== requiredChainId) {
       switchChain?.({ chainId: requiredChainId })
     }
-  }, [isConnected, connectedChainId, requiredChainId, switchChain, suppressAutoSwitch])
+  }, [isConnected, connectedChainId, requiredChainId, switchChain, suppressAutoSwitch, isTempo, isArcPasskey])
 
   // Create a public client for reading chain data
   const publicClient = React.useMemo(() => {
+    // For Tempo, use the TempoWallet's publicClient
+    if (isTempo && tempoWallet.publicClient) {
+      return tempoWallet.publicClient as PublicClient
+    }
+    // For Arc passkey mode, use the ArcWallet's publicClient
+    if (isArcPasskey && arcWallet.publicClient) {
+      return arcWallet.publicClient as PublicClient
+    }
     if (!chainConfig) return null
     return createPublicClient({
       chain: chainConfig.chain,
       transport: http(chainConfig.chain.rpcUrls.default.http[0]),
     })
-  }, [chainKey])
+  }, [chainKey, isTempo, tempoWallet.publicClient, isArcPasskey, arcWallet.publicClient])
+
+  // Choose walletClient based on wallet mode:
+  //  - Tempo: server-side Privy walletClient (signing via relayer)
+  //  - Arc passkey: Circle bundler client (signing via WebAuthn → UserOp)
+  //  - Everything else: standard wagmi walletClient
+  const walletClient = isTempo
+    ? (tempoWallet.walletClient as unknown as UseWalletClientReturnType['data'])
+    : isArcPasskey
+      ? (arcWallet.walletClient as unknown as UseWalletClientReturnType['data'])
+      : wagmiWalletClient
 
   const value = React.useMemo(
     () => ({

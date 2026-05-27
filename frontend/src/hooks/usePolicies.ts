@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { parseAbiItem, type Log } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAddress } from './useAddress'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
 import { fetchPoliciesFromDb, type DbPolicy } from '../lib/supabase'
@@ -126,7 +126,7 @@ function notifyPolicyUpdate(policy: OnChainPolicy) {
 }
 
 export function usePolicies(): UsePoliciesReturn {
-  const { address } = useAccount()
+  const address = useAddress()
   const { publicClient, chainConfig } = useChain()
 
   const [policies, setPolicies] = React.useState<OnChainPolicy[]>([])

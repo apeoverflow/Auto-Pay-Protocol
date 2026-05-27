@@ -235,35 +235,6 @@
   },
   {
     "type": "function",
-    "name": "getChargeBreakdown",
-    "inputs": [
-      {
-        "name": "policyId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "total",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "merchantReceives",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "protocolFee",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getNextChargeTime",
     "inputs": [
       {
@@ -458,6 +429,24 @@
   },
   {
     "type": "function",
+    "name": "setMerchantFee",
+    "inputs": [
+      {
+        "name": "merchant",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "feeBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "totalChargesProcessed",
     "inputs": [],
     "outputs": [
@@ -561,12 +550,6 @@
         "type": "uint128",
         "indexed": false,
         "internalType": "uint128"
-      },
-      {
-        "name": "protocolFee",
-        "type": "uint128",
-        "indexed": false,
-        "internalType": "uint128"
       }
     ],
     "anonymous": false
@@ -586,6 +569,19 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MerchantFeeSet",
+    "inputs": [
+      {
+        "name": "merchant",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -725,6 +721,11 @@
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "FeeTooHigh",
+    "inputs": []
   },
   {
     "type": "error",

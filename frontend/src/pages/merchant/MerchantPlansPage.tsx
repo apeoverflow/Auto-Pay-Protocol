@@ -5,7 +5,7 @@ import { Badge } from '../../components/ui/badge'
 import { useMerchantPlans } from '../../hooks/useMerchantPlans'
 import { useWallet } from '../../hooks/useWallet'
 import { patchPlan, deletePlan } from '../../lib/relayer'
-import { useSignMessage } from 'wagmi'
+import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 import { Plus, Loader2, Pencil, Archive, ArchiveRestore, Trash2, Link2 } from 'lucide-react'
 import type { NavItem } from '../../components/layout/Sidebar'
 import { PaymentLinkDialog } from '../../components/merchant/PaymentLinkDialog'
@@ -26,7 +26,7 @@ export function MerchantPlansPage({ onNavigate: _onNavigate }: MerchantPlansPage
   const apiFilter = statusFilter === 'all' ? undefined : statusFilter
   const { plans, isLoading, error, refetch } = useMerchantPlans(apiFilter)
   const { address } = useWallet()
-  const { signMessageAsync } = useSignMessage()
+  const { signMessageAsync } = useSignMessageCompat()
   const [actionLoading, setActionLoading] = React.useState<string | null>(null)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [sharePlanId, setSharePlanId] = React.useState<string | null>(null)

@@ -44,6 +44,7 @@ function generate() {
     rpcUrl: '${esc(chain.rpcUrl)}',
     policyManager: '${policyManager}',
     checkoutUrl: '${esc(chain.checkoutBaseUrl)}/checkout',
+    blockExplorer: '${esc(chain.blockExplorer)}',
   }`;
   }).join(',\n');
 

@@ -495,7 +495,26 @@ export interface PlanDetail {
 
 // --- Auth helpers ---
 
-export async function getAuthHeaders(
+// Deduplicates concurrent getAuthHeaders calls for the same address so the
+// wallet only prompts for one signature even if multiple requests fire at once
+// (e.g. React Strict Mode double-mount or rapid dependency changes).
+const pendingAuth = new Map<string, Promise<Record<string, string>>>()
+
+export function getAuthHeaders(
+  address: string,
+  signMessage: SignMessageFn,
+): Promise<Record<string, string>> {
+  const existing = pendingAuth.get(address)
+  if (existing) return existing
+
+  const promise = _getAuthHeaders(address, signMessage).finally(() => {
+    pendingAuth.delete(address)
+  })
+  pendingAuth.set(address, promise)
+  return promise
+}
+
+async function _getAuthHeaders(
   address: string,
   signMessage: SignMessageFn,
 ): Promise<Record<string, string>> {
@@ -884,4 +903,286 @@ export async function revokeMerchantApiKey(
     const err = await res.json().catch(() => ({}))
     throw new Error((err as { error?: string }).error || 'Failed to revoke API key')
   }
+}
+
+// ── Points API ───────────────────────────────────────────────
+
+export interface PointsLeaderboardEntry {
+  wallet: string
+  points: number
+  total_usdc_volume: number
+  tier: string
+  current_streak: number
+  rank: number
+}
+
+export interface PointsLeaderboardResponse {
+  leaderboard: PointsLeaderboardEntry[]
+  pagination: { page: number; limit: number; total: number; total_pages: number }
+  period: string
+}
+
+export interface PointsBalanceResponse {
+  wallet: string
+  total_points: number
+  total_usdc_volume: number
+  monthly_points: number
+  weekly_points: number
+  rank: { all_time: number; monthly: number; weekly: number }
+  tier: string
+  current_streak: number
+  longest_streak: number
+  leaderboard_eligible: boolean
+  recent_events: PointsHistoryEvent[]
+}
+
+export interface PointsHistoryEvent {
+  id: number
+  action_id: string
+  display_name: string
+  points: number
+  usdc_amount: number | null
+  category: string
+  source_type: string
+  source_ref: string
+  created_at: string
+}
+
+export interface PointsActionDef {
+  action_id: string
+  display_name: string
+  description: string
+  points: number | null
+  points_per_usdc: number | null
+  category: string
+  frequency: string
+  source_type: string
+}
+
+export async function fetchPointsLeaderboard(
+  period: 'all' | 'monthly' | 'weekly' = 'all',
+  page = 1,
+  limit = 50
+): Promise<PointsLeaderboardResponse> {
+  const url = new URL(`${RELAYER_URL}/points/leaderboard`)
+  url.searchParams.set('period', period)
+  url.searchParams.set('page', String(page))
+  url.searchParams.set('limit', String(limit))
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error('Failed to fetch leaderboard')
+  return res.json()
+}
+
+export async function fetchPointsBalance(address: string): Promise<PointsBalanceResponse> {
+  const res = await fetch(`${RELAYER_URL}/points/${address}`)
+  if (!res.ok) throw new Error('Failed to fetch points balance')
+  return res.json()
+}
+
+export async function fetchPointsHistory(
+  address: string,
+  page = 1,
+  limit = 20
+): Promise<{ events: PointsHistoryEvent[]; pagination: { page: number; limit: number; total: number; total_pages: number } }> {
+  const url = new URL(`${RELAYER_URL}/points/${address}/history`)
+  url.searchParams.set('page', String(page))
+  url.searchParams.set('limit', String(limit))
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error('Failed to fetch points history')
+  return res.json()
+}
+
+export async function fetchPointsActions(): Promise<{ actions: PointsActionDef[]; tiers: { name: string; threshold: number; color: string }[] }> {
+  const res = await fetch(`${RELAYER_URL}/points/actions`)
+  if (!res.ok) throw new Error('Failed to fetch points actions')
+  return res.json()
+}
+
+export async function fetchReferralInfo(address: string) {
+  const res = await fetch(`${RELAYER_URL}/points/referral/${address}`)
+  if (!res.ok) throw new Error('Failed to fetch referral info')
+  return res.json()
+}
+
+export async function trackPointsAction(
+  actionId: string,
+  wallet: string,
+  signMessage: (args: { message: string }) => Promise<`0x${string}`>
+): Promise<{ success: boolean; points_awarded?: number; total_points?: number; error?: string }> {
+  const timestamp = Math.floor(Date.now() / 1000)
+  const message = `AutoPay Points\nAction: ${actionId}\nWallet: ${wallet.toLowerCase()}\nTimestamp: ${timestamp}`
+
+  const signature = await signMessage({ message })
+
+  const res = await fetch(`${RELAYER_URL}/points/track`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action_id: actionId,
+      wallet: wallet.toLowerCase(),
+      signature,
+      timestamp,
+    }),
+  })
+
+  return res.json()
+}
+
+export async function registerReferral(
+  referralCode: string,
+  referredWallet: string,
+  signMessage: (args: { message: string }) => Promise<`0x${string}`>
+): Promise<{ success: boolean; error?: string }> {
+  const timestamp = Math.floor(Date.now() / 1000)
+  const message = `AutoPay Referral\nCode: ${referralCode}\nWallet: ${referredWallet.toLowerCase()}\nTimestamp: ${timestamp}`
+
+  const signature = await signMessage({ message })
+
+  const res = await fetch(`${RELAYER_URL}/points/referral/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      referral_code: referralCode,
+      referred_wallet: referredWallet.toLowerCase(),
+      signature,
+      timestamp,
+    }),
+  })
+
+  return res.json()
+}
+
+// ── Payments API ─────────────────────────────────────────────
+
+export interface PaymentRecord {
+  id: number
+  chainId: number
+  from: string
+  to: string
+  amount: string
+  txHash: string
+  blockNumber: number | null
+  note: string | null
+  createdAt: string
+}
+
+/** Fire-and-forget: track a one-time USDC send on the relayer */
+export function trackPayment(params: {
+  chainId: number
+  from: string
+  to: string
+  amount: string
+  txHash: string
+  blockNumber?: number
+}) {
+  if (!RELAYER_URL) return
+  fetch(`${RELAYER_URL}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  }).catch(() => {})
+}
+
+/** Fetch payment history for an address */
+export async function getPayments(address: string, limit = 50, offset = 0): Promise<{ payments: PaymentRecord[]; total: number }> {
+  const url = new URL(`${RELAYER_URL}/payments`)
+  url.searchParams.set('address', address)
+  url.searchParams.set('limit', String(limit))
+  url.searchParams.set('offset', String(offset))
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error('Failed to fetch payments')
+  return res.json()
+}
+
+// --- Whitelist (minimum charge bypass) ---
+
+/** Default minimum subscription charge in USDC */
+export const MIN_CHARGE_AMOUNT = 10
+
+/** Check if an address is whitelisted (can bypass $10 minimum) */
+export async function checkWhitelist(address: string): Promise<{ whitelisted: boolean; minAmount: number }> {
+  const { baseUrl } = resolveRelayer(address)
+  try {
+    const res = await fetch(`${baseUrl}/whitelist/${address.toLowerCase()}`)
+    if (!res.ok) return { whitelisted: false, minAmount: MIN_CHARGE_AMOUNT }
+    return res.json()
+  } catch {
+    return { whitelisted: false, minAmount: MIN_CHARGE_AMOUNT }
+  }
+}
+
+// --- Email verification (via relayer + Resend) ---
+
+/** Send a 6-digit verification code to an email address */
+export async function sendEmailCode(email: string): Promise<{ error: string | null }> {
+  const baseUrl = import.meta.env.VITE_RELAYER_URL || ''
+  if (!baseUrl) return { error: 'Relayer not configured' }
+  try {
+    const res = await fetch(`${baseUrl}/auth/send-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Failed to send code' }))
+      return { error: data.error || 'Failed to send code' }
+    }
+    return { error: null }
+  } catch {
+    return { error: 'Could not reach server' }
+  }
+}
+
+/** Verify a 6-digit code */
+export async function verifyEmailCode(email: string, code: string): Promise<{ error: string | null }> {
+  const baseUrl = import.meta.env.VITE_RELAYER_URL || ''
+  if (!baseUrl) return { error: 'Relayer not configured' }
+  try {
+    const res = await fetch(`${baseUrl}/auth/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Verification failed' }))
+      return { error: data.error || 'Verification failed' }
+    }
+    return { error: null }
+  } catch {
+    return { error: 'Could not reach server' }
+  }
+}
+
+// --- Merchant account registration ---
+
+/** Check if a merchant wallet has a registered account */
+export async function checkMerchantAccount(address: string): Promise<{ registered: boolean }> {
+  const { baseUrl } = resolveRelayer(address)
+  const res = await fetch(`${baseUrl}/merchants/${address.toLowerCase()}/account`)
+  if (!res.ok) throw new Error('Failed to check merchant account')
+  return res.json()
+}
+
+/** Register a merchant account (link email to wallet via wallet signature) */
+export async function registerMerchantAccount(
+  address: string,
+  email: string,
+  signMessage: SignMessageFn
+): Promise<{ registered: boolean; email: string }> {
+  const { baseUrl } = resolveRelayer(address)
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+
+  const authHeaders = await getAuthHeaders(address, signMessage)
+  Object.assign(headers, authHeaders)
+
+  const res = await fetch(`${baseUrl}/merchants/${address.toLowerCase()}/account`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Registration failed' }))
+    throw new Error(err.error || 'Registration failed')
+  }
+  return res.json()
 }

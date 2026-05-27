@@ -18,6 +18,10 @@ const CHAIN_ICONS: Record<string, string> = {
   flowEvm: '/flow-icon.svg',
   base: '/base-square.svg',
   polkadotHub: '/polkadot-icon.svg',
+  tempo: '/tempo-icon.svg',
+  arbitrum: '/arbitrum-icon.svg',
+  arcTestnet: '/arc-logo.jpg',
+  baseSepolia: '/base-square.svg',
 }
 
 export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) {

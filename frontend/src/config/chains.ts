@@ -28,6 +28,30 @@ export const polkadotHubMainnet = defineChain({
   blockExplorers: { default: { name: 'Blockscout', url: 'https://blockscout.polkadot.io' } },
 })
 
+export const tempoMainnet = defineChain({
+  id: 4217,
+  name: 'Tempo',
+  nativeCurrency: { decimals: 6, name: 'USD', symbol: 'USD' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_TEMPO_RPC || 'https://rpc.tempo.xyz'] } },
+  blockExplorers: { default: { name: 'Tempo Explorer', url: 'https://explore.tempo.xyz' } },
+})
+
+export const arcTestnetMainnet = defineChain({
+  id: 5042002,
+  name: 'Arc Testnet',
+  nativeCurrency: { decimals: 6, name: 'USDC', symbol: 'USDC' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_ARC_TESTNET_RPC || 'https://rpc.testnet.arc.network'] } },
+  blockExplorers: { default: { name: 'Arcscan', url: 'https://testnet.arcscan.app' } },
+})
+
+export const arbitrumMainnet = defineChain({
+  id: 42161,
+  name: 'Arbitrum One',
+  nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc'] } },
+  blockExplorers: { default: { name: 'Arbiscan', url: 'https://arbiscan.io' } },
+})
+
 export const baseSepoliaMainnet = defineChain({
   id: 84532,
   name: 'Base Sepolia',
@@ -60,7 +84,7 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[747]?.deployBlock,
     explorer: 'https://evm.flowscan.io',
     supportsLifi: true,
-    enabled: true,
+    enabled: false,
   },
   base: {
     key: 'base',
@@ -72,7 +96,7 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[8453]?.deployBlock,
     explorer: 'https://basescan.org',
     supportsLifi: true,
-    enabled: true,
+    enabled: false,
   },
   polkadotHub: {
     key: 'polkadotHub',
@@ -84,6 +108,42 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[420420419]?.deployBlock,
     explorer: 'https://blockscout.polkadot.io',
     supportsLifi: false,
+    enabled: false,
+  },
+  tempo: {
+    key: 'tempo',
+    chain: tempoMainnet,
+    name: 'Tempo',
+    shortName: 'Tempo',
+    usdc: '0x20c000000000000000000000b9537d11c60e8b50',
+    policyManager: DEPLOYMENTS[4217]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[4217]?.deployBlock,
+    explorer: 'https://explore.tempo.xyz',
+    supportsLifi: false,
+    enabled: false,
+  },
+  arcTestnet: {
+    key: 'arcTestnet',
+    chain: arcTestnetMainnet,
+    name: 'Arc Testnet',
+    shortName: 'Arc',
+    usdc: '0x3600000000000000000000000000000000000000',
+    policyManager: DEPLOYMENTS[5042002]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[5042002]?.deployBlock,
+    explorer: 'https://testnet.arcscan.app',
+    supportsLifi: false,
+    enabled: false,
+  },
+  arbitrum: {
+    key: 'arbitrum',
+    chain: arbitrumMainnet,
+    name: 'Arbitrum One',
+    shortName: 'Arbitrum',
+    usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    policyManager: DEPLOYMENTS[42161]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[42161]?.deployBlock,
+    explorer: 'https://arbiscan.io',
+    supportsLifi: true,
     enabled: true,
   },
   baseSepolia: {

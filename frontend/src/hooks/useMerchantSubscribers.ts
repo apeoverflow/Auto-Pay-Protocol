@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSignMessage } from 'wagmi'
+import { useSignMessageCompat } from './useSignMessageCompat'
 import { useWallet } from './useWallet'
 import { fetchMerchantSubscribers, type MerchantSubscriber } from '../lib/relayer'
 
 export function useMerchantSubscribers(planId?: string) {
   const { address } = useWallet()
-  const { signMessageAsync } = useSignMessage()
+  const { signMessageAsync } = useSignMessageCompat()
   const signRef = useRef(signMessageAsync)
   signRef.current = signMessageAsync
 

@@ -63,10 +63,22 @@ fi
 echo -e "${YELLOW}Deploying PolicyManager...${NC}"
 mkdir -p deployments
 
+# Build extra flags for chain-specific deploy requirements
+EXTRA_FLAGS=""
+if [ -n "$CHAIN" ]; then
+    # Tempo requires --tempo.fee-token to pay gas in stablecoins (no native gas token)
+    NATIVE_SYMBOL=$(echo "$CHAIN_DATA" | jq -r '.nativeCurrency.symbol // ""')
+    if [ "$NATIVE_SYMBOL" = "USD" ]; then
+        EXTRA_FLAGS="--tempo.fee-token $USDC_ADDRESS"
+        echo -e "  Fee token: $USDC_ADDRESS (stablecoin gas via Tempo Foundry)"
+    fi
+fi
+
 # deploy and capture output
 OUTPUT=$(forge script script/Deploy.s.sol \
     --rpc-url "$RPC_URL" \
     --broadcast \
+    $EXTRA_FLAGS \
     -vvv 2>&1)
 
 echo "$OUTPUT"

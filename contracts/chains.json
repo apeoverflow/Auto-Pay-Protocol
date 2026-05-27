@@ -15,7 +15,7 @@
     "confirmations": 2,
     "supportsLifi": true,
     "checkoutBaseUrl": "https://flow.autopayprotocol.com",
-    "enabled": true
+    "enabled": false
   },
   "base": {
     "chainId": 8453,
@@ -34,7 +34,7 @@
     "confirmations": 5,
     "supportsLifi": true,
     "checkoutBaseUrl": "https://autopayprotocol.com",
-    "enabled": true
+    "enabled": false
   },
   "polkadotHub": {
     "chainId": 420420419,
@@ -53,6 +53,61 @@
     "supportsLifi": false,
     "checkoutBaseUrl": "https://polkadot.autopayprotocol.com",
     "gasEstimationDivisor": 3,
+    "enabled": false
+  },
+  "tempo": {
+    "chainId": 4217,
+    "name": "Tempo",
+    "shortName": "Tempo",
+    "nativeCurrency": { "name": "USD", "symbol": "USD", "decimals": 6 },
+    "rpcUrl": "https://rpc.tempo.xyz",
+    "usdc": "0x20c000000000000000000000b9537d11c60e8b50",
+    "blockExplorer": "https://explore.tempo.xyz",
+    "blockExplorerName": "Tempo Explorer",
+    "verifierType": "custom",
+    "verifierUrl": "https://contracts.tempo.xyz",
+    "pollIntervalMs": 2000,
+    "batchSize": 10000,
+    "confirmations": 1,
+    "supportsLifi": false,
+    "checkoutBaseUrl": "https://tempo.autopayprotocol.com",
+    "enabled": false
+  },
+  "arcTestnet": {
+    "chainId": 5042002,
+    "name": "Arc Testnet",
+    "shortName": "Arc",
+    "nativeCurrency": { "name": "USDC", "symbol": "USDC", "decimals": 6 },
+    "rpcUrl": "https://rpc.testnet.arc.network",
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "blockExplorer": "https://testnet.arcscan.app",
+    "blockExplorerName": "Arcscan",
+    "verifierType": "blockscout",
+    "verifierUrl": "https://testnet.arcscan.app/api/",
+    "pollIntervalMs": 5000,
+    "batchSize": 5000,
+    "confirmations": 2,
+    "supportsLifi": false,
+    "checkoutBaseUrl": "https://arc.autopayprotocol.com",
+    "enabled": false
+  },
+  "arbitrum": {
+    "chainId": 42161,
+    "name": "Arbitrum One",
+    "shortName": "Arbitrum",
+    "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+    "rpcUrl": "https://arb1.arbitrum.io/rpc",
+    "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "blockExplorer": "https://arbiscan.io",
+    "blockExplorerName": "Arbiscan",
+    "verifierType": "etherscan",
+    "verifierUrl": "https://api.etherscan.io/v2/api?chainid=42161",
+    "etherscanApiKeyEnv": "ARBISCAN_API_KEY",
+    "pollIntervalMs": 15000,
+    "batchSize": 2000,
+    "confirmations": 5,
+    "supportsLifi": true,
+    "checkoutBaseUrl": "https://arbitrum.autopayprotocol.com",
     "enabled": true
   },
   "baseSepolia": {

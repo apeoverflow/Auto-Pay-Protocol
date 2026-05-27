@@ -39,6 +39,13 @@ vi.mock('../../src/db/index.js', () => ({
   }),
 }))
 
+vi.mock('../../src/db/whitelist.js', () => ({
+  isWhitelisted: vi.fn().mockResolvedValue(true),
+  getWhitelist: vi.fn().mockResolvedValue([]),
+  addToWhitelist: vi.fn().mockResolvedValue({ address: '', note: null, created_at: '' }),
+  removeFromWhitelist: vi.fn().mockResolvedValue(true),
+}))
+
 vi.mock('../../src/config.js', () => ({
   getEnabledChains: vi.fn().mockReturnValue([]),
   loadConfig: vi.fn().mockReturnValue({ databaseUrl: 'postgres://test', chains: {} }),
