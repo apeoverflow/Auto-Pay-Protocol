@@ -30,6 +30,7 @@ import { DEFAULT_CHAIN, type ChainKey } from '../config/chains'
 const CHECKOUT_BASE_URLS: Record<ChainKey, string> = {
   base: 'https://autopayprotocol.com',
   flowEvm: 'https://flow.autopayprotocol.com',
+  arbitrum: 'https://autopayprotocol.com',
   polkadotHub: 'https://polkadot.autopayprotocol.com',
   tempo: 'https://tempo.autopayprotocol.com',
   baseSepolia: 'https://staging.autopayprotocol.com',
