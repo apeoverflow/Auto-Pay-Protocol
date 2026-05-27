@@ -107,7 +107,7 @@
     "batchSize": 2000,
     "confirmations": 5,
     "supportsLifi": true,
-    "checkoutBaseUrl": "https://arbitrum.autopayprotocol.com",
+    "checkoutBaseUrl": "https://autopayprotocol.com",
     "enabled": true
   },
   "baseSepolia": {
