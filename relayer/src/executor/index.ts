@@ -62,7 +62,6 @@ async function processChainCharges(
         chargeId,
         txHash: result.txHash,
         amount: result.amount,
-        protocolFee: result.protocolFee,
         currentChargeCount: policy.charge_count,
         currentTotalSpent: policy.total_spent,
         spendingCap: policy.spending_cap,
@@ -75,8 +74,7 @@ async function processChainCharges(
       const wasNew = await markChargeSuccess(
         config.databaseUrl,
         chargeId,
-        result.txHash!,
-        result.protocolFee ?? '0'
+        result.txHash!
       )
 
       if (!wasNew) {
@@ -120,7 +118,6 @@ async function processChainCharges(
             payer: policy.payer,
             merchant: policy.merchant,
             amount: result.amount ?? policy.charge_amount,
-            protocolFee: result.protocolFee ?? '0',
             txHash: result.txHash,
           },
         } as WebhookPayload,

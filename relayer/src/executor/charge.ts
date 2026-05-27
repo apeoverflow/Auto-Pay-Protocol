@@ -210,18 +210,14 @@ export async function chargePolicy(
     }
 
     let amount: string | undefined
-    let protocolFee: string | undefined
 
     if (chargeSucceededLog && chargeSucceededLog.data) {
-      // Decode the non-indexed args (amount, protocolFee)
-      // They are encoded as two uint128 values
       const data = chargeSucceededLog.data.slice(2) // Remove 0x
       amount = BigInt('0x' + data.slice(0, 64)).toString()
-      protocolFee = BigInt('0x' + data.slice(64, 128)).toString()
     }
 
     logger.info(
-      { policyId, txHash: hash, amount, protocolFee },
+      { policyId, txHash: hash, amount },
       'Charge successful'
     )
 
@@ -230,7 +226,6 @@ export async function chargePolicy(
       policyId,
       txHash: hash,
       amount,
-      protocolFee,
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

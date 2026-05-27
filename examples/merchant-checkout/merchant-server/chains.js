@@ -32,6 +32,12 @@ export const CHAIN_PRESETS = {
     checkoutUrl: 'https://arc.autopayprotocol.com/checkout',
     blockExplorer: 'https://testnet.arcscan.app',
   },
+  arbitrum: {
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    policyManager: '0x1a448bBe108828E60717d37A4BE652C0C6871438',
+    checkoutUrl: 'https://arbitrum.autopayprotocol.com/checkout',
+    blockExplorer: 'https://arbiscan.io',
+  },
   baseSepolia: {
     rpcUrl: 'https://sepolia.base.org',
     policyManager: '0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345',

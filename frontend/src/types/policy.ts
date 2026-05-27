@@ -24,12 +24,6 @@ export interface CreatePolicyParams {
   metadataUrl: string
 }
 
-export interface PolicyChargeBreakdown {
-  total: bigint
-  merchantReceives: bigint
-  protocolFee: bigint
-}
-
 // Derive the display status for an inactive policy
 export type PolicyStatus = 'active' | 'completed' | 'cancelled'
 

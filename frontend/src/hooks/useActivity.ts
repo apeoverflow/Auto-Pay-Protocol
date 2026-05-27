@@ -31,7 +31,7 @@ interface UseActivityReturn {
 
 // Event signatures from ArcPolicyManager (for contract fallback)
 const ChargeSucceededEvent = parseAbiItem(
-  'event ChargeSucceeded(bytes32 indexed policyId, address indexed payer, address indexed merchant, uint128 amount, uint128 protocolFee)'
+  'event ChargeSucceeded(bytes32 indexed policyId, address indexed payer, address indexed merchant, uint128 amount)'
 )
 
 const PolicyCreatedEvent = parseAbiItem(

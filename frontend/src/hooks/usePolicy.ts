@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useChain } from '../contexts/ChainContext'
 import { PolicyManagerAbi } from '../config/deployments'
-import type { OnChainPolicy, PolicyChargeBreakdown } from '../types/policy'
+import type { OnChainPolicy } from '../types/policy'
 
 interface UsePolicyReturn {
   policy: OnChainPolicy | null
@@ -9,7 +9,6 @@ interface UsePolicyReturn {
   canChargeReason: string
   nextChargeTime: number
   remainingAllowance: bigint
-  chargeBreakdown: PolicyChargeBreakdown | null
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -23,7 +22,6 @@ export function usePolicy(policyId: `0x${string}` | undefined): UsePolicyReturn 
   const [canChargeReason, setCanChargeReason] = React.useState('')
   const [nextChargeTime, setNextChargeTime] = React.useState(0)
   const [remainingAllowance, setRemainingAllowance] = React.useState(0n)
-  const [chargeBreakdown, setChargeBreakdown] = React.useState<PolicyChargeBreakdown | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -37,8 +35,7 @@ export function usePolicy(policyId: `0x${string}` | undefined): UsePolicyReturn 
     setError(null)
 
     try {
-      // Fetch all policy data in parallel
-      const [policyData, canChargeResult, nextChargeResult, remainingResult, breakdownResult] =
+      const [policyData, canChargeResult, nextChargeResult, remainingResult] =
         await Promise.all([
           publicClient.readContract({
             address: chainConfig.policyManager,
@@ -64,15 +61,8 @@ export function usePolicy(policyId: `0x${string}` | undefined): UsePolicyReturn 
             functionName: 'getRemainingAllowance',
             args: [policyId],
           }),
-          publicClient.readContract({
-            address: chainConfig.policyManager,
-            abi: PolicyManagerAbi,
-            functionName: 'getChargeBreakdown',
-            args: [policyId],
-          }),
         ])
 
-      // Map policy data
       const [
         payer,
         merchant,
@@ -117,20 +107,13 @@ export function usePolicy(policyId: `0x${string}` | undefined): UsePolicyReturn 
         metadataUrl,
       })
 
-      // Map canCharge result
       const [canChargeValue, reason] = canChargeResult as [boolean, string]
       setCanCharge(canChargeValue)
       setCanChargeReason(reason)
 
-      // Set next charge time
       setNextChargeTime(Number(nextChargeResult))
 
-      // Set remaining allowance
       setRemainingAllowance(remainingResult as bigint)
-
-      // Map charge breakdown
-      const [total, merchantReceives, protocolFee] = breakdownResult as [bigint, bigint, bigint]
-      setChargeBreakdown({ total, merchantReceives, protocolFee })
     } catch (err) {
       console.error('Failed to fetch policy:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch policy')
@@ -139,7 +122,6 @@ export function usePolicy(policyId: `0x${string}` | undefined): UsePolicyReturn 
     }
   }, [publicClient, policyId, chainConfig.policyManager])
 
-  // Fetch policy on mount and when dependencies change
   React.useEffect(() => {
     fetchPolicy()
   }, [fetchPolicy])
@@ -150,7 +132,6 @@ export function usePolicy(policyId: `0x${string}` | undefined): UsePolicyReturn 
     canChargeReason,
     nextChargeTime,
     remainingAllowance,
-    chargeBreakdown,
     isLoading,
     error,
     refetch: fetchPolicy,

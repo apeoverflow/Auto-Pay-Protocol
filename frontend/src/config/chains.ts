@@ -44,6 +44,14 @@ export const arcTestnetMainnet = defineChain({
   blockExplorers: { default: { name: 'Arcscan', url: 'https://testnet.arcscan.app' } },
 })
 
+export const arbitrumMainnet = defineChain({
+  id: 42161,
+  name: 'Arbitrum One',
+  nativeCurrency: { decimals: 18, name: 'Ether', symbol: 'ETH' },
+  rpcUrls: { default: { http: [import.meta.env.VITE_ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc'] } },
+  blockExplorers: { default: { name: 'Arbiscan', url: 'https://arbiscan.io' } },
+})
+
 export const baseSepoliaMainnet = defineChain({
   id: 84532,
   name: 'Base Sepolia',
@@ -76,7 +84,7 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[747]?.deployBlock,
     explorer: 'https://evm.flowscan.io',
     supportsLifi: true,
-    enabled: true,
+    enabled: false,
   },
   base: {
     key: 'base',
@@ -88,7 +96,7 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[8453]?.deployBlock,
     explorer: 'https://basescan.org',
     supportsLifi: true,
-    enabled: true,
+    enabled: false,
   },
   polkadotHub: {
     key: 'polkadotHub',
@@ -100,7 +108,7 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[420420419]?.deployBlock,
     explorer: 'https://blockscout.polkadot.io',
     supportsLifi: false,
-    enabled: true,
+    enabled: false,
   },
   tempo: {
     key: 'tempo',
@@ -112,7 +120,7 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[4217]?.deployBlock,
     explorer: 'https://explore.tempo.xyz',
     supportsLifi: false,
-    enabled: true,
+    enabled: false,
   },
   arcTestnet: {
     key: 'arcTestnet',
@@ -124,6 +132,18 @@ export const CHAIN_CONFIGS = {
     deployBlock: DEPLOYMENTS[5042002]?.deployBlock,
     explorer: 'https://testnet.arcscan.app',
     supportsLifi: false,
+    enabled: false,
+  },
+  arbitrum: {
+    key: 'arbitrum',
+    chain: arbitrumMainnet,
+    name: 'Arbitrum One',
+    shortName: 'Arbitrum',
+    usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    policyManager: DEPLOYMENTS[42161]?.contracts.policyManager as `0x${string}` | undefined,
+    deployBlock: DEPLOYMENTS[42161]?.deployBlock,
+    explorer: 'https://arbiscan.io',
+    supportsLifi: true,
     enabled: true,
   },
   baseSepolia: {

@@ -37,6 +37,13 @@ export const CHAINS = {
     policyManager: '0xe3463a10Cb69D9705A38cECac3cBC58AD76f5De1',
     explorer: 'https://testnet.arcscan.app',
   },
+  arbitrum: {
+    chainId: 42161,
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    policyManager: '0x1a448bBe108828E60717d37A4BE652C0C6871438',
+    explorer: 'https://arbiscan.io',
+  },
   baseSepolia: {
     chainId: 84532,
     rpcUrl: 'https://sepolia.base.org',

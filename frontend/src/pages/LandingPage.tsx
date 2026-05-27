@@ -39,6 +39,7 @@ const CHAIN_BRAND: Record<string, { rgb: string; hex: string; hexHover: string; 
   base:        { rgb: '0,0,255',     hex: '#0000FF', hexHover: '#0000DD', accentRgb: '0,100,255',   icon: '/base-square.svg',   name: 'Base' },
   polkadotHub: { rgb: '60,60,75',     hex: '#3C3C4B', hexHover: '#2E2E3B', accentRgb: '90,90,110',   icon: '/polkadot-icon.svg', name: 'Polkadot' },
   tempo:       { rgb: '100,100,120', hex: '#646478', hexHover: '#7A7A90', accentRgb: '130,130,160', icon: '/tempo-icon.svg',    name: 'Tempo' },
+  arbitrum:    { rgb: '40,160,220',  hex: '#28A0DC', hexHover: '#1E8EC8', accentRgb: '70,180,235',  icon: '/arbitrum-icon.svg', name: 'Arbitrum' },
   arcTestnet:  { rgb: '123,155,204', hex: '#7B9BCC', hexHover: '#6285BC', accentRgb: '160,185,220', icon: '/arc-logo.jpg',      name: 'Arc Testnet' },
   baseSepolia: { rgb: '0,0,255',     hex: '#0000FF', hexHover: '#0000DD', accentRgb: '0,100,255',   icon: '/base-square.svg',   name: 'Base Sepolia' },
 }

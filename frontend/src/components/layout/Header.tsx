@@ -32,6 +32,7 @@ const pageTitles: Record<NavItem, string> = {
   'merchant-reports': 'Reports',
   'merchant-subscribers': 'Subscribers',
   'merchant-settings': 'Merchant Settings',
+  'admin-fees': 'Merchant Fees',
 }
 
 export function Header({ currentPage = 'dashboard', onMenuToggle, onNavigate }: HeaderProps) {

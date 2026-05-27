@@ -42,6 +42,13 @@ export const CHAINS = {
     "usdc": "0x3600000000000000000000000000000000000000",
     "blockExplorer": "https://testnet.arcscan.app"
   },
+  "arbitrum": {
+    "id": 42161,
+    "name": "Arbitrum One",
+    "rpcUrl": "https://arb1.arbitrum.io/rpc",
+    "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "blockExplorer": "https://arbiscan.io"
+  },
   "baseSepolia": {
     "id": 84532,
     "name": "Base Sepolia",
@@ -92,6 +99,20 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
     },
     "addresses": {
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
+  "42161": {
+    "chainId": 42161,
+    "chainName": "arbitrum",
+    "deployedAt": "2026-05-27T17:14:34Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 467275367,
+    "contracts": {
+      "policyManager": "0x1a448bBe108828E60717d37A4BE652C0C6871438"
+    },
+    "addresses": {
+      "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },

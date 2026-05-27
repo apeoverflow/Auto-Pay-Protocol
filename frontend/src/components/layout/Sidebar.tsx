@@ -21,6 +21,7 @@ import {
   Play,
   ChevronDown,
   Send,
+  ShieldCheck,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { useAuth } from '../../hooks'
@@ -30,6 +31,7 @@ import type { AppMode } from '../../contexts/MerchantModeContext'
 export type NavItem =
   | 'dashboard' | 'subscriptions' | 'activity' | 'payments' | 'bridge' | 'points' | 'settings' | 'demo' | 'docs'
   | 'merchant-overview' | 'merchant-plans' | 'merchant-receipts' | 'merchant-reports' | 'merchant-subscribers' | 'merchant-settings'
+  | 'admin-fees'
 
 interface SidebarProps {
   currentPage: NavItem
@@ -264,6 +266,36 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
               </div>
             )}
           </div>
+        </div>
+
+        {/* Admin */}
+        <div className="px-3 pb-2">
+          <div className="mb-2 flex items-center gap-2 px-3">
+            <div className="h-px flex-1 bg-white/[0.08]" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/20">
+              Admin
+            </span>
+            <div className="h-px flex-1 bg-white/[0.08]" />
+          </div>
+          <button
+            onClick={() => onNavigate('admin-fees')}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200',
+              currentPage === 'admin-fees'
+                ? 'bg-white/[0.12] text-white shadow-sm'
+                : 'text-white/40 hover:bg-white/[0.04] hover:text-white/60'
+            )}
+          >
+            <span className={cn(
+              'flex h-6 w-6 items-center justify-center rounded-md transition-all duration-200',
+              currentPage === 'admin-fees'
+                ? 'bg-primary text-white'
+                : 'text-current'
+            )}>
+              <ShieldCheck className="h-4 w-4" />
+            </span>
+            Merchant Fees
+          </button>
         </div>
 
         {/* Footer / Logout */}

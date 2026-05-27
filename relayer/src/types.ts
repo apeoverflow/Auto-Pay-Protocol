@@ -144,7 +144,6 @@ export interface WebhookPayload {
     payer: string
     merchant: string
     amount?: string
-    protocolFee?: string
     txHash?: string
     reason?: string
     chargeAmount?: string
@@ -183,7 +182,6 @@ export interface ChargeSucceededEvent {
   payer: `0x${string}`
   merchant: `0x${string}`
   amount: bigint
-  protocolFee: bigint
   blockNumber: bigint
   transactionHash: `0x${string}`
 }
@@ -215,7 +213,6 @@ export interface ChargeResult {
   policyId: string
   txHash?: string
   amount?: string
-  protocolFee?: string
   error?: string
 }
 

@@ -384,6 +384,148 @@ contract PolicyManagerTest is Test {
         manager.setFeeRecipient(newRecipient);
     }
 
+    // --- setMerchantFee ---
+
+    function test_SetMerchantFee_CustomRate() public {
+        uint256 customBps = 50; // 0.5%
+        manager.setMerchantFee(merchant, customBps);
+
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+
+        uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
+
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        uint256 expectedFee = (CHARGE_AMOUNT * customBps) / manager.BPS_DENOMINATOR();
+        uint256 expectedMerchantAmount = CHARGE_AMOUNT - expectedFee;
+
+        assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + expectedMerchantAmount);
+        assertEq(manager.accumulatedFees(), expectedFee);
+    }
+
+    function test_SetMerchantFee_ZeroRate() public {
+        manager.setMerchantFee(merchant, 0);
+
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+
+        uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
+
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + CHARGE_AMOUNT);
+        assertEq(manager.accumulatedFees(), 0);
+    }
+
+    function test_SetMerchantFee_DefaultRate() public {
+        // Explicitly set to default rate — should behave identically to no override
+        manager.setMerchantFee(merchant, manager.PROTOCOL_FEE_BPS());
+
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+
+        uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
+
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        uint256 expectedFee = (CHARGE_AMOUNT * manager.PROTOCOL_FEE_BPS()) / manager.BPS_DENOMINATOR();
+        uint256 expectedMerchantAmount = CHARGE_AMOUNT - expectedFee;
+
+        assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + expectedMerchantAmount);
+        assertEq(manager.accumulatedFees(), expectedFee);
+    }
+
+    function test_SetMerchantFee_RevertFeeTooHigh() public {
+        vm.expectRevert(abi.encodeWithSignature("FeeTooHigh()"));
+        manager.setMerchantFee(merchant, 251); // > 2.5%
+    }
+
+    function test_SetMerchantFee_RevertNotOwner() public {
+        vm.prank(payer);
+        vm.expectRevert();
+        manager.setMerchantFee(merchant, 50);
+    }
+
+    function test_SetMerchantFee_AppliesOnSubsequentCharges() public {
+        // Create policy at default rate
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        uint256 defaultFee = (CHARGE_AMOUNT * manager.PROTOCOL_FEE_BPS()) / manager.BPS_DENOMINATOR();
+        assertEq(manager.accumulatedFees(), defaultFee);
+
+        // Owner sets custom rate
+        uint256 customBps = 100; // 1%
+        manager.setMerchantFee(merchant, customBps);
+
+        vm.warp(block.timestamp + INTERVAL);
+
+        uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
+        manager.charge(policyId);
+
+        uint256 customFee = (CHARGE_AMOUNT * customBps) / manager.BPS_DENOMINATOR();
+        uint256 expectedMerchantAmount = CHARGE_AMOUNT - customFee;
+
+        assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + expectedMerchantAmount);
+        assertEq(manager.accumulatedFees(), defaultFee + customFee);
+    }
+
+    function test_SetMerchantFee_DifferentMerchantsIndependent() public {
+        address merchant2 = makeAddr("merchant2");
+
+        manager.setMerchantFee(merchant, 50);  // 0.5%
+        // merchant2 keeps default 2.5%
+
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+
+        uint256 m1Before = usdc.balanceOf(merchant);
+        uint256 m2Before = usdc.balanceOf(merchant2);
+
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        manager.createPolicy(merchant2, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        uint256 fee1 = (CHARGE_AMOUNT * 50) / manager.BPS_DENOMINATOR();
+        uint256 fee2 = (CHARGE_AMOUNT * manager.PROTOCOL_FEE_BPS()) / manager.BPS_DENOMINATOR();
+
+        assertEq(usdc.balanceOf(merchant), m1Before + CHARGE_AMOUNT - fee1);
+        assertEq(usdc.balanceOf(merchant2), m2Before + CHARGE_AMOUNT - fee2);
+        assertEq(manager.accumulatedFees(), fee1 + fee2);
+    }
+
+    function test_SetMerchantFee_EmitsEvent() public {
+        vm.expectEmit(true, false, false, false);
+        emit PolicyManager.MerchantFeeSet(merchant);
+        manager.setMerchantFee(merchant, 100);
+    }
+
+    function testFuzz_SetMerchantFee_AnyValidBps(uint256 feeBps) public {
+        feeBps = bound(feeBps, 0, manager.PROTOCOL_FEE_BPS());
+
+        manager.setMerchantFee(merchant, feeBps);
+
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+
+        uint256 merchantBalanceBefore = usdc.balanceOf(merchant);
+
+        manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+
+        uint256 expectedFee = (CHARGE_AMOUNT * feeBps) / manager.BPS_DENOMINATOR();
+        uint256 expectedMerchantAmount = CHARGE_AMOUNT - expectedFee;
+
+        assertEq(usdc.balanceOf(merchant), merchantBalanceBefore + expectedMerchantAmount);
+        assertEq(manager.accumulatedFees(), expectedFee);
+    }
+
     // --- Consecutive Failure Tracking ---
 
     function test_Charge_SoftFailure_IncrementsCounter() public {

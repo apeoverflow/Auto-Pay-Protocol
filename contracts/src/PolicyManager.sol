@@ -69,6 +69,7 @@ error NotPolicyOwner();
 error NothingToWithdraw();
 error PolicyNotFailedEnough();
 error MaxRetriesReached();
+error FeeTooHigh();
 
 contract PolicyManager is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -114,6 +115,8 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     uint256 public accumulatedFees;
     address public feeRecipient;
 
+    mapping(address => uint256) private _merchantFeeBps;
+
     // Stats
     uint256 public totalPoliciesCreated;
     uint256 public totalChargesProcessed;
@@ -144,8 +147,7 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         bytes32 indexed policyId,
         address indexed payer,
         address indexed merchant,
-        uint128 amount,
-        uint128 protocolFee
+        uint128 amount
     );
 
     event ChargeFailed(bytes32 indexed policyId, string reason);
@@ -159,6 +161,8 @@ contract PolicyManager is ReentrancyGuard, Ownable {
     );
 
     event FeesWithdrawn(address indexed recipient, uint256 amount);
+
+    event MerchantFeeSet(address indexed merchant);
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <------------- Constructor --------------->
@@ -217,13 +221,13 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         // Execute first charge
         USDC.safeTransferFrom(msg.sender, address(this), chargeAmount);
 
-        uint256 protocolFee = _calculateProtocolFee(chargeAmount);
+        uint256 protocolFee = _calculateProtocolFee(chargeAmount, merchant);
         accumulatedFees += protocolFee;
         uint256 merchantAmount = chargeAmount - protocolFee;
 
         USDC.safeTransfer(merchant, merchantAmount);
 
-        emit ChargeSucceeded(policyId, msg.sender, merchant, uint128(merchantAmount), uint128(protocolFee));
+        emit ChargeSucceeded(policyId, msg.sender, merchant, uint128(chargeAmount));
     }
 
     function revokePolicy(bytes32 policyId) external {
@@ -282,14 +286,14 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         USDC.safeTransferFrom(payer, address(this), chargeAmount);
 
         // calculate fee
-        uint256 protocolFee = _calculateProtocolFee(chargeAmount);
+        uint256 protocolFee = _calculateProtocolFee(chargeAmount, merchant);
         accumulatedFees += protocolFee;
         uint256 merchantAmount = chargeAmount - protocolFee;
 
         // send to merchant
         USDC.safeTransfer(merchant, merchantAmount);
 
-        emit ChargeSucceeded(policyId, payer, merchant, uint128(merchantAmount), uint128(protocolFee));
+        emit ChargeSucceeded(policyId, payer, merchant, uint128(chargeAmount));
         return true;
     }
 
@@ -355,17 +359,6 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         return policy.spendingCap - policy.totalSpent;
     }
 
-    function getChargeBreakdown(bytes32 policyId) external view returns (
-        uint256 total,
-        uint256 merchantReceives,
-        uint256 protocolFee
-    ) {
-        Policy storage policy = policies[policyId];
-        total = policy.chargeAmount;
-        protocolFee = _calculateProtocolFee(total);
-        merchantReceives = total - protocolFee;
-    }
-
     function getStats() external view returns (uint256, uint256, uint256) {
         return (totalPoliciesCreated, totalChargesProcessed, totalVolumeProcessed);
     }
@@ -386,13 +379,20 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         feeRecipient = newRecipient;
     }
 
+    function setMerchantFee(address merchant, uint256 feeBps) external onlyOwner {
+        if (feeBps > PROTOCOL_FEE_BPS) revert FeeTooHigh();
+        _merchantFeeBps[merchant] = feeBps == PROTOCOL_FEE_BPS ? 0 : feeBps + 1;
+        emit MerchantFeeSet(merchant);
+    }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <-------------- Internal ----------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
 
-    function _calculateProtocolFee(uint256 amount) internal pure returns (uint256) {
-        return (amount * PROTOCOL_FEE_BPS) / BPS_DENOMINATOR;
+    function _calculateProtocolFee(uint256 amount, address merchant) internal view returns (uint256) {
+        uint256 stored = _merchantFeeBps[merchant];
+        uint256 bps = stored == 0 ? PROTOCOL_FEE_BPS : stored - 1;
+        return (amount * bps) / BPS_DENOMINATOR;
     }
 
 }

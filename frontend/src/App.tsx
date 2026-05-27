@@ -32,6 +32,7 @@ import {
   MerchantSubscribersPage,
   MerchantSettingsPage,
 } from './pages/merchant'
+import { AdminFeesPage } from './pages/admin/AdminFeesPage'
 import { MerchantRegistrationGate } from './components/merchant/MerchantRegistrationGate'
 import { LoadingView } from './views'
 import { SEOHead } from './components/SEOHead'
@@ -318,6 +319,8 @@ function App() {
         return <MerchantReportsPage />
       case '/merchant/settings':
         return <MerchantSettingsPage />
+      case '/admin/fees':
+        return <AdminFeesPage />
       case '/dashboard':
       default:
         return <DashboardPage onNavigate={(page) => handleSidebarNavigate(page)} />

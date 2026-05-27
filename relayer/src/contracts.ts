@@ -14,7 +14,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     pollIntervalMs: 15000,
     batchSize: 9000,
     confirmations: 2,
-    enabled: true,
+    enabled: false,
   },
   base: {
     chainId: 8453,
@@ -25,7 +25,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     pollIntervalMs: 60000,
     batchSize: 5,
     confirmations: 5,
-    enabled: true,
+    enabled: false,
   },
   polkadotHub: {
     chainId: 420420419,
@@ -36,7 +36,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     pollIntervalMs: 6000,
     batchSize: 1000,
     confirmations: 2,
-    enabled: true,
+    enabled: false,
     gasEstimationDivisor: 3,
   },
   tempo: {
@@ -48,7 +48,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     pollIntervalMs: 2000,
     batchSize: 10000,
     confirmations: 1,
-    enabled: true,
+    enabled: false,
   },
   arcTestnet: {
     chainId: 5042002,
@@ -59,6 +59,17 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     pollIntervalMs: 5000,
     batchSize: 5000,
     confirmations: 2,
+    enabled: false,
+  },
+  arbitrum: {
+    chainId: 42161,
+    name: 'Arbitrum One',
+    rpcUrl: process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc',
+    policyManagerAddress: '0x1a448bBe108828E60717d37A4BE652C0C6871438' as `0x${string}`,
+    startBlock: 467275367,
+    pollIntervalMs: 15000,
+    batchSize: 2000,
+    confirmations: 5,
     enabled: true,
   },
   baseSepolia: {
@@ -115,6 +126,20 @@ export const DEPLOYMENTS = {
     },
     "addresses": {
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
+    }
+  },
+  "42161": {
+    "chainId": 42161,
+    "chainName": "arbitrum",
+    "deployedAt": "2026-05-27T17:14:34Z",
+    "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
+    "deployBlock": 467275367,
+    "contracts": {
+      "policyManager": "0x1a448bBe108828E60717d37A4BE652C0C6871438"
+    },
+    "addresses": {
+      "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
       "feeRecipient": "0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B"
     }
   },
