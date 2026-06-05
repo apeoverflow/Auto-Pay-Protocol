@@ -37,3 +37,6 @@ media/
 # Claude skills
 .agents/
 .claude/skills/
+
+# Local dev scripts
+switch-env.sh
