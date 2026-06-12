@@ -94,7 +94,7 @@ export function StatsBar({ stats, valueStyle = 'tint', className = '' }: StatsBa
   return (
     <div
       className={
-        'stats-bar relative h-40 overflow-hidden rounded-[20px] border border-black/[0.06] ' +
+        'stats-bar relative h-32 overflow-hidden rounded-[20px] border border-black/[0.06] ' +
         'shadow-[0_1px_0_rgba(255,255,255,.6)_inset,0_18px_50px_-28px_rgba(15,23,42,.22)] ' +
         className
       }
@@ -137,7 +137,10 @@ export function StatsBar({ stats, valueStyle = 'tint', className = '' }: StatsBa
           return (
             <div
               key={i}
-              className="relative flex flex-col justify-between px-[30px] pt-[26px] pb-5 min-w-0"
+              className={
+                'relative flex flex-col justify-between pr-[30px] pt-[18px] pb-4 min-w-0 ' +
+                (isFirst ? 'pl-[38px]' : 'pl-[60px]')
+              }
               style={{ isolation: 'isolate' }}
             >
               {/* Radial color wash, clipped to the cell's parallelogram */}
@@ -171,7 +174,7 @@ export function StatsBar({ stats, valueStyle = 'tint', className = '' }: StatsBa
               </div>
 
               <div
-                className="text-[34px] font-bold leading-none tracking-[-0.02em] mt-2 tabular-nums truncate stats-bar__value"
+                className="text-[28px] font-bold leading-none tracking-[-0.02em] mt-1 tabular-nums truncate stats-bar__value"
                 style={
                   {
                     '--value-color':
