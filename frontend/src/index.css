@@ -109,6 +109,20 @@
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  /* ── Slashed Unibar (StatsBar.tsx) — light only ─────────────────────── */
+  .stats-bar {
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.015), rgba(0, 0, 0, 0) 60%),
+      linear-gradient(180deg, #ffffff 0%, #f4f5f9 100%);
+  }
+  .stats-bar__icon {
+    background: var(--icon-bg);
+    color: var(--icon-fg);
+  }
+  .stats-bar__value {
+    color: var(--value-color);
+  }
+
   .stat-card:hover {
     @apply shadow-md;
   }
@@ -2522,7 +2536,15 @@
 
 .bridge-widget-wrap {
   max-width: 100%;
-  transform-origin: top center;
+}
+
+/* Let the LI.FI widget render at its natural height so nothing gets clipped.
+   The widget's tallest state (Send-to-wallet expanded + Review button) is
+   around 760px; the .bridge-page scrolls if the viewport is shorter. */
+.bridge-widget-wrap > div,
+.bridge-widget-wrap [data-widget],
+.bridge-widget-wrap .MuiPaper-root {
+  max-height: none !important;
 }
 
 /* ── LI.FI widget disabled field styling ── */

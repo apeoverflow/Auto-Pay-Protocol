@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { useMerchantStats } from '../../hooks/useMerchantStats'
 import { FileText, Users, DollarSign, ArrowRight, Plus, Loader2 } from 'lucide-react'
+import { StatsBar, type StatsBarItem } from '../../components/dashboard'
 import type { NavItem } from '../../components/layout/Sidebar'
 import type { Route } from '../../hooks/useRoute'
 
@@ -35,48 +36,38 @@ export function MerchantOverviewPage({ onNavigate, navigate }: MerchantOverviewP
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/15 to-indigo-500/10">
-              <FileText className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Plans</p>
-              <p className="text-2xl font-bold tabular-nums">{planCounts.total}</p>
-              <p className="text-xs text-muted-foreground">
-                {planCounts.active} active, {planCounts.draft} draft
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stats — slashed unibar */}
+      <StatsBar
+        stats={[
+          {
+            label: 'Total Plans',
+            value: planCounts.total.toString(),
+            sub: `${planCounts.active} active, ${planCounts.draft} draft`,
+            color: 'c1',
+            icon: <FileText className="h-[16px] w-[16px]" strokeWidth={2} />,
+          },
+          {
+            label: 'Active Subscribers',
+            value: activeSubscribers.toString(),
+            sub: activeSubscribers === 1 ? 'subscriber' : 'subscribers',
+            color: 'c3',
+            icon: <Users className="h-[16px] w-[16px]" strokeWidth={2} />,
+          },
+          {
+            label: 'Total Revenue',
+            value: (
+              <>
+                ${formatRawUSDC(totalRevenue)}
+                <span className="ml-1.5 text-sm font-semibold tracking-wider opacity-70">USDC</span>
+              </>
+            ),
+            sub: 'Lifetime',
+            color: 'c4',
+            icon: <DollarSign className="h-[16px] w-[16px]" strokeWidth={2} />,
+          } satisfies StatsBarItem,
+        ]}
+      />
 
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/10">
-              <Users className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Active Subscribers</p>
-              <p className="text-2xl font-bold tabular-nums">{activeSubscribers}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/15 to-purple-500/10">
-              <DollarSign className="h-5 w-5 text-violet-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-2xl font-bold tabular-nums">${formatRawUSDC(totalRevenue)}</p>
-              <p className="text-xs text-muted-foreground">USDC</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Recent Plans */}
       <Card className="flex-1 flex flex-col min-h-0 mb-6">

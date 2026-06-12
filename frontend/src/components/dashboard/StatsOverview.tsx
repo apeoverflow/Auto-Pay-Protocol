@@ -2,45 +2,7 @@ import { useMemo } from 'react'
 import { formatUSDC } from '../../types/subscriptions'
 import { usePolicies, useWallet, useChain, useMetadataBatch } from '../../hooks'
 import { ArrowUpRight, Calendar, CreditCard, Wallet, Copy, Check, Send } from 'lucide-react'
-
-interface StatCardProps {
-  title: string
-  value: string
-  subtitle?: string
-  icon: React.ReactNode
-  gradientFrom: string
-  gradientTo: string
-  iconBg: string
-  iconColor: string
-  accentColor: string
-}
-
-function StatCard({ title, value, subtitle, icon, gradientFrom, gradientTo, iconBg, iconColor, accentColor }: StatCardProps) {
-  return (
-    <div className="stat-card group border-border hidden lg:block">
-      {/* Top accent line */}
-      <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${gradientFrom} ${gradientTo}`} />
-
-      {/* Subtle background gradient */}
-      <div className={`absolute inset-0 opacity-[0.02] bg-gradient-to-br ${gradientFrom} ${gradientTo} pointer-events-none`} />
-
-      <div className="relative p-5">
-        <div className="space-y-3 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${iconBg} transition-all duration-300 ${accentColor}`}>
-              <div className={iconColor}>{icon}</div>
-            </div>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
-          </div>
-          <p className="text-[28px] font-bold tracking-tight leading-none truncate">{value}</p>
-          {subtitle && (
-            <p className="text-xs text-muted-foreground/80 font-medium">{subtitle}</p>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+import { StatsBar, type StatsBarItem } from './StatsBar'
 
 /* ── Mobile: hero balance + metric row + quick actions ── */
 interface MobileHeroProps {
@@ -229,53 +191,63 @@ export function StatsOverview({ address, copied = false, onCopy, onSend }: Stats
         nextChargeTime={nextChargeTime}
       />
 
-      {/* ── Desktop: full stat cards ── */}
-      <div className="hidden lg:grid gap-4 lg:grid-cols-4 flex-shrink-0">
-        <StatCard
-          title="Wallet Balance"
-          value={formatBalance(balance)}
-          subtitle="USDC"
-          icon={<Wallet className="h-[18px] w-[18px]" />}
-          gradientFrom="from-blue-500"
-          gradientTo="to-blue-400"
-          iconBg="bg-blue-500/15"
-          iconColor="text-blue-600"
-          accentColor="group-hover:shadow-blue-500/20"
-        />
-        <StatCard
-          title="Monthly Outgoing"
-          value={formatUSDC(monthlySpend)}
-          subtitle="Total across all subs"
-          icon={<ArrowUpRight className="h-[18px] w-[18px]" />}
-          gradientFrom="from-rose-500"
-          gradientTo="to-orange-400"
-          iconBg="bg-rose-500/15"
-          iconColor="text-rose-600"
-          accentColor="group-hover:shadow-rose-500/20"
-        />
-        <StatCard
-          title="Subscriptions"
-          value={activePoliciesCount.toString()}
-          subtitle="Active"
-          icon={<CreditCard className="h-[18px] w-[18px]" />}
-          gradientFrom="from-emerald-500"
-          gradientTo="to-teal-400"
-          iconBg="bg-emerald-500/15"
-          iconColor="text-emerald-600"
-          accentColor="group-hover:shadow-emerald-500/20"
-        />
-        <StatCard
-          title="Next Payment"
-          value={nextChargeTime}
-          subtitle={nextMerchant}
-          icon={<Calendar className="h-[18px] w-[18px]" />}
-          gradientFrom="from-amber-500"
-          gradientTo="to-yellow-400"
-          iconBg="bg-amber-500/15"
-          iconColor="text-amber-600"
-          accentColor="group-hover:shadow-amber-500/20"
-        />
+      {/* ── Desktop: slashed unibar ── */}
+      <div className="hidden lg:block flex-shrink-0">
+        <StatsBar stats={buildSubscriberStats({
+          balance: formatBalance(balance),
+          monthlySpend: formatUSDC(monthlySpend),
+          activePoliciesCount,
+          nextChargeTime,
+          nextMerchant,
+        })} />
       </div>
     </>
   )
+}
+
+function buildSubscriberStats(args: {
+  balance: string
+  monthlySpend: string
+  activePoliciesCount: number
+  nextChargeTime: string
+  nextMerchant: string
+}): StatsBarItem[] {
+  const hasNext = args.nextChargeTime !== '—'
+  return [
+    {
+      label: 'Wallet Balance',
+      value: (
+        <>
+          {args.balance}
+          <span className="ml-1.5 text-sm font-semibold tracking-wider opacity-70">USDC</span>
+        </>
+      ),
+      sub: 'Available now',
+      color: 'c1',
+      icon: <Wallet className="h-[16px] w-[16px]" strokeWidth={2} />,
+    },
+    {
+      label: 'Monthly Outgoing',
+      value: args.monthlySpend,
+      sub: 'Total across all subs',
+      color: 'c2',
+      icon: <ArrowUpRight className="h-[16px] w-[16px]" strokeWidth={2} />,
+    },
+    {
+      label: 'Subscriptions',
+      value: args.activePoliciesCount.toString(),
+      sub: 'Active',
+      color: 'c3',
+      icon: <CreditCard className="h-[16px] w-[16px]" strokeWidth={2} />,
+    },
+    {
+      label: 'Next Payment',
+      value: hasNext ? args.nextChargeTime : (
+        <span className="opacity-40 font-semibold">—</span>
+      ),
+      sub: args.nextMerchant,
+      color: 'c4',
+      icon: <Calendar className="h-[16px] w-[16px]" strokeWidth={2} />,
+    },
+  ]
 }

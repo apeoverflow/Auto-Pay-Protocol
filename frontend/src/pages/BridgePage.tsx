@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useChain } from '../contexts/ChainContext'
 import { useWallet } from '../hooks'
 /* RAINBOWKIT: was import { useConnectModal } from '@rainbow-me/rainbowkit' */
@@ -89,26 +89,6 @@ const SWITCH_NETWORKS = [
   { id: 50, name: 'XDC' },
   { id: 324, name: 'zkSync' },
 ]
-
-function useWidgetScale(wrapRef: React.RefObject<HTMLDivElement | null>) {
-  useEffect(() => {
-    const el = wrapRef.current
-    if (!el) return
-
-    const update = () => {
-      const top = el.getBoundingClientRect().top
-      const available = window.innerHeight - top - 80
-      const intrinsic = 700
-      const scale = Math.min(0.96, Math.max(0.68, available / intrinsic))
-      el.style.transform = `scale(${scale})`
-      el.style.marginBottom = `${(scale - 1) * intrinsic}px`
-    }
-
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [wrapRef])
-}
 
 function FundingGuidePage() {
   const { address } = useWallet()
@@ -294,8 +274,6 @@ export function BridgePage() {
   const { setSuppressAutoSwitch, chainConfig } = useChain()
   const wagmiConfig = useConfig()
   const { chainId, connector } = useAccount()
-  const widgetRef = useRef<HTMLDivElement>(null)
-  useWidgetScale(widgetRef)
 
   // Disable ChainContext's auto-switch on the bridge page (only when LiFi is active)
   useEffect(() => {
@@ -424,7 +402,7 @@ export function BridgePage() {
 
         {/* ── Widget ── */}
         <div className="bridge-widget-card">
-          <div ref={widgetRef} className="bridge-widget-wrap">
+          <div className="bridge-widget-wrap">
             <LiFiWidget {...widgetConfig} />
           </div>
         </div>
