@@ -206,7 +206,7 @@ export function CheckoutPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="AutoPay" className="h-7 w-auto brightness-0 opacity-50" />
+              <img src="/Autopay-full.svg" alt="AutoPay" className="h-7 w-auto brightness-0 opacity-50" />
             </div>
             <div className="flex items-center gap-2">
               <span className="hidden text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">

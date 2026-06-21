@@ -707,7 +707,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
           {/* Logo + back link */}
           <div className="mb-5 pt-1">
             <div className="flex justify-center mb-3">
-              <img src="/logo.png" alt="AutoPay" className="h-12 w-auto brightness-0 opacity-60" />
+              <img src="/Autopay-full.svg" alt="AutoPay" className="h-12 w-auto brightness-0 opacity-60" />
             </div>
             {onBack && (
               <button
