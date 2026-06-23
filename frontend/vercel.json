@@ -10,6 +10,7 @@
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/favicon.*", "dest": "/$0" },
     { "src": "/logo.*", "dest": "/$0" },
+    { "src": "/Autopay-full\\.svg", "dest": "/Autopay-full.svg" },
     { "src": "/apple-touch-icon.*", "dest": "/$0" },
     { "src": "/og-image.*", "dest": "/$0" },
     { "src": "/flow-icon.*", "dest": "/$0" },

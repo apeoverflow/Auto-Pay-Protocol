@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { cn } from '../../lib/utils'
+import logoUrl from '../../assets/Autopay-full.svg'
 import {
   LayoutDashboard,
   CreditCard,
@@ -102,7 +103,7 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
       >
         {/* Logo / Brand */}
         <div className="flex h-16 items-center justify-between px-5">
-          <img src="/Autopay-full.svg" alt="AutoPayProtocol" className="h-11 w-auto opacity-90" />
+          <img src={logoUrl} alt="AutoPayProtocol" className="h-11 w-auto opacity-90" />
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 lg:hidden"
