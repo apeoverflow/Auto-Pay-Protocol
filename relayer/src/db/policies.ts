@@ -339,6 +339,90 @@ export async function getPoliciesByPayer(
   return { policies, total: countResult[0]?.total ?? 0 }
 }
 
+/**
+ * Pure decision logic for `updateSpendingCap` — pulled out so we can unit-test
+ * the resume-on-raise branch without standing up Postgres. Returns either:
+ *   - `noop`        the policy isn't in our DB; skip.
+ *   - `update-cap`  active policy, or inactive but not chargeable again → only
+ *                   change `spending_cap`.
+ *   - `resume`      DB-inactive policy (cap-completed) whose new cap makes it
+ *                   chargeable again → reactivate and reschedule. Includes the
+ *                   computed `nextChargeAt`.
+ *
+ * Resume-on-raise rationale: a cap-exhausted policy is `active=false` in the DB
+ * but still `active=true` on chain (the contract never auto-flips it), so any
+ * `SpendingCapUpdated` event for a DB-inactive row must be a completed sub
+ * being resumed. Failure- or revoke-cancelled policies are inactive on chain
+ * and therefore cannot emit this event in the first place.
+ */
+export type SpendingCapUpdateDecision =
+  | { kind: 'noop' }
+  | { kind: 'update-cap' }
+  | { kind: 'resume'; nextChargeAt: Date }
+
+export function decideSpendingCapUpdate(
+  existing: PolicyRow | null,
+  newCap: bigint
+): SpendingCapUpdateDecision {
+  if (!existing) return { kind: 'noop' }
+
+  const totalSpent = BigInt(existing.total_spent)
+  const chargeableAgain = newCap === 0n || newCap > totalSpent
+  const shouldResume = !existing.active && !existing.cancelled_by_failure && chargeableAgain
+
+  if (shouldResume) {
+    const lastCharged = existing.last_charged_at ?? existing.created_at
+    const nextChargeAt = new Date(
+      new Date(lastCharged).getTime() + existing.interval_seconds * 1000
+    )
+    return { kind: 'resume', nextChargeAt }
+  }
+
+  return { kind: 'update-cap' }
+}
+
+/** Sync a policy's spending cap after an on-chain SpendingCapUpdated event. */
+export async function updateSpendingCap(
+  databaseUrl: string,
+  chainId: number,
+  policyId: string,
+  newCap: bigint
+) {
+  const db = getDb(databaseUrl)
+  const existing = await getPolicy(databaseUrl, chainId, policyId)
+  const decision = decideSpendingCapUpdate(existing, newCap)
+
+  switch (decision.kind) {
+    case 'noop':
+      logger.warn({ policyId, chainId }, 'SpendingCapUpdated for unknown policy — skipping')
+      return
+
+    case 'resume':
+      await db`
+        UPDATE policies
+        SET spending_cap = ${newCap.toString()},
+            active = true,
+            ended_at = NULL,
+            next_charge_at = ${decision.nextChargeAt}
+        WHERE id = ${policyId} AND chain_id = ${chainId}
+      `
+      logger.info(
+        { policyId, chainId, newCap: newCap.toString(), nextChargeAt: decision.nextChargeAt.toISOString() },
+        'Spending cap raised — resuming completed policy'
+      )
+      return
+
+    case 'update-cap':
+      await db`
+        UPDATE policies
+        SET spending_cap = ${newCap.toString()}
+        WHERE id = ${policyId} AND chain_id = ${chainId}
+      `
+      logger.debug({ policyId, chainId, newCap: newCap.toString() }, 'Spending cap updated')
+      return
+  }
+}
+
 export async function markPolicyCompleted(
   databaseUrl: string,
   chainId: number,

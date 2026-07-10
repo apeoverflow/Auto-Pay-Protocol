@@ -74,6 +74,10 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
   const status = getPolicyStatus(policy)
   const statusLabel = status === 'active' ? 'Active' : status === 'completed' ? 'Completed' : 'Cancelled'
   const inactive = !policy.active
+  const hasCap = policy.spendingCap > 0n
+  const remainingCap = hasCap && policy.spendingCap > policy.totalSpent
+    ? policy.spendingCap - policy.totalSpent
+    : 0n
 
   const [logoFailed, setLogoFailed] = useState(false)
 
@@ -96,7 +100,7 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
   if (compact) {
     return (
       <div
-        className={`flex items-center justify-between py-2.5 md:py-3.5 border-b border-border/40 last:border-0 group row-hover px-1 -mx-1 ${inactive ? 'opacity-50' : ''} ${onClick ? 'cursor-pointer' : ''}`}
+        className={`flex items-center justify-between gap-3 px-3.5 py-3 md:py-3.5 rounded-xl border border-border/60 bg-muted/30 hover:bg-background hover:border-border hover:shadow-sm transition-all group ${inactive ? 'opacity-50' : ''} ${onClick ? 'cursor-pointer' : ''}`}
         onClick={onClick}
       >
         <div className="flex items-center gap-2.5 md:gap-3.5 min-w-0">
@@ -222,6 +226,12 @@ export function SubscriptionCard({ policy, metadata, onCancel, isCancelling, com
             <span className="text-muted-foreground/60 tabular-nums">
               {policy.chargeCount} charge{policy.chargeCount !== 1 ? 's' : ''}
             </span>
+            {status === 'active' && hasCap && (
+              <>
+                <span className="text-muted-foreground/30">&middot;</span>
+                <span className="text-muted-foreground/60 tabular-nums">{formatUSDC(remainingCap)} left</span>
+              </>
+            )}
           </div>
         </div>
 

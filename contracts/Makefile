@@ -1,7 +1,6 @@
 -include .env
 
-.PHONY: help test deploy deploy-all verify verify-check generate-abis sync clean reset-indexer-db \
-       deploy-arbitrum verify-arbitrum
+.PHONY: help test deploy deploy-all verify verify-check generate-abis sync clean reset-indexer-db
 
 help:
 	@echo ""
@@ -19,10 +18,6 @@ help:
 	@echo "\033[0;33mVerification:\033[0m"
 	@echo "  make verify CHAIN=flowEvm       Verify contract on Blockscout"
 	@echo "  make verify-check CHAIN=flowEvm Check if contract is verified"
-	@echo ""
-	@echo "\033[0;33mArbitrum:\033[0m"
-	@echo "  make deploy-arbitrum            Deploy PolicyManager to Arbitrum One"
-	@echo "  make verify-arbitrum            Verify contract on Arbiscan"
 	@echo ""
 	@echo "\033[0;33mSync:\033[0m"
 	@echo "  make generate-abis              Generate ABI JSON files"
@@ -56,14 +51,6 @@ verify:
 
 verify-check:
 	@./scripts/verify-check.sh $(CHAIN)
-
-# ==================== Arbitrum ====================
-
-deploy-arbitrum:
-	@./scripts/deploy.sh arbitrum
-
-verify-arbitrum:
-	@./scripts/verify.sh arbitrum
 
 # ==================== Sync ====================
 

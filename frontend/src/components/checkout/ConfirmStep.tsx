@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CreditCard, Loader2, Shield, ChevronDown, ExternalLink, AlertCircle } from 'lucide-react'
+import { CreditCard, Loader2, Shield, ChevronDown, ExternalLink, AlertCircle, HelpCircle } from 'lucide-react'
 import type { CheckoutMetadata } from '../../types/checkout'
 import { formatUSDCString, formatIntervalLabel, shortenAddress } from '../../lib/utils'
 import { useWallet } from '../../hooks'
@@ -161,6 +161,15 @@ export function ConfirmStep({ metadata, merchant, amount, interval, spendingCap,
           <span className="text-muted-foreground flex items-center gap-1">
             <Shield className="w-3.5 h-3.5" />
             Spending cap
+            <span
+              className="group relative inline-flex items-center"
+              tabIndex={0}
+            >
+              <HelpCircle className="w-3 h-3 text-muted-foreground/60 cursor-help" />
+              <span className="pointer-events-none absolute left-1/2 bottom-full mb-1.5 -translate-x-1/2 w-56 rounded-md bg-foreground text-background text-[10px] leading-snug px-2 py-1.5 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity z-10 shadow-md">
+                The maximum this subscription can ever charge. Separate from your wallet's overall USDC approval limit, which applies across all AutoPay subscriptions.
+              </span>
+            </span>
           </span>
           <button
             type="button"

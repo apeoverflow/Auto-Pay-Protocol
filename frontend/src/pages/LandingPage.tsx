@@ -32,7 +32,6 @@ import {
 import type { Variants, HTMLMotionProps } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { DEFAULT_CHAIN } from '../config/chains'
-import logoUrl from '../assets/Autopay-full.svg'
 
 /** Brand color per chain — RGB triplet for use in rgba() */
 const CHAIN_BRAND: Record<string, { rgb: string; hex: string; hexHover: string; accentRgb: string; icon: string; name: string }> = {
@@ -810,7 +809,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
-            <img src={logoUrl} alt="AutoPay" className="lp-nav-logo" />
+            <img src="/logo.png" alt="AutoPay" className="lp-nav-logo" />
             <span className="lp-nav-chain-badge">
               <img src={brand.icon} alt={brand.name} className="lp-nav-chain-icon" />
               {brand.name}
@@ -1236,7 +1235,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         <div className="lp-footer-inner">
           <div className="lp-footer-top">
             <div className="lp-footer-brand">
-              <img src="/autopay-logo-dark-bg.svg" alt="" className="lp-footer-icon" />
+              <img src="/favicon-512.png" alt="" className="lp-footer-icon" />
               <div>
                 <div className="lp-footer-name">AutoPay Protocol</div>
                 <div className="lp-footer-tagline">Non-custodial unified crypto payments</div>

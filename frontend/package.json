@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "vite",
     "build": "npm run sync-docs && tsc && vite build",
     "preview": "vite preview --outDir dist/client",
     "sync-docs": "rm -rf public/docs && mkdir -p public/docs && cp ../documentation/*.md public/docs/"
@@ -24,7 +24,6 @@
     "@rainbow-me/rainbowkit": "^2.2.10",
     "@supabase/supabase-js": "^2.95.1",
     "@tanstack/react-query": "^5.90.20",
-    "@vercel/speed-insights": "^2.0.0",
     "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "canvas-confetti": "^1.9.4",

@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { EmailCaptureDialog, useEmailCaptureDialog } from '../EmailCaptureDialog'
 import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
-import logoUrl from '../../assets/Autopay-full.svg'
 
 const CHAIN_ICONS: Record<string, string> = {
   flowEvm: '/flow-icon.svg',
@@ -62,7 +61,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           <div className="auth-brand-content">
             <div className="auth-brand-topbar auth-stagger auth-stagger-1">
               <img
-                src={logoUrl}
+                src="/logo.png"
                 alt="AutoPayProtocol"
                 className="auth-brand-logo"
               />
@@ -157,7 +156,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
           </div>
           <div className="auth-mobile-hero-content">
             <img
-              src={logoUrl}
+              src="/logo.png"
               alt="AutoPayProtocol"
               className="auth-mobile-hero-logo auth-m-stagger auth-m-stagger-1"
             />
@@ -195,7 +194,7 @@ export function AuthScreen({ onNavigateDocs }: { onNavigateDocs?: () => void }) 
         <div className="auth-form-panel">
           <div className="auth-form-inner auth-card-enter">
             <div className="auth-mobile-logo">
-              <img src={logoUrl} alt="AutoPayProtocol" className="auth-mobile-logo-img" />
+              <img src="/logo.png" alt="AutoPayProtocol" className="auth-mobile-logo-img" />
               <p className="auth-mobile-tagline">
                 Cut your payment fees in half
               </p>

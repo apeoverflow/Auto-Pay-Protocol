@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { cn } from '../../lib/utils'
-import logoUrl from '../../assets/Autopay-full.svg'
 import {
   LayoutDashboard,
   CreditCard,
@@ -25,7 +24,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { Button } from '../ui/button'
-import { useAuth, useIsContractOwner } from '../../hooks'
+import { useAuth } from '../../hooks'
 import { useMerchantMode } from '../../hooks/useMerchantMode'
 import type { AppMode } from '../../contexts/MerchantModeContext'
 
@@ -70,7 +69,6 @@ const betaNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
 export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }: SidebarProps) {
   const { logout } = useAuth()
   const { mode, setMode, isMerchant } = useMerchantMode()
-  const isContractOwner = useIsContractOwner()
   const [demosOpen, setDemosOpen] = useState(false)
   const navItems = isMerchant
     ? merchantNavItems
@@ -103,7 +101,7 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
       >
         {/* Logo / Brand */}
         <div className="flex h-16 items-center justify-between px-5">
-          <img src={logoUrl} alt="AutoPayProtocol" className="h-11 w-auto opacity-90" />
+          <img src="/logo.png" alt="AutoPayProtocol" className="h-9 w-auto opacity-90" />
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 lg:hidden"
@@ -270,37 +268,35 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen = false, onClose }
           </div>
         </div>
 
-        {/* Admin — only visible to the PolicyManager owner */}
-        {isContractOwner && (
-          <div className="px-3 pb-2">
-            <div className="mb-2 flex items-center gap-2 px-3">
-              <div className="h-px flex-1 bg-white/[0.08]" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/20">
-                Admin
-              </span>
-              <div className="h-px flex-1 bg-white/[0.08]" />
-            </div>
-            <button
-              onClick={() => onNavigate('admin-fees')}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200',
-                currentPage === 'admin-fees'
-                  ? 'bg-white/[0.12] text-white shadow-sm'
-                  : 'text-white/40 hover:bg-white/[0.04] hover:text-white/60'
-              )}
-            >
-              <span className={cn(
-                'flex h-6 w-6 items-center justify-center rounded-md transition-all duration-200',
-                currentPage === 'admin-fees'
-                  ? 'bg-primary text-white'
-                  : 'text-current'
-              )}>
-                <ShieldCheck className="h-4 w-4" />
-              </span>
-              Merchant Fees
-            </button>
+        {/* Admin */}
+        <div className="px-3 pb-2">
+          <div className="mb-2 flex items-center gap-2 px-3">
+            <div className="h-px flex-1 bg-white/[0.08]" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/20">
+              Admin
+            </span>
+            <div className="h-px flex-1 bg-white/[0.08]" />
           </div>
-        )}
+          <button
+            onClick={() => onNavigate('admin-fees')}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[12px] font-medium transition-all duration-200',
+              currentPage === 'admin-fees'
+                ? 'bg-white/[0.12] text-white shadow-sm'
+                : 'text-white/40 hover:bg-white/[0.04] hover:text-white/60'
+            )}
+          >
+            <span className={cn(
+              'flex h-6 w-6 items-center justify-center rounded-md transition-all duration-200',
+              currentPage === 'admin-fees'
+                ? 'bg-primary text-white'
+                : 'text-current'
+            )}>
+              <ShieldCheck className="h-4 w-4" />
+            </span>
+            Merchant Fees
+          </button>
+        </div>
 
         {/* Footer / Logout */}
         <div className="border-t border-white/[0.06] p-3">

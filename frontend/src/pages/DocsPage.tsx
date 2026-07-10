@@ -32,7 +32,6 @@ import agentSdkQuickstartMd from '../../../documentation/agent-sdk-quickstart.md
 import agentSdkReferenceMd from '../../../documentation/agent-sdk-reference.md?raw'
 import mcpReferenceMd from '../../../documentation/mcp-reference.md?raw'
 import middlewareReferenceMd from '../../../documentation/middleware-reference.md?raw'
-import logoUrl from '../assets/Autopay-full.svg'
 
 SyntaxHighlighter.registerLanguage('typescript', typescript)
 SyntaxHighlighter.registerLanguage('ts', typescript)
@@ -708,7 +707,7 @@ export function DocsPage({ onBack }: { onBack?: () => void } = {}) {
           {/* Logo + back link */}
           <div className="mb-5 pt-1">
             <div className="flex justify-center mb-3">
-              <img src={logoUrl} alt="AutoPay" className="h-12 w-auto brightness-0 opacity-60" />
+              <img src="/logo.png" alt="AutoPay" className="h-12 w-auto brightness-0 opacity-60" />
             </div>
             {onBack && (
               <button

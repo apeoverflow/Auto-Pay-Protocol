@@ -6,6 +6,7 @@ import type {
   ChargeSucceededEvent,
   ChargeFailedEvent,
   PolicyCancelledByFailureEvent,
+  SpendingCapUpdatedEvent,
 } from '../types.js'
 
 type AbiType = typeof ArcPolicyManagerAbi
@@ -164,12 +165,43 @@ export function parsePolicyCancelledByFailure(log: Log): PolicyCancelledByFailur
   }
 }
 
+export function parseSpendingCapUpdated(log: Log): SpendingCapUpdatedEvent | null {
+  try {
+    const decoded = decodeEventLog({
+      abi: ArcPolicyManagerAbi as AbiType,
+      data: log.data,
+      topics: log.topics,
+    })
+
+    if (decoded.eventName !== 'SpendingCapUpdated') return null
+
+    const args = decoded.args as unknown as {
+      policyId: `0x${string}`
+      payer: `0x${string}`
+      oldCap: bigint
+      newCap: bigint
+    }
+
+    return {
+      policyId: args.policyId,
+      payer: args.payer,
+      oldCap: args.oldCap,
+      newCap: args.newCap,
+      blockNumber: log.blockNumber!,
+      transactionHash: log.transactionHash!,
+    }
+  } catch {
+    return null
+  }
+}
+
 export type ParsedEvent =
   | { type: 'PolicyCreated'; event: PolicyCreatedEvent }
   | { type: 'PolicyRevoked'; event: PolicyRevokedEvent }
   | { type: 'ChargeSucceeded'; event: ChargeSucceededEvent }
   | { type: 'ChargeFailed'; event: ChargeFailedEvent }
   | { type: 'PolicyCancelledByFailure'; event: PolicyCancelledByFailureEvent }
+  | { type: 'SpendingCapUpdated'; event: SpendingCapUpdatedEvent }
 
 export function parseLog(log: Log): ParsedEvent | null {
   // Try each event type
@@ -187,6 +219,9 @@ export function parseLog(log: Log): ParsedEvent | null {
 
   const policyCancelled = parsePolicyCancelledByFailure(log)
   if (policyCancelled) return { type: 'PolicyCancelledByFailure', event: policyCancelled }
+
+  const spendingCapUpdated = parseSpendingCapUpdated(log)
+  if (spendingCapUpdated) return { type: 'SpendingCapUpdated', event: spendingCapUpdated }
 
   return null
 }

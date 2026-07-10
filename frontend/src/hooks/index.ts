@@ -6,6 +6,8 @@ export { useChain } from './useChain'
 export { useApproval } from './useApproval'
 export { useCreatePolicy } from './useCreatePolicy'
 export { useRevokePolicy } from './useRevokePolicy'
+export { useUpdateSpendingCap } from './useUpdateSpendingCap'
+export { useSubscriptionDetailController } from './useSubscriptionDetailController'
 export { usePolicy } from './usePolicy'
 export { useCharge } from './useCharge'
 
@@ -32,6 +34,3 @@ export { useMerchantReports } from './useMerchantReports'
 
 // Cross-wallet signing (works on both wagmi and Tempo/Privy)
 export { useSignMessageCompat } from './useSignMessageCompat'
-
-// Admin / contract ownership
-export { useIsContractOwner } from './useIsContractOwner'

@@ -724,4 +724,132 @@ contract PolicyManagerTest is Test {
         assertTrue(results[0]);  // payer has funds
         assertFalse(results[1]); // brokePayer is drained
     }
+
+    // --- updateSpendingCap ---
+
+    function _createPolicy() internal returns (bytes32) {
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, SPENDING_CAP, "");
+        vm.stopPrank();
+        return policyId;
+    }
+
+    function test_UpdateSpendingCap_Raise() public {
+        bytes32 policyId = _createPolicy();
+
+        vm.prank(payer);
+        manager.updateSpendingCap(policyId, 200e6);
+
+        (,,, uint128 spendingCap,,,,,,,,) = manager.policies(policyId);
+        assertEq(spendingCap, 200e6);
+    }
+
+    function test_UpdateSpendingCap_Lower() public {
+        bytes32 policyId = _createPolicy();
+
+        // totalSpent is CHARGE_AMOUNT (10e6) after create; lower to 50e6 is fine
+        vm.prank(payer);
+        manager.updateSpendingCap(policyId, 50e6);
+
+        (,,, uint128 spendingCap,,,,,,,,) = manager.policies(policyId);
+        assertEq(spendingCap, 50e6);
+    }
+
+    function test_UpdateSpendingCap_ToUnlimited() public {
+        bytes32 policyId = _createPolicy();
+
+        vm.prank(payer);
+        manager.updateSpendingCap(policyId, 0);
+
+        (,,, uint128 spendingCap,,,,,,,,) = manager.policies(policyId);
+        assertEq(spendingCap, 0);
+    }
+
+    function test_UpdateSpendingCap_RevertNotOwner() public {
+        bytes32 policyId = _createPolicy();
+
+        vm.prank(merchant);
+        vm.expectRevert(abi.encodeWithSignature("NotPolicyOwner()"));
+        manager.updateSpendingCap(policyId, 200e6);
+    }
+
+    function test_UpdateSpendingCap_RevertNotActive() public {
+        bytes32 policyId = _createPolicy();
+
+        vm.startPrank(payer);
+        manager.revokePolicy(policyId);
+        vm.expectRevert(abi.encodeWithSignature("PolicyNotActive()"));
+        manager.updateSpendingCap(policyId, 200e6);
+        vm.stopPrank();
+    }
+
+    function test_UpdateSpendingCap_RevertBelowSpent() public {
+        bytes32 policyId = _createPolicy();
+
+        // totalSpent == CHARGE_AMOUNT (10e6); 5e6 is below it
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSignature("CapBelowSpent()"));
+        manager.updateSpendingCap(policyId, 5e6);
+    }
+
+    function test_UpdateSpendingCap_AllowsEqualToSpent() public {
+        bytes32 policyId = _createPolicy();
+
+        // newCap == totalSpent is allowed (sub effectively completes)
+        vm.prank(payer);
+        manager.updateSpendingCap(policyId, CHARGE_AMOUNT);
+
+        (,,, uint128 spendingCap,,,,,,,,) = manager.policies(policyId);
+        assertEq(spendingCap, CHARGE_AMOUNT);
+    }
+
+    function test_UpdateSpendingCap_EmitsEvent() public {
+        bytes32 policyId = _createPolicy();
+
+        vm.expectEmit(true, true, false, true);
+        emit PolicyManager.SpendingCapUpdated(policyId, payer, SPENDING_CAP, 200e6);
+        vm.prank(payer);
+        manager.updateSpendingCap(policyId, 200e6);
+    }
+
+    function test_UpdateSpendingCap_RaiseEnablesCharge() public {
+        // Create with a cap that completes after the first charge
+        uint128 smallCap = CHARGE_AMOUNT; // exactly one charge
+        vm.startPrank(payer);
+        usdc.approve(address(manager), type(uint256).max);
+        bytes32 policyId = manager.createPolicy(merchant, CHARGE_AMOUNT, INTERVAL, smallCap, "");
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + INTERVAL);
+
+        // Cap reached — charge blocked
+        (bool can, string memory reason) = manager.canCharge(policyId);
+        assertFalse(can);
+        assertEq(reason, "Spending cap exceeded");
+
+        // Raise the cap — now chargeable again (resume)
+        vm.prank(payer);
+        manager.updateSpendingCap(policyId, CHARGE_AMOUNT * 3);
+
+        (can,) = manager.canCharge(policyId);
+        assertTrue(can);
+
+        manager.charge(policyId);
+        (,,,, uint128 totalSpent,,, uint32 chargeCount,,,,) = manager.policies(policyId);
+        assertEq(totalSpent, CHARGE_AMOUNT * 2);
+        assertEq(chargeCount, 2);
+    }
+
+    function test_UpdateSpendingCap_LowerBlocksNextCharge() public {
+        bytes32 policyId = _createPolicy();
+
+        // Lower cap to exactly what's been spent — next charge must fail the cap check
+        vm.prank(payer);
+        manager.updateSpendingCap(policyId, CHARGE_AMOUNT);
+
+        vm.warp(block.timestamp + INTERVAL);
+        vm.expectRevert(abi.encodeWithSignature("SpendingCapExceeded()"));
+        manager.charge(policyId);
+    }
 }

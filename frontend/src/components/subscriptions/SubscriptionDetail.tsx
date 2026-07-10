@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatUnits } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import {
@@ -41,6 +41,9 @@ interface SubscriptionDetailProps {
   onOpenChange: (open: boolean) => void
   onCancel?: (policyId: `0x${string}`) => void
   isCancelling?: boolean
+  /** Update this subscription's lifetime cap. newCap of 0n = unlimited. */
+  onUpdateCap?: (policyId: `0x${string}`, newCap: bigint) => Promise<void>
+  isUpdatingCap?: boolean
 }
 
 function getMerchantTheme(address: string) {
@@ -121,12 +124,16 @@ function DetailContent({
   metadata,
   onCancel,
   isCancelling,
+  onUpdateCap,
+  isUpdatingCap,
   isDesktop,
 }: {
   policy: OnChainPolicy
   metadata?: PolicyMetadata | null
   onCancel?: (policyId: `0x${string}`) => void
   isCancelling?: boolean
+  onUpdateCap?: (policyId: `0x${string}`, newCap: bigint) => Promise<void>
+  isUpdatingCap?: boolean
   isDesktop: boolean
 }) {
   const { chainConfig } = useChain()
@@ -149,9 +156,44 @@ function DetailContent({
   const merchantExplorerUrl = `${chainConfig.explorer}/address/${policy.merchant}`
   const policyExplorerUrl = `${chainConfig.explorer}/address/${chainConfig.policyManager}`
 
-  const spentPercent = policy.spendingCap > 0n
+  const hasCap = policy.spendingCap > 0n
+  const spentPercent = hasCap
     ? Math.min(100, Math.round(Number(policy.totalSpent * 100n / policy.spendingCap)))
     : 0
+  const remainingCap = hasCap
+    ? (policy.spendingCap > policy.totalSpent ? policy.spendingCap - policy.totalSpent : 0n)
+    : 0n
+
+  // Cap editor — minimum finite cap must leave room for at least one more charge
+  const [editingCap, setEditingCap] = useState(false)
+  const [capInput, setCapInput] = useState('')
+  const [capError, setCapError] = useState<string | null>(null)
+  const minFiniteCap = policy.totalSpent + policy.chargeAmount
+
+  const handleSaveCap = async (newCap: bigint) => {
+    if (!onUpdateCap) return
+    if (newCap !== 0n && newCap < minFiniteCap) {
+      setCapError(`Must be at least ${formatUnits(minFiniteCap, USDC_DECIMALS)} USDC (one more charge), or set to unlimited`)
+      return
+    }
+    setCapError(null)
+    try {
+      await onUpdateCap(policy.policyId, newCap)
+      setEditingCap(false)
+      setCapInput('')
+    } catch (err) {
+      setCapError(err instanceof Error ? err.message : 'Failed to update cap')
+    }
+  }
+
+  const handleApplyCustomCap = () => {
+    const val = parseFloat(capInput)
+    if (isNaN(val) || val <= 0) {
+      setCapError('Enter a valid amount')
+      return
+    }
+    handleSaveCap(parseUnits(val.toFixed(USDC_DECIMALS), USDC_DECIMALS))
+  }
 
   const copyPolicyId = () => {
     navigator.clipboard.writeText(policy.policyId)
@@ -249,13 +291,79 @@ function DetailContent({
               <DetailRow label="Charges">{policy.chargeCount} completed</DetailRow>
               <DetailRow label="Total spent">{formatUnits(policy.totalSpent, USDC_DECIMALS)} USDC</DetailRow>
               <DetailRow label="Spending cap">
-                <div className="flex items-center gap-2.5">
-                  <span>{formatUnits(policy.spendingCap, USDC_DECIMALS)} USDC</span>
-                  <div className="w-10 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${spentPercent}%` }} />
+                {hasCap ? (
+                  <div className="flex items-center gap-2.5">
+                    <span>{formatUnits(policy.spendingCap, USDC_DECIMALS)} USDC</span>
+                    <div className="w-10 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${spentPercent}%` }} />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <span>Unlimited</span>
+                )}
               </DetailRow>
+              {hasCap && policy.active && (
+                <DetailRow label="Remaining">
+                  <span className={remainingCap === 0n ? 'text-muted-foreground' : 'font-medium text-foreground'}>
+                    {formatUnits(remainingCap, USDC_DECIMALS)} of {formatUnits(policy.spendingCap, USDC_DECIMALS)} USDC
+                  </span>
+                </DetailRow>
+              )}
+              {status !== 'cancelled' && onUpdateCap && (
+                <div className="py-3 border-b border-border/30 last:border-0">
+                  {!editingCap ? (
+                    <button
+                      onClick={() => { setEditingCap(true); setCapError(null) }}
+                      className="text-[12px] font-medium text-primary hover:underline"
+                    >
+                      {status === 'completed' ? 'Raise spending cap to resume' : 'Change spending cap'}
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        {status === 'completed'
+                          ? 'This subscription has reached its cap. Raise the cap to resume charges (or set unlimited).'
+                          : 'Set a new lifetime cap, or remove it for unlimited. Raising the cap may prompt a USDC approval.'}
+                      </p>
+                      <div className="flex gap-1.5 items-center">
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={formatUnits(minFiniteCap, USDC_DECIMALS)}
+                            placeholder="New cap"
+                            value={capInput}
+                            onChange={(e) => { setCapInput(e.target.value); setCapError(null) }}
+                            onKeyDown={(e) => e.key === 'Enter' && handleApplyCustomCap()}
+                            className="w-full h-8 pl-6 pr-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                        <Button size="sm" className="h-8 px-3 text-xs" disabled={!capInput || isUpdatingCap} onClick={handleApplyCustomCap}>
+                          {isUpdatingCap ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleSaveCap(0n)}
+                          disabled={isUpdatingCap}
+                          className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        >
+                          Set unlimited
+                        </button>
+                        <button
+                          onClick={() => { setEditingCap(false); setCapInput(''); setCapError(null) }}
+                          disabled={isUpdatingCap}
+                          className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {capError && <p className="text-[11px] text-red-500">{capError}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
               <DetailRow label="Interval">{formatInterval(policy.interval)}</DetailRow>
               {policy.consecutiveFailures > 0 && (
                 <DetailRow label="Failed charges">
@@ -326,6 +434,8 @@ export function SubscriptionDetail({
   onOpenChange,
   onCancel,
   isCancelling,
+  onUpdateCap,
+  isUpdatingCap,
 }: SubscriptionDetailProps) {
   const isDesktop = useIsDesktop()
 
@@ -338,6 +448,8 @@ export function SubscriptionDetail({
             metadata={metadata}
             onCancel={onCancel}
             isCancelling={isCancelling}
+            onUpdateCap={onUpdateCap}
+            isUpdatingCap={isUpdatingCap}
             isDesktop
           />
         </DialogContent>
@@ -353,6 +465,8 @@ export function SubscriptionDetail({
           metadata={metadata}
           onCancel={onCancel}
           isCancelling={isCancelling}
+          onUpdateCap={onUpdateCap}
+          isUpdatingCap={isUpdatingCap}
           isDesktop={false}
         />
       </DrawerContent>
