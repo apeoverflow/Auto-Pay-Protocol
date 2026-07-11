@@ -112,7 +112,7 @@ export const chains: Record<ChainKey, ChainConfig> = {
     chainId: 42161,
     usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
     explorer: 'https://arbiscan.io',
-    checkoutBaseUrl: 'https://arbitrum.autopayprotocol.com',
+    checkoutBaseUrl: 'https://autopayprotocol.com',
   },
   baseSepolia: {
     name: 'Base Sepolia',
