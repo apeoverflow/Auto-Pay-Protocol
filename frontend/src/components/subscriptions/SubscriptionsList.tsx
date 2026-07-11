@@ -1,8 +1,7 @@
 import * as React from 'react'
 import { SubscriptionCard } from './SubscriptionCard'
 import { SubscriptionDetail } from './SubscriptionDetail'
-import { usePolicies, useRevokePolicy, useMetadataBatch, invalidateActivity } from '../../hooks'
-import type { OnChainPolicy } from '../../types/policy'
+import { useMetadataBatch, useSubscriptionDetailController, invalidateActivity } from '../../hooks'
 import { Loader2, Sparkles } from 'lucide-react'
 
 interface SubscriptionsListProps {
@@ -11,10 +10,18 @@ interface SubscriptionsListProps {
 }
 
 export function SubscriptionsList({ showAll = false, compact = false }: SubscriptionsListProps) {
-  const { policies, isLoading, refreshPolicyFromContract } = usePolicies()
-  const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
-  const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
-  const [selectedPolicy, setSelectedPolicy] = React.useState<OnChainPolicy | null>(null)
+  const {
+    policies,
+    isLoading,
+    selectedPolicy,
+    openPolicy,
+    closeDetail,
+    handleCancel,
+    handleUpdateCap,
+    isCancelling,
+    isUpdatingCap,
+    revokingId,
+  } = useSubscriptionDetailController({ onCancelSuccess: () => invalidateActivity() })
 
   // Fetch metadata for all policies that have a metadataUrl
   const metadataUrls = React.useMemo(() => policies.map(p => p.metadataUrl || null), [policies])
@@ -23,22 +30,6 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
   const displayPolicies = showAll
     ? policies
     : policies.filter(p => p.active).slice(0, compact ? 5 : 3)
-
-  const handleCancel = async (policyId: `0x${string}`) => {
-    try {
-      setRevokingId(policyId)
-      await revokePolicy(policyId)
-      // Read updated policy state directly from contract (bypasses Supabase indexer delay)
-      await refreshPolicyFromContract(policyId)
-      // Trigger activity refresh across all instances
-      invalidateActivity()
-      setSelectedPolicy(null)
-    } catch (err) {
-      console.error('Failed to cancel subscription:', err)
-    } finally {
-      setRevokingId(null)
-    }
-  }
 
   // For filtered views (dashboard), check displayPolicies; for full view, check policies
   const isEmpty = showAll ? policies.length === 0 : displayPolicies.length === 0
@@ -77,16 +68,16 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
 
   return (
     <>
-      <div className={compact ? 'space-y-0' : 'space-y-2.5 md:space-y-3'}>
+      <div className={compact ? 'space-y-2' : 'space-y-2.5 md:space-y-3'}>
         {displayPolicies.map(policy => (
           <SubscriptionCard
             key={policy.policyId}
             policy={policy}
             metadata={policy.metadataUrl ? metadataMap.get(policy.metadataUrl) : null}
             onCancel={handleCancel}
-            isCancelling={revokingId === policy.policyId && isRevoking}
+            isCancelling={revokingId === policy.policyId && isCancelling}
             compact={compact}
-            onClick={() => setSelectedPolicy(policy)}
+            onClick={() => openPolicy(policy)}
           />
         ))}
       </div>
@@ -97,9 +88,11 @@ export function SubscriptionsList({ showAll = false, compact = false }: Subscrip
           policy={selectedPolicy}
           metadata={selectedPolicy.metadataUrl ? metadataMap.get(selectedPolicy.metadataUrl) : null}
           open={!!selectedPolicy}
-          onOpenChange={(open) => { if (!open) setSelectedPolicy(null) }}
+          onOpenChange={(open) => { if (!open) closeDetail() }}
           onCancel={handleCancel}
-          isCancelling={revokingId === selectedPolicy.policyId && isRevoking}
+          isCancelling={revokingId === selectedPolicy.policyId && isCancelling}
+          onUpdateCap={handleUpdateCap}
+          isUpdatingCap={isUpdatingCap}
         />
       )}
     </>

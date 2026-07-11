@@ -6,7 +6,7 @@ import {
   setLastIndexedBlock,
   initializeIndexerState,
 } from '../db/indexer-state.js'
-import { insertPolicy, revokePolicy, updatePolicyAfterCharge, getPolicy, markPolicyCancelledByFailure } from '../db/policies.js'
+import { insertPolicy, revokePolicy, updatePolicyAfterCharge, getPolicy, markPolicyCancelledByFailure, updateSpendingCap } from '../db/policies.js'
 import { chargeHandledByExecutor } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { insertSubscriberData } from '../db/subscribers.js'
@@ -264,6 +264,18 @@ export async function runIndexerOnce(
               endTime: parsed.event.endTime,
             },
           } as WebhookPayload)
+          eventsProcessed++
+          break
+
+        case 'SpendingCapUpdated':
+          // Policy lookup is naturally merchant-scoped: a policy not belonging to
+          // this relayer's merchants was never inserted, so this is a no-op for it.
+          await updateSpendingCap(
+            databaseUrl,
+            chainConfig.chainId,
+            parsed.event.policyId,
+            parsed.event.newCap
+          )
           eventsProcessed++
           break
       }

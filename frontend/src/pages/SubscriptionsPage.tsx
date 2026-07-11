@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard'
 import { SubscriptionDetail } from '../components/subscriptions/SubscriptionDetail'
-import { usePolicies, useRevokePolicy, useChain, useMetadataBatch } from '../hooks'
+import { WalletAllowanceCard } from '../components/subscriptions/WalletAllowanceCard'
+import { useChain, useMetadataBatch, useSubscriptionDetailController } from '../hooks'
 import { addGlobalActivityFromReceipt } from '../hooks/useActivity'
-import type { OnChainPolicy } from '../types/policy'
 import { Search, CreditCard, Loader2, ExternalLink } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
@@ -17,31 +17,27 @@ const filterLabels: { key: StatusFilter; label: string }[] = [
 ]
 
 export function SubscriptionsPage() {
-  const { policies, isLoading, error, refetch, refreshPolicyFromContract } = usePolicies()
-  const { revokePolicy, isLoading: isRevoking } = useRevokePolicy()
+  const {
+    policies,
+    isLoading,
+    error,
+    refetch,
+    selectedPolicy,
+    openPolicy,
+    closeDetail,
+    handleCancel,
+    handleUpdateCap,
+    isCancelling,
+    isUpdatingCap,
+    revokingId,
+  } = useSubscriptionDetailController({
+    onCancelSuccess: (receipt) => addGlobalActivityFromReceipt(receipt),
+  })
   const { chainConfig } = useChain()
   const metadataUrls = React.useMemo(() => policies.map(p => p.metadataUrl || null), [policies])
   const metadataMap = useMetadataBatch(metadataUrls)
   const [filter, setFilter] = React.useState<StatusFilter>('all')
   const [search, setSearch] = React.useState('')
-  const [revokingId, setRevokingId] = React.useState<`0x${string}` | null>(null)
-  const [selectedPolicy, setSelectedPolicy] = React.useState<OnChainPolicy | null>(null)
-
-  const handleCancel = async (policyId: `0x${string}`) => {
-    try {
-      setRevokingId(policyId)
-      const { receipt } = await revokePolicy(policyId)
-      // Optimistically add cancel to all activity lists from the tx receipt
-      addGlobalActivityFromReceipt(receipt)
-      // Refresh policy state from contract (don't wait for indexer)
-      await refreshPolicyFromContract(policyId)
-      setSelectedPolicy(null)
-    } catch (err) {
-      console.error('Failed to cancel subscription:', err)
-    } finally {
-      setRevokingId(null)
-    }
-  }
 
   const filtered = React.useMemo(() => {
     let result = policies
@@ -130,6 +126,9 @@ export function SubscriptionsPage() {
         </div>
       </div>
 
+      {/* Wallet authorization summary */}
+      <WalletAllowanceCard policies={policies} />
+
       {/* Filter tabs */}
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0">
         {filterLabels.map(({ key, label }) => (
@@ -175,8 +174,8 @@ export function SubscriptionsPage() {
               policy={policy}
               metadata={policy.metadataUrl ? metadataMap.get(policy.metadataUrl) : null}
               onCancel={handleCancel}
-              isCancelling={revokingId === policy.policyId && isRevoking}
-              onClick={() => setSelectedPolicy(policy)}
+              isCancelling={revokingId === policy.policyId && isCancelling}
+              onClick={() => openPolicy(policy)}
             />
           ))}
         </div>
@@ -187,9 +186,11 @@ export function SubscriptionsPage() {
           policy={selectedPolicy}
           metadata={selectedPolicy.metadataUrl ? metadataMap.get(selectedPolicy.metadataUrl) : null}
           open={!!selectedPolicy}
-          onOpenChange={(open) => { if (!open) setSelectedPolicy(null) }}
+          onOpenChange={(open) => { if (!open) closeDetail() }}
           onCancel={handleCancel}
-          isCancelling={revokingId === selectedPolicy.policyId && isRevoking}
+          isCancelling={revokingId === selectedPolicy.policyId && isCancelling}
+          onUpdateCap={handleUpdateCap}
+          isUpdatingCap={isUpdatingCap}
         />
       )}
     </div>

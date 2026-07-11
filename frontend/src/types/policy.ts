@@ -45,6 +45,7 @@ export const POLICY_ERROR_MESSAGES: Record<string, string> = {
   NotPolicyOwner: 'You can only cancel your own subscriptions',
   SpendingCapExceeded: 'Spending cap exceeded',
   TooSoonToCharge: 'Too soon to charge',
+  CapBelowSpent: 'New cap cannot be below the amount already spent',
 }
 
 // Parse contract error to user message

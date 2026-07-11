@@ -6,6 +6,8 @@ export { useChain } from './useChain'
 export { useApproval } from './useApproval'
 export { useCreatePolicy } from './useCreatePolicy'
 export { useRevokePolicy } from './useRevokePolicy'
+export { useUpdateSpendingCap } from './useUpdateSpendingCap'
+export { useSubscriptionDetailController } from './useSubscriptionDetailController'
 export { usePolicy } from './usePolicy'
 export { useCharge } from './useCharge'
 

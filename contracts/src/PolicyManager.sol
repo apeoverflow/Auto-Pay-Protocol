@@ -70,6 +70,7 @@ error NothingToWithdraw();
 error PolicyNotFailedEnough();
 error MaxRetriesReached();
 error FeeTooHigh();
+error CapBelowSpent();
 
 contract PolicyManager is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -164,6 +165,13 @@ contract PolicyManager is ReentrancyGuard, Ownable {
 
     event MerchantFeeSet(address indexed merchant);
 
+    event SpendingCapUpdated(
+        bytes32 indexed policyId,
+        address indexed payer,
+        uint128 oldCap,
+        uint128 newCap
+    );
+
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
     // <------------- Constructor --------------->
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<
@@ -238,6 +246,25 @@ contract PolicyManager is ReentrancyGuard, Ownable {
         policy.active = false;
         policy.endTime = uint32(block.timestamp);
         emit PolicyRevoked(policyId, msg.sender, policy.merchant, policy.endTime);
+    }
+
+    /**
+     * @notice Update a policy's lifetime spending cap.
+     * @dev Payer-only. `newCap == 0` sets the policy to unlimited. A finite cap
+     *      cannot be set below what has already been spent. Raising the cap of a
+     *      cap-exhausted (but still active) policy makes it chargeable again.
+     * @param policyId The policy to update
+     * @param newCap New lifetime cap (6 decimals); 0 = unlimited
+     */
+    function updateSpendingCap(bytes32 policyId, uint128 newCap) external {
+        Policy storage policy = policies[policyId];
+        if (policy.payer != msg.sender) revert NotPolicyOwner();
+        if (!policy.active) revert PolicyNotActive();
+        if (newCap != 0 && newCap < policy.totalSpent) revert CapBelowSpent();
+
+        uint128 oldCap = policy.spendingCap;
+        policy.spendingCap = newCap;
+        emit SpendingCapUpdated(policyId, msg.sender, oldCap, newCap);
     }
 
     // >>>>>>>>>>>>-----------------<<<<<<<<<<<<<<

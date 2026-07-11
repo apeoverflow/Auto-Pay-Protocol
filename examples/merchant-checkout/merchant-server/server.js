@@ -18,9 +18,12 @@ const preset = CHAIN_PRESETS[CHAIN] || CHAIN_PRESETS.base
 
 // ── Configuration ──
 const PORT = process.env.PORT || 3002
-const MERCHANT_ADDRESS = process.env.MERCHANT_ADDRESS || '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B'
-const CHECKOUT_URL = preset.checkoutUrl
-const BLOCK_EXPLORER = preset.blockExplorer
+const MERCHANT_ADDRESS = (process.env.MERCHANT_ADDRESS || '0x2B8b9182c1c3A9bEf4a60951D9B7F49420D12B9B').trim()
+if (!/^0x[a-fA-F0-9]{40}$/.test(MERCHANT_ADDRESS)) {
+  throw new Error(`MERCHANT_ADDRESS must be a 0x-prefixed 40-char hex address. Got ${JSON.stringify(MERCHANT_ADDRESS)} — check for stray whitespace, newlines, or quotes in the env value.`)
+}
+const CHECKOUT_URL = (process.env.CHECKOUT_URL || preset.checkoutUrl).trim()
+const BLOCK_EXPLORER = (process.env.BLOCK_EXPLORER || preset.blockExplorer).trim()
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'test-secret-123'
 const RELAYER_URL = (process.env.RELAYER_URL || 'http://localhost:3001').trim()
 const RPC_URL = (process.env.RPC_URL || preset.rpcUrl).trim()
@@ -480,8 +483,13 @@ app.get('/api/check-access', async (req, res) => {
 app.get('/api/plans', async (_req, res) => {
   try {
     // Use the merchant-specific endpoint with status=active to only get published plans
-    const listRes = await fetch(`${RELAYER_URL}/merchants/${MERCHANT_ADDRESS}/plans?status=active`)
-    if (!listRes.ok) throw new Error(`Relayer returned ${listRes.status}`)
+    const plansUrl = `${RELAYER_URL}/merchants/${MERCHANT_ADDRESS}/plans?status=active`
+    const listRes = await fetch(plansUrl)
+    if (!listRes.ok) {
+      // Surface the relayer's actual error body so we don't lose the diagnostic
+      const body = await listRes.text().catch(() => '')
+      throw new Error(`Relayer returned ${listRes.status} for ${plansUrl} — body: ${body || '(empty)'}`)
+    }
     let merchantPlans = await listRes.json()
 
     // Optionally filter to specific plan IDs (set PLAN_IDS env var)

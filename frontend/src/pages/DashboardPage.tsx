@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { StatsOverview } from '../components/dashboard'
-import { SubscriptionsList } from '../components/subscriptions'
+import { SubscriptionsList, WalletAllowanceBar } from '../components/subscriptions'
 import { ActivityList } from '../components/activity'
 import { SendUSDC } from '../components/wallet/SendUSDC'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
@@ -224,6 +224,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       {/* ── Mobile layout ── */}
       <div className="flex flex-col gap-4 lg:hidden">
+        {/* Approval + 12-month projection bar */}
+        <WalletAllowanceBar />
+
         {/* Subscription chips — horizontal scroll */}
         <MobileSubscriptionScroll onNavigate={() => onNavigate('subscriptions')} />
 
@@ -274,8 +277,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       {/* ── Desktop: original grid layout ── */}
       <div className="hidden lg:grid flex-1 gap-6 lg:grid-cols-3 min-h-0">
         {/* Left column - Subscriptions */}
-        <div className="flex flex-col lg:col-span-2 min-h-0 overflow-hidden">
-          <Card className="flex flex-col min-h-0 overflow-hidden">
+        <div className="flex flex-col lg:col-span-2 min-h-0 overflow-hidden gap-4">
+          <WalletAllowanceBar />
+          <Card className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between py-3.5 px-5 flex-shrink-0 border-b border-border/50">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-primary/5">
