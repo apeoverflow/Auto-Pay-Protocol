@@ -17,7 +17,15 @@ interface WalletContextValue {
   isSettingUp: boolean
   setupStatus: string
   setupError: string | null
-  setupWallet: () => Promise<void>
+  /** Current USDC allowance granted to the PolicyManager (raw, 6 decimals). */
+  allowance: bigint
+  /** True once the allowance has been read at least once. */
+  allowanceLoaded: boolean
+  /**
+   * Approve USDC to the PolicyManager.
+   * @param amount Exact allowance to set; omit for unlimited (maxUint256 / maxUint128 on Polkadot).
+   */
+  setupWallet: (amount?: bigint) => Promise<void>
 }
 
 const WalletContext = React.createContext<WalletContextValue | null>(null)
@@ -54,6 +62,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Pending approval — set after a chain switch so we auto-continue when walletClient appears
   const [pendingApproval, setPendingApproval] = React.useState(false)
 
+  // Current allowance to PolicyManager (raw 6-decimal value)
+  const [allowance, setAllowance] = React.useState<bigint>(0n)
+  const [allowanceLoaded, setAllowanceLoaded] = React.useState(false)
+
+  // Desired approval amount for the in-flight setup; undefined = unlimited
+  const approvalAmountRef = React.useRef<bigint | undefined>(undefined)
+
   // Fetch balance
   const fetchBalance = React.useCallback(async () => {
     if (!publicClient || !address) return
@@ -80,17 +95,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const allowance = await publicClient.readContract({
+      const current = await publicClient.readContract({
         address: chainConfig.usdc,
         abi: erc20Abi,
         functionName: 'allowance',
         args: [address, chainConfig.policyManager],
       })
+      setAllowance(current)
       const threshold = BigInt(1000) * BigInt(10 ** USDC_DECIMALS)
-      setIsWalletSetup(allowance >= threshold)
+      setIsWalletSetup(current >= threshold)
     } catch (err) {
       console.error('Failed to check wallet setup:', err)
       setIsWalletSetup(false)
+    } finally {
+      setAllowanceLoaded(true)
     }
   }, [publicClient, address, chainConfig.usdc, chainConfig.policyManager])
 
@@ -110,13 +128,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const result = await tempoApprove(token, tempoWallet.walletId, tempoWallet.address)
         hash = result.hash as `0x${string}`
       } else {
-        // Standard chains: approve via client-side walletClient
+        // Standard chains: approve via client-side walletClient.
+        // Use the requested amount, or an unlimited sentinel when none is given.
         if (!walletClient) return
+        const requested = approvalAmountRef.current
+        const unlimited = chainConfig.chain.id === 420420419 ? maxUint128 : maxUint256
+        const approveValue = requested === undefined ? unlimited : requested
         hash = await walletClient.writeContract({
           address: chainConfig.usdc,
           abi: erc20Abi,
           functionName: 'approve',
-          args: [chainConfig.policyManager, chainConfig.chain.id === 420420419 ? maxUint128 : maxUint256],
+          args: [chainConfig.policyManager, approveValue],
         })
       }
 
@@ -129,6 +151,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
       setSetupStatus('Wallet ready!')
       setIsWalletSetup(true)
+      // Re-read the authoritative allowance now that approval landed
+      await checkWalletSetup()
     } catch (err) {
       console.error('Wallet setup failed:', err)
       const message = err instanceof Error ? err.message : 'Setup failed'
@@ -139,7 +163,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setIsSettingUp(false)
       setPendingApproval(false)
     }
-  }, [walletClient, publicClient, address, chainConfig, isTempo, tempoWallet])
+  }, [walletClient, publicClient, address, chainConfig, isTempo, tempoWallet, checkWalletSetup])
 
   // When walletClient appears after a chain switch and we have a pending approval, continue
   React.useEffect(() => {
@@ -148,8 +172,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pendingApproval, walletClient, executeApproval])
 
-  // Setup wallet: approve unlimited USDC to PolicyManager
-  const setupWallet = React.useCallback(async () => {
+  // Setup wallet: approve USDC to PolicyManager (amount, or unlimited when omitted)
+  const setupWallet = React.useCallback(async (amount?: bigint) => {
     if (!address) {
       throw new Error('Wallet not connected')
     }
@@ -157,6 +181,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       throw new Error('PolicyManager not deployed on this chain')
     }
 
+    approvalAmountRef.current = amount
     setIsSettingUp(true)
     setSetupError(null)
 
@@ -205,9 +230,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       isSettingUp,
       setupStatus,
       setupError,
+      allowance,
+      allowanceLoaded,
       setupWallet,
     }),
-    [address, balance, isLoading, fetchBalance, isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet]
+    [address, balance, isLoading, fetchBalance, isWalletSetup, isSettingUp, setupStatus, setupError, allowance, allowanceLoaded, setupWallet]
   )
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>

@@ -203,6 +203,15 @@ export interface PolicyCancelledByFailureEvent {
   transactionHash: `0x${string}`
 }
 
+export interface SpendingCapUpdatedEvent {
+  policyId: `0x${string}`
+  payer: `0x${string}`
+  oldCap: bigint
+  newCap: bigint
+  blockNumber: bigint
+  transactionHash: `0x${string}`
+}
+
 // Execution results
 
 export interface ChargeResult {

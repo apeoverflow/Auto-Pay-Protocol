@@ -7,6 +7,7 @@ import { parseContractError } from '../types/policy'
 
 interface UseApprovalReturn {
   allowance: bigint
+  allowanceLoaded: boolean
   isApproved: (amount: bigint) => boolean
   approve: (amount: bigint) => Promise<Hex>
   isLoading: boolean
@@ -20,6 +21,7 @@ export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
   const { publicClient, walletClient, chainConfig } = useChain()
 
   const [allowance, setAllowance] = React.useState<bigint>(0n)
+  const [allowanceLoaded, setAllowanceLoaded] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [status, setStatus] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
@@ -38,6 +40,8 @@ export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
       setAllowance(result)
     } catch (err) {
       console.error('Failed to fetch allowance:', err)
+    } finally {
+      setAllowanceLoaded(true)
     }
   }, [publicClient, address, spender, chainConfig.usdc])
 
@@ -95,6 +99,7 @@ export function useApproval(spender?: `0x${string}`): UseApprovalReturn {
 
   return {
     allowance,
+    allowanceLoaded,
     isApproved,
     approve,
     isLoading,

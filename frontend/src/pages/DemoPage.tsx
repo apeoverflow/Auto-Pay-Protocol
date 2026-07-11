@@ -94,7 +94,12 @@ interface DemoPageProps {
 }
 
 export function DemoPage({ onNavigate }: DemoPageProps) {
-  const { isWalletSetup, isSettingUp, setupStatus, setupError, setupWallet, address, balance } = useWallet()
+  const { allowance, allowanceLoaded, isSettingUp, setupStatus, setupError, setupWallet, address, balance } = useWallet()
+  // The shared context's isWalletSetup uses a >=1000 USDC heuristic that's now
+  // wrong for scoped approvals (a legit $0.12 approval reads as "not set up").
+  // For the demo, treat any positive allowance as set up — otherwise the
+  // demo's setupWallet() (unlimited) would clobber an existing finite approval.
+  const isWalletSetup = allowanceLoaded && allowance > 0n
   const { chainConfig } = useChain()
   const { policies, refetch: refetchPolicies, refreshPolicyFromContract } = usePolicies()
 
