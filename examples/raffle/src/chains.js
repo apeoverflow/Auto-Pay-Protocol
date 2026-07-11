@@ -41,7 +41,7 @@ export const CHAINS = {
     chainId: 42161,
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
     usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    policyManager: '0x1a448bBe108828E60717d37A4BE652C0C6871438',
+    policyManager: '0xCE3550099De882607B50d6F57d4ECd3985dcd521',
     explorer: 'https://arbiscan.io',
   },
   baseSepolia: {

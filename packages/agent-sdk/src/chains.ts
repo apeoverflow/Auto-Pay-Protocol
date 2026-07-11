@@ -69,7 +69,7 @@ export const chains: Record<ChainKey, AgentChainConfig> = {
     name: 'Arbitrum One',
     chainId: 42161,
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
-    policyManager: '0x1a448bBe108828E60717d37A4BE652C0C6871438',
+    policyManager: '0xCE3550099De882607B50d6F57d4ECd3985dcd521',
     usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
     explorer: 'https://arbiscan.io',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },

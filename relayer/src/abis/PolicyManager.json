@@ -499,6 +499,24 @@
   },
   {
     "type": "function",
+    "name": "updateSpendingCap",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "newCap",
+        "type": "uint128",
+        "internalType": "uint128"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "withdrawFees",
     "inputs": [],
     "outputs": [],
@@ -721,6 +739,42 @@
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SpendingCapUpdated",
+    "inputs": [
+      {
+        "name": "policyId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "payer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "oldCap",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      },
+      {
+        "name": "newCap",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "CapBelowSpent",
+    "inputs": []
   },
   {
     "type": "error",

@@ -34,7 +34,7 @@ export const CHAIN_PRESETS = {
   },
   arbitrum: {
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
-    policyManager: '0x1a448bBe108828E60717d37A4BE652C0C6871438',
+    policyManager: '0xCE3550099De882607B50d6F57d4ECd3985dcd521',
     checkoutUrl: 'https://autopayprotocol.com/checkout',
     blockExplorer: 'https://arbiscan.io',
   },

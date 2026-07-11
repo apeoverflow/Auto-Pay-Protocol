@@ -105,11 +105,11 @@ export const DEPLOYMENTS: Record<number, Deployment> = {
   "42161": {
     "chainId": 42161,
     "chainName": "arbitrum",
-    "deployedAt": "2026-05-27T17:14:34Z",
+    "deployedAt": "2026-07-11T11:33:11Z",
     "deployer": "0x7E31DF5336c97BE4Fe34B4D05CbBaae354d383F9",
-    "deployBlock": 467275367,
+    "deployBlock": 482714468,
     "contracts": {
-      "policyManager": "0x1a448bBe108828E60717d37A4BE652C0C6871438"
+      "policyManager": "0xCE3550099De882607B50d6F57d4ECd3985dcd521"
     },
     "addresses": {
       "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
