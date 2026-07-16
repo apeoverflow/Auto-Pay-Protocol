@@ -10,13 +10,14 @@
 
 **Non-custodial crypto subscription payments for humans and AI agents. 50% cheaper than Stripe.**
 
-AutoPay is a decentralized subscription payment protocol built on USDC. Users and autonomous agents maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Payments settle on **Base** ([autopayprotocol.com](https://autopayprotocol.com)) and **Flow EVM** ([flow.autopayprotocol.com](https://flow.autopayprotocol.com)), with cross-chain funding from 30+ chains via LiFi.
+AutoPay is a decentralized subscription payment protocol built on USDC. Users and autonomous agents maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Payments settle on **Arbitrum**, **Base** ([autopayprotocol.com](https://autopayprotocol.com)), and **Flow EVM** ([flow.autopayprotocol.com](https://flow.autopayprotocol.com)), with cross-chain funding from 30+ chains via LiFi.
 
 ## Features
 
 - **Non-Custodial**: Funds stay in user wallets until charged. No intermediary custody.
 - **Policy-Based**: Users set spending limits, intervals, and caps. Full control.
-- **Multi-Chain Funding**: Bridge USDC from any chain via LiFi. Settlements on Base or Flow EVM.
+- **Adjustable Caps**: Payers can raise, lower, or remove a policy's lifetime spending cap on-chain at any time without cancelling and resubscribing.
+- **Multi-Chain Funding**: Bridge USDC from any chain via LiFi. Settlements on Arbitrum, Base, or Flow EVM.
 - **Agent-Native**: AI agents can discover, subscribe to, and pay for services autonomously via the Agent SDK, MCP server, or HTTP 402 discovery.
 - **Simple UX**: Users only need USDC. No complex token management.
 - **Low Fees**: 2.5% protocol fee vs 5%+ for traditional processors.
@@ -89,7 +90,7 @@ AutoPay is a decentralized subscription payment protocol built on USDC. Users an
 | Agent SDK | TypeScript, viem, EIP-191 signed tokens |
 | MCP Server | Model Context Protocol for Claude and other AI agents |
 | Middleware | Express middleware for service providers |
-| Settlement | Base (primary), Flow EVM |
+| Settlement | Arbitrum, Base, Flow EVM |
 
 ## Project Structure
 

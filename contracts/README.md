@@ -44,6 +44,7 @@ Handles non-custodial recurring USDC subscriptions.
 **Functions:**
 - `createPolicy(merchant, chargeAmount, interval, spendingCap, metadataUrl)` - Create subscription + first charge
 - `revokePolicy(policyId)` - Cancel subscription (payer only)
+- `updateSpendingCap(policyId, newCap)` - Payer-only lifetime cap update; `0` = unlimited. Cannot be set below `totalSpent`. Raising the cap of a cap-exhausted (but still active) policy makes it chargeable again.
 - `charge(policyId)` - Execute recurring charge (anyone can call when due)
 - `canCharge(policyId)` - Check if charge is possible
 - `batchCharge(policyIds)` - Charge multiple policies
@@ -154,6 +155,7 @@ MAX_INTERVAL = 365 days
 |-------|-------------|
 | `PolicyCreated` | New subscription created (includes first charge) |
 | `PolicyRevoked` | Subscription cancelled |
+| `SpendingCapUpdated` | Policy's lifetime spending cap changed by payer |
 | `ChargeSucceeded` | Payment processed successfully |
 | `ChargeFailed` | Payment failed (batch charge only) |
 | `FeesWithdrawn` | Protocol fees withdrawn |

@@ -29,6 +29,7 @@
     { "src": "/llms\\.txt", "dest": "/llms.txt" },
     { "src": "/claude-skill\\.md", "dest": "/claude-skill.md" },
     { "src": "/docs/(.*\\.md)", "dest": "/docs/$1" },
+    { "src": "/(.*\\.(svg|png|jpg|jpeg|gif|webp|ico|txt|json|xml|woff2?|ttf))", "dest": "/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
