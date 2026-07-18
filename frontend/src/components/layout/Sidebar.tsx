@@ -63,7 +63,6 @@ const merchantNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] 
 
 // Beta/Developer items (shown at bottom)
 const betaNavItems: { id: NavItem; label: string; icon: React.ReactNode }[] = [
-  { id: 'points', label: 'Loyalty Points', icon: <Star className="h-4 w-4" /> },
   { id: 'docs', label: 'Docs', icon: <BookOpen className="h-4 w-4" /> },
 ]
 

@@ -31,7 +31,9 @@ import {
 } from 'framer-motion'
 import type { Variants, HTMLMotionProps } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import { DEFAULT_CHAIN } from '../config/chains'
+import { DEFAULT_CHAIN, CHAIN_CONFIGS } from '../config/chains'
+import { resolveActiveChainKey, CHAIN_STORAGE_KEY } from '../config/activeChain'
+import { SWITCHABLE_CHAIN_KEYS } from '../contexts/ChainContext'
 import logoUrl from '../assets/Autopay-full.svg'
 
 /** Brand color per chain — RGB triplet for use in rgba() */
@@ -44,7 +46,17 @@ const CHAIN_BRAND: Record<string, { rgb: string; hex: string; hexHover: string; 
   arcTestnet:  { rgb: '123,155,204', hex: '#7B9BCC', hexHover: '#6285BC', accentRgb: '160,185,220', icon: '/arc-logo.jpg',      name: 'Arc Testnet' },
   baseSepolia: { rgb: '0,0,255',     hex: '#0000FF', hexHover: '#0000DD', accentRgb: '0,100,255',   icon: '/base-square.svg',   name: 'Base Sepolia' },
 }
-const brand = CHAIN_BRAND[DEFAULT_CHAIN] ?? CHAIN_BRAND.base
+const activeChainKey = resolveActiveChainKey()
+const brand = CHAIN_BRAND[activeChainKey] ?? CHAIN_BRAND[DEFAULT_CHAIN] ?? CHAIN_BRAND.base
+
+function selectLandingChain(key: string) {
+  if (typeof window === 'undefined') return
+  if (key === activeChainKey) return
+  window.localStorage.setItem(CHAIN_STORAGE_KEY, key)
+  // Full reload so the landing page re-themes and the app root re-wires the
+  // correct wallet providers (Privy for Tempo, passkey for Arc).
+  window.location.reload()
+}
 
 interface LandingPageProps {
   onOpenApp: () => void
@@ -795,31 +807,87 @@ const STEPS: { num: string; title: string; desc: string; icon: typeof LayoutDash
 export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
   const prefersReduced = useReducedMotion()
   const [showPointsModal, setShowPointsModal] = useState(false)
+  const [chainMenuOpen, setChainMenuOpen] = useState(false)
+  const [chainMenuPos, setChainMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const chainBtnRef = useRef<HTMLButtonElement>(null)
+  const chainMenuRef = useRef<HTMLDivElement>(null)
+
+  const toggleChainMenu = () => {
+    if (!chainMenuOpen && chainBtnRef.current) {
+      const r = chainBtnRef.current.getBoundingClientRect()
+      setChainMenuPos({ top: r.bottom + 6, left: r.left })
+    }
+    setChainMenuOpen((v) => !v)
+  }
+
+  useEffect(() => {
+    if (!chainMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (chainBtnRef.current?.contains(t) || chainMenuRef.current?.contains(t)) return
+      setChainMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [chainMenuOpen])
 
   return (
     <div className="lp-root">
       {/* dot-grid texture layer */}
       <div className="lp-dot-grid" />
 
-      {/* ── POINTS BANNER (mobile) ── */}
-      <button type="button" onClick={() => setShowPointsModal(true)} className="lp-points-banner">
-        <Star size={12} fill="currentColor" /> Earn Loyalty Points — tap to learn more
-      </button>
-
       {/* ── NAV ── */}
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
             <img src={logoUrl} alt="AutoPay" className="lp-nav-logo" />
-            <span className="lp-nav-chain-badge">
-              <img src={brand.icon} alt={brand.name} className="lp-nav-chain-icon" />
-              {brand.name}
-            </span>
+            <div className="lp-nav-chain">
+              <button
+                ref={chainBtnRef}
+                type="button"
+                className="lp-nav-chain-badge"
+                onClick={toggleChainMenu}
+                aria-haspopup="listbox"
+                aria-expanded={chainMenuOpen}
+              >
+                <img src={brand.icon} alt={brand.name} className="lp-nav-chain-icon" />
+                {brand.name}
+                <svg className={`lp-nav-chain-caret ${chainMenuOpen ? 'open' : ''}`} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+              </button>
+            </div>
           </div>
+          {chainMenuOpen && createPortal(
+            <div
+              ref={chainMenuRef}
+              className="lp-nav-chain-menu"
+              role="listbox"
+              style={{ top: chainMenuPos.top, left: chainMenuPos.left }}
+            >
+              {SWITCHABLE_CHAIN_KEYS.map((key) => {
+                const b = CHAIN_BRAND[key] ?? CHAIN_BRAND.base
+                const cfg = CHAIN_CONFIGS[key]
+                const active = key === activeChainKey
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    className={`lp-nav-chain-item ${active ? 'active' : ''}`}
+                    onClick={() => selectLandingChain(key)}
+                  >
+                    <img src={b.icon} alt="" className="lp-nav-chain-icon" />
+                    <span>{cfg?.name ?? b.name}</span>
+                    {active && (
+                      <svg className="lp-nav-chain-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>,
+            document.body
+          )}
           <div className="lp-nav-links">
-            <button type="button" onClick={() => setShowPointsModal(true)} className="lp-nav-link lp-nav-points">
-              <Star size={13} fill="currentColor" /> <span className="lp-nav-points-full">Loyalty Points</span><span className="lp-nav-points-short">Points</span>
-            </button>
             <button onClick={onDocs} className="lp-nav-link">Docs</button>
             <a href="https://x.com/autopayprotocol" target="_blank" rel="noopener noreferrer" className="lp-nav-link" aria-label="X (Twitter)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
             <a href="https://calendly.com/kieranmarcus/30min" target="_blank" rel="noopener noreferrer" className="lp-nav-link lp-nav-demo">Schedule a Demo</a>
@@ -1236,7 +1304,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
         <div className="lp-footer-inner">
           <div className="lp-footer-top">
             <div className="lp-footer-brand">
-              <img src="/autopay-logo-dark-bg.svg" alt="" className="lp-footer-icon" />
+              <img src="/autopay-logo-dark.svg" alt="" className="lp-footer-icon" />
               <div>
                 <div className="lp-footer-name">AutoPay Protocol</div>
                 <div className="lp-footer-tagline">Non-custodial unified crypto payments</div>
@@ -1275,7 +1343,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
       </footer>
 
       {/* ── POINTS MODAL (portaled to body to escape route-layer transforms) ── */}
-      {showPointsModal && createPortal(
+      {false && showPointsModal && createPortal(
         <div className="lp-modal-overlay" onClick={() => setShowPointsModal(false)}>
           <div className="lp-modal" onClick={(e) => e.stopPropagation()}>
             <button className="lp-modal-close" onClick={() => setShowPointsModal(false)}>&times;</button>
@@ -1712,11 +1780,11 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           transition: opacity 0.2s;
         }
         .lp-nav-brand:hover .lp-nav-logo { opacity: 0.9; }
+        .lp-nav-chain { position: relative; margin-left: 10px; }
         .lp-nav-chain-badge {
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          margin-left: 10px;
           padding: 3px 10px 3px 6px;
           border-radius: 20px;
           border: 1px solid rgba(0,0,0,0.08);
@@ -1725,7 +1793,44 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           font-weight: 500;
           letter-spacing: 0.02em;
           color: var(--muted);
+          font-family: var(--sans);
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
         }
+        .lp-nav-chain-badge:hover { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.14); }
+        .lp-nav-chain-caret { transition: transform 0.15s; opacity: 0.6; }
+        .lp-nav-chain-caret.open { transform: rotate(180deg); }
+        .lp-nav-chain-menu {
+          position: fixed;
+          z-index: 1000;
+          min-width: 180px;
+          padding: 5px;
+          border-radius: 12px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: #fff;
+          box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+        }
+        .lp-nav-chain-item {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          width: 100%;
+          padding: 8px 10px;
+          border: none;
+          border-radius: 8px;
+          background: none;
+          font-family: var(--sans);
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--fg);
+          cursor: pointer;
+          text-align: left;
+          transition: background 0.12s;
+        }
+        .lp-nav-chain-item:hover { background: rgba(0,0,0,0.05); }
+        .lp-nav-chain-item.active { color: var(--accent, #0052FF); }
+        .lp-nav-chain-item span { flex: 1; }
+        .lp-nav-chain-check { flex-shrink: 0; }
         .lp-nav-chain-icon {
           width: 16px;
           height: 16px;
@@ -1758,7 +1863,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
             flex-wrap: wrap;
           }
           .lp-nav-logo { height: 26px; }
-          .lp-nav-chain-badge { display: none; }
+          .lp-nav-chain { display: none; }
           .lp-nav-brand { flex: 0 0 auto; }
           .lp-nav-cta {
             margin-left: auto;
@@ -3263,7 +3368,7 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           border-bottom: 1px solid rgba(0,0,0,0.06);
         }
         .lp-footer-brand { display: flex; align-items: center; gap: 12px; }
-        .lp-footer-icon { height: 36px; width: 36px; border-radius: 8px; }
+        .lp-footer-icon { height: 88px; width: 88px; border-radius: 0; background: none; display: block; }
         .lp-footer-name {
           font-family: var(--sans); font-size: 15px; font-weight: 600;
           color: var(--fg); letter-spacing: -0.01em;
@@ -3377,8 +3482,26 @@ export function LandingPage({ onOpenApp, onDocs }: LandingPageProps) {
           .lp-geo-status-pill { font-size: 8.5px; padding: 2px 6px; }
 
           .lp-footer { padding: 32px 20px 24px; }
-          .lp-footer-top { flex-direction: column; gap: 32px; }
-          .lp-footer-cols { gap: 40px; }
+          .lp-footer-top { flex-direction: column; gap: 28px; padding-bottom: 24px; }
+          .lp-footer-brand { align-items: center; }
+          .lp-footer-icon { height: 72px; width: 72px; }
+          .lp-footer-name { font-size: 14px; }
+          .lp-footer-tagline { font-size: 12px; }
+          .lp-footer-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px 20px;
+            width: 100%;
+          }
+          .lp-footer-col-title { font-size: 10.5px; margin-bottom: 2px; }
+          .lp-footer-link { font-size: 12.5px; }
+          .lp-footer-bottom {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            padding-top: 16px;
+          }
+          .lp-footer-copy { font-size: 11.5px; }
 
           .lp-agent-paths { grid-template-columns: 1fr; }
           .lp-agent-lead { font-size: 16px; }

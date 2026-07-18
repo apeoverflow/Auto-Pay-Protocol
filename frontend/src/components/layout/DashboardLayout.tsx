@@ -14,23 +14,8 @@ export function DashboardLayout({ children, currentPage, onNavigate }: Dashboard
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [pointsOpen, setPointsOpen] = React.useState(false)
 
-  // Auto-open points modal if landing page set the flag
-  React.useEffect(() => {
-    const check = () => {
-      if (sessionStorage.getItem('open_points')) {
-        sessionStorage.removeItem('open_points')
-        setPointsOpen(true)
-      }
-    }
-    check()
-    // Re-check on visibility change (covers wallet connect popup returning focus)
-    document.addEventListener('visibilitychange', check)
-    return () => document.removeEventListener('visibilitychange', check)
-  }, [currentPage])
-
   const handleNavigate = (page: NavItem) => {
     if (page === 'points') {
-      setPointsOpen(true)
       setSidebarOpen(false)
       return
     }
@@ -65,7 +50,7 @@ export function DashboardLayout({ children, currentPage, onNavigate }: Dashboard
       </div>
 
       {/* Points Modal */}
-      {pointsOpen && (
+      {false && pointsOpen && (
         <div className="fixed inset-0 z-50" onClick={() => setPointsOpen(false)}>
           {/* Backdrop — hidden on mobile (modal is full-screen) */}
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm hidden lg:block" />

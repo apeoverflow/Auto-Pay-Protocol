@@ -125,27 +125,7 @@ export function Header({ currentPage = 'dashboard', onMenuToggle, onNavigate }: 
           <span className="hidden sm:inline text-xs text-muted-foreground font-medium">USDC</span>
         </button>
 
-        {/* Points pill */}
-        {totalPoints !== null && (
-          <button
-            onClick={() => onNavigate?.('points')}
-            className="flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/60 px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm shadow-amber-500/5 transition-all hover:shadow-md hover:border-amber-300/80 active:scale-[0.97] cursor-pointer"
-            title="View Points & Leaderboard"
-          >
-            <img src="/logos/autopay-icon-white.svg" alt="" className="h-5 w-5 rounded-md" style={{ background: '#1D1D1F', padding: 2 }} />
-            <span className="text-xs sm:text-sm font-semibold text-foreground tabular-nums">
-              {totalPoints >= 1000 ? `${(totalPoints / 1000).toFixed(1)}k` : totalPoints.toLocaleString()}
-            </span>
-            <span className={`hidden sm:inline text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
-              pointsTier === 'diamond' ? 'bg-blue-100 text-blue-700' :
-              pointsTier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-              pointsTier === 'silver' ? 'bg-gray-100 text-gray-700' :
-              'bg-amber-100 text-amber-800'
-            }`}>
-              {pointsTier}
-            </span>
-          </button>
-        )}
+        {/* Points pill — hidden (loyalty UI disabled) */}
 
         {/* Refresh */}
         <Button

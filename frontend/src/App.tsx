@@ -231,8 +231,8 @@ function App() {
     )
   }
 
-  // Full-screen leaderboard
-  if (activeRoute === '/leaderboard') {
+  // Full-screen leaderboard (hidden — loyalty points UI disabled)
+  if (false && activeRoute === '/leaderboard') {
     return (
       <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
         {seoHead}
