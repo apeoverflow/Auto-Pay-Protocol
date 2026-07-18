@@ -23,7 +23,8 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { USDC_DECIMALS } from '../config'
-import { DEFAULT_CHAIN, type ChainKey } from '../config/chains'
+import { CHAIN_CONFIGS, type ChainKey } from '../config/chains'
+import { ALL_CHECKOUT_CHAINS } from '../config/planChains'
 
 // Checkout base URLs per chain (mirrors SDK chains[].checkoutBaseUrl from chains.json).
 // Keep in sync when adding new chains — see contracts/chains.json as the source of truth.
@@ -100,11 +101,16 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
   // For the demo, treat any positive allowance as set up — otherwise the
   // demo's setupWallet() (unlimited) would clobber an existing finite approval.
   const isWalletSetup = allowanceLoaded && allowance > 0n
-  const { chainConfig } = useChain()
+  const { chainKey, chainConfig } = useChain()
   const { policies, refetch: refetchPolicies, refreshPolicyFromContract } = usePolicies()
 
   // Form state
   const [merchant, setMerchant] = React.useState('')
+  // Preferred chain the generated checkout link lands the payer on. They can
+  // still switch among the plan's offered chains on the checkout page.
+  const [checkoutChain, setCheckoutChain] = React.useState<ChainKey>(
+    ALL_CHECKOUT_CHAINS.includes(chainKey) ? chainKey : ALL_CHECKOUT_CHAINS[0]
+  )
   const [chargeAmount, setChargeAmount] = React.useState('1')
   const [intervalAmount, setIntervalAmount] = React.useState('1')
   const [intervalUnit, setIntervalUnit] = React.useState<IntervalUnit>('days')
@@ -210,7 +216,11 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
   const checkoutUrl = React.useMemo(() => {
     if (!merchant) return ''
     try {
-      const checkoutBaseUrl = CHECKOUT_BASE_URLS[DEFAULT_CHAIN] || 'https://autopayprotocol.com'
+      // Single multichain checkout on the current app; the chain param pre-selects
+      // the payer's chain (they can still switch on the checkout page).
+      const checkoutBaseUrl =
+        CHECKOUT_BASE_URLS[checkoutChain] ||
+        (typeof window !== 'undefined' ? window.location.origin : 'https://autopayprotocol.com')
       const url = new URL('/checkout', checkoutBaseUrl)
       url.searchParams.set('merchant', merchant)
       url.searchParams.set('amount', chargeAmount || '0')
@@ -219,11 +229,12 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
       url.searchParams.set('success_url', 'https://yoursite.com/success')
       url.searchParams.set('cancel_url', 'https://yoursite.com/cancel')
       if (spendingCap && spendingCap !== '0') url.searchParams.set('spending_cap', spendingCap)
+      url.searchParams.set('chain', checkoutChain)
       return url.toString()
     } catch {
       return ''
     }
-  }, [merchant, chargeAmount, intervalSeconds, metadataUrl, spendingCap])
+  }, [merchant, chargeAmount, intervalSeconds, metadataUrl, spendingCap, checkoutChain])
 
   // Resolve interval preset label for SDK code
   const intervalPreset = React.useMemo(() => {
@@ -249,10 +260,10 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
     lines.push(`  successUrl: 'https://yoursite.com/success',`)
     lines.push(`  cancelUrl: 'https://yoursite.com/cancel',`)
     if (spendingCap && spendingCap !== '0') lines.push(`  spendingCap: ${spendingCap},`)
-    if (DEFAULT_CHAIN !== 'base') lines.push(`  chain: '${DEFAULT_CHAIN}',`)
+    if (checkoutChain !== 'base') lines.push(`  chain: '${checkoutChain}',`)
     lines.push(`})`)
     return lines.join('\n')
-  }, [merchant, chargeAmount, intervalPreset, metadataUrl, spendingCap])
+  }, [merchant, chargeAmount, intervalPreset, metadataUrl, spendingCap, checkoutChain])
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
@@ -472,6 +483,27 @@ export function DemoPage({ onNavigate }: DemoPageProps) {
                       placeholder="0x..."
                       className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
+                  </div>
+
+                  {/* Preferred checkout chain */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Checkout Chain
+                    </label>
+                    <select
+                      value={checkoutChain}
+                      onChange={(e) => setCheckoutChain(e.target.value as ChainKey)}
+                      className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    >
+                      {ALL_CHECKOUT_CHAINS.map((key) => (
+                        <option key={key} value={key}>
+                          {CHAIN_CONFIGS[key].name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Pre-selects the payer's chain. They can still switch on the checkout page.
+                    </p>
                   </div>
 
                   {/* Charge Amount + Spending Cap — side by side */}

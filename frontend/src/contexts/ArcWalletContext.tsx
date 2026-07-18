@@ -18,7 +18,8 @@
  */
 import * as React from 'react'
 import { createPublicClient, http, type PublicClient } from 'viem'
-import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
+import { CHAIN_CONFIGS } from '../config/chains'
+import { resolveActiveChainKey } from '../config/activeChain'
 
 type WalletMode = 'passkey' | 'wagmi' | null
 
@@ -70,7 +71,7 @@ const CREDENTIAL_KEY = 'autopay-arc-passkey-credential-id'
 const USERNAME_KEY = 'autopay-arc-passkey-username'
 
 function ArcWalletInner({ children }: { children: React.ReactNode }) {
-  const chainConfig = CHAIN_CONFIGS[DEFAULT_CHAIN]
+  const chainConfig = CHAIN_CONFIGS.arcTestnet
   const rpcUrl = chainConfig.chain.rpcUrls.default.http[0]
 
   const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
@@ -265,7 +266,7 @@ function ArcWalletNoop({ children }: { children: React.ReactNode }) {
 }
 
 export function ArcWalletProvider({ children }: { children: React.ReactNode }) {
-  const isArc = DEFAULT_CHAIN === 'arcTestnet'
+  const isArc = resolveActiveChainKey() === 'arcTestnet'
   if (!isArc) return <ArcWalletNoop>{children}</ArcWalletNoop>
   return <ArcWalletInner>{children}</ArcWalletInner>
 }
@@ -275,5 +276,5 @@ export function useArcWallet() {
 }
 
 export function isArcBuild(): boolean {
-  return DEFAULT_CHAIN === 'arcTestnet'
+  return resolveActiveChainKey() === 'arcTestnet'
 }

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
+import { useChain } from '../../contexts/ChainContext'
 import { formatUnits, erc20Abi } from 'viem'
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useReadContract } from 'wagmi'
 import confetti from 'canvas-confetti'
@@ -47,6 +47,7 @@ export function FundWalletCard({ destinationAddress, onSuccess }: FundWalletCard
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { transfer, isLoading, status, error, result, reset } = useGatewayTransfer()
+  const { chainConfig } = useChain()
 
   const [amount, setAmount] = React.useState('10')
   const [selectedChain, setSelectedChain] = React.useState<GatewaySourceChain>(GATEWAY_SOURCE_CHAINS[0])
@@ -338,7 +339,7 @@ export function FundWalletCard({ destinationAddress, onSuccess }: FundWalletCard
           <div className="fund-destination">
             <div className="fund-destination-label">
               <span>Destination</span>
-              <span className="fund-destination-badge">{CHAIN_CONFIGS[DEFAULT_CHAIN].name}</span>
+              <span className="fund-destination-badge">{chainConfig.name}</span>
             </div>
             <div className="fund-destination-address">{destinationAddress}</div>
           </div>

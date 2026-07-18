@@ -48,6 +48,7 @@ export function useCheckoutParams(): UseCheckoutParamsReturn {
     const spendingCap = search.get('spending_cap') // optional
     const ipfsMetadataUrl = search.get('ipfs_metadata_url') // optional fallback
     const fieldsRaw = search.get('fields') // optional: email:r,name:o,discord:r
+    const chain = search.get('chain') // optional: preferred chain key
 
     if (!merchant || !metadataUrl || !successUrl || !cancelUrl || !amount || !intervalStr) {
       return {
@@ -99,6 +100,7 @@ export function useCheckoutParams(): UseCheckoutParamsReturn {
         spendingCap: spendingCap || undefined,
         ipfsMetadataUrl: ipfsMetadataUrl || undefined,
         fields: parseFields(fieldsRaw),
+        chain: chain || undefined,
       },
       error: null,
     }

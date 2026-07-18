@@ -18,6 +18,9 @@ export interface CheckoutParams {
   ipfsMetadataUrl?: string
   /** Subscriber info fields to collect during checkout */
   fields?: CheckoutField[]
+  /** Preferred chain key to pre-select (e.g. 'base', 'arbitrum'). Payer can still
+   *  switch among the plan's offered chains. */
+  chain?: string
 }
 
 /** Display-only metadata fetched from metadataUrl. Billing info comes from CheckoutParams. */
@@ -39,4 +42,7 @@ export interface CheckoutMetadata {
     color?: string
     badge?: string
   }
+  /** Optional chains (e.g. 'tempo', 'arcTestnet') the merchant has enabled for
+   *  this plan. EVM chains are always available regardless. */
+  supportedChains?: string[]
 }

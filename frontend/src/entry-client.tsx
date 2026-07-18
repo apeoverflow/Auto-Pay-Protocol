@@ -16,7 +16,8 @@ import { TempoWalletProvider, isTempoBuild } from './contexts/TempoWalletContext
 import { ArcWalletProvider } from './contexts/ArcWalletContext'
 import { ConnectModalProvider } from './contexts/ConnectModalContext'
 import { wagmiConfig } from './config/wagmi'
-import { DEFAULT_CHAIN } from './config/chains'
+import { resolveActiveChainKey } from './config/activeChain'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App'
 
 // Per-chain primary color (HSL values for --primary CSS variable)
@@ -27,7 +28,8 @@ const CHAIN_PRIMARY: Record<string, string> = {
   tempo: '0 0% 10%',            // near-black
   arcTestnet: '217 70% 14%',    // Arc deep navy (matches arc-logo.jpg)
 }
-const chainPrimary = CHAIN_PRIMARY[DEFAULT_CHAIN]
+const activeChainKey = resolveActiveChainKey()
+const chainPrimary = CHAIN_PRIMARY[activeChainKey]
 if (chainPrimary) {
   const s = document.createElement('style')
   s.textContent = `:root { --primary: ${chainPrimary} !important; }`
@@ -84,6 +86,7 @@ const PrivyWrapper = isTempo
   : ({ children }: { children: React.ReactNode }) => <>{children}</>
 
 const AppTree = (
+  <ErrorBoundary>
   <WagmiProvider config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
       <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}>
@@ -109,6 +112,7 @@ const AppTree = (
       </React.Suspense>
     </QueryClientProvider>
   </WagmiProvider>
+  </ErrorBoundary>
 )
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

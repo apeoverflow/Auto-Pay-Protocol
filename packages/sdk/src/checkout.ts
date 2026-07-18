@@ -115,6 +115,12 @@ export function createCheckoutUrl(options: CheckoutOptions): string {
     url.searchParams.set('ipfs_metadata_url', ipfsMetadataUrl)
   }
 
+  // Pre-select the chain on the (multichain) checkout page. The payer can still
+  // switch among the plan's offered chains.
+  if (chain) {
+    url.searchParams.set('chain', chain)
+  }
+
   return url.toString()
 }
 

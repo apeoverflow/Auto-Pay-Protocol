@@ -4,8 +4,9 @@ import { useDisconnect } from 'wagmi'
 import { useCheckoutParams, useAuth, useWallet, useCreatePolicy, usePolicies } from '../hooks'
 import { useShortCheckout } from '../hooks/useShortCheckout'
 import { isTempoBuild } from '../contexts/TempoWalletContext'
+import { useChain } from '../contexts/ChainContext'
 import { USDC_DECIMALS, UNLIMITED_APPROVAL_THRESHOLD } from '../config'
-import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
+import { ALL_CHECKOUT_CHAINS } from '../config/planChains'
 import type { CheckoutMetadata } from '../types/checkout'
 import {
   LoadingStep,
@@ -18,6 +19,7 @@ import {
   ProcessingStep,
   SuccessStep,
   SubscriberInfoStep,
+  CheckoutChainSelector,
 } from '../components/checkout'
 import { submitSubscriberData } from '../lib/relayer'
 import logoUrl from '../assets/Autopay-full.svg'
@@ -38,6 +40,7 @@ export function CheckoutPage() {
   const { address, allowance, allowanceLoaded, isLoading: walletLoading, balance } = useWallet()
   const { policies: existingPolicies } = usePolicies()
   const { createPolicy, policyId, hash, status, error: policyError, isLoading: policyLoading } = useCreatePolicy()
+  const { chainKey, chainConfig, setChainKey } = useChain()
   const [metadata, setMetadata] = React.useState<CheckoutMetadata | null>(null)
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [step, setStep] = React.useState<Step>('loading')
@@ -168,6 +171,23 @@ export function CheckoutPage() {
     fetchMetadata()
   }, [params])
 
+  // Payers can subscribe on any supported chain (EVM + Tempo/Arc).
+  const checkoutChains = ALL_CHECKOUT_CHAINS
+
+  // Apply the merchant-supplied preferred chain (?chain=) once per checkout
+  // session. Guarded via sessionStorage so a manual switch to Tempo/Arc (which
+  // reloads the page) doesn't bounce back to the URL's preferred chain.
+  React.useEffect(() => {
+    if (!metadata || typeof window === 'undefined') return
+    const guardKey = `autopay:checkoutChainApplied:${params?.merchant ?? ''}:${params?.metadataUrl ?? ''}`
+    if (window.sessionStorage.getItem(guardKey)) return
+    window.sessionStorage.setItem(guardKey, '1')
+    const preferred = params?.chain
+    if (preferred && checkoutChains.includes(preferred as typeof chainKey) && preferred !== chainKey) {
+      setChainKey(preferred as typeof chainKey)
+    }
+  }, [metadata, checkoutChains, chainKey, setChainKey, params?.chain, params?.merchant, params?.metadataUrl])
+
   // Determine current step based on state
   React.useEffect(() => {
     if (paramError) {
@@ -239,7 +259,7 @@ export function CheckoutPage() {
   // Fire-and-forget: submit subscriber data after policy is created
   React.useEffect(() => {
     if (!policyId || !subscriberFormData || !params || !address) return
-    const chainId = CHAIN_CONFIGS[DEFAULT_CHAIN].chain.id
+    const chainId = chainConfig.chain.id
     // Extract planId from metadataUrl if it follows the /metadata/:merchant/:planId pattern
     let planId: string | undefined
     let planMerchant: string | undefined
@@ -263,7 +283,7 @@ export function CheckoutPage() {
     }).catch(() => {
       // Subscriber data is fire-and-forget — don't block the user
     })
-  }, [policyId, subscriberFormData, params, address])
+  }, [policyId, subscriberFormData, params, address, chainConfig])
 
   const handlePlanContinue = () => {
     setReviewedPlan(true)
@@ -312,14 +332,17 @@ export function CheckoutPage() {
           {step === 'loading' && <LoadingStep />}
           {step === 'error' && <ErrorStep message={errorMessage} cancelUrl={params?.cancelUrl} />}
           {step === 'plan_summary' && metadata && params && (
-            <PlanSummary
-              metadata={metadata}
-              metadataUrl={params.metadataUrl}
-              amount={amount}
-              interval={interval}
-              onContinue={handlePlanContinue}
-              cancelUrl={params.cancelUrl}
-            />
+            <>
+              <CheckoutChainSelector chains={checkoutChains} />
+              <PlanSummary
+                metadata={metadata}
+                metadataUrl={params.metadataUrl}
+                amount={amount}
+                interval={interval}
+                onContinue={handlePlanContinue}
+                cancelUrl={params.cancelUrl}
+              />
+            </>
           )}
           {step === 'subscriber_info' && params?.fields && (
             <SubscriberInfoStep
@@ -380,7 +403,7 @@ export function CheckoutPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-muted-foreground mt-4">
-          Powered by AutoPay Protocol &middot; Non-custodial &middot; {CHAIN_CONFIGS[DEFAULT_CHAIN].name}
+          Powered by AutoPay Protocol &middot; Non-custodial &middot; {chainConfig.name}
         </p>
       </div>
     </div>

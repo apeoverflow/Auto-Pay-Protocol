@@ -19,6 +19,7 @@ import {
 } from 'wagmi/chains'
 import { defineChain } from 'viem'
 import { CHAIN_CONFIGS } from './chains'
+import { resolveActiveChainKey } from './activeChain'
 
 // All AutoPay chains (mainnet + testnet) from the generated config
 const autoPayChains = Object.values(CHAIN_CONFIGS).map(c => c.chain)
@@ -108,7 +109,7 @@ const connectors = connectorsForWallets(
 )
 */
 
-const isTempo = (import.meta.env.VITE_DEFAULT_CHAIN || 'flowEvm') === 'tempo'
+const isTempo = resolveActiveChainKey() === 'tempo'
 
 // On Tempo, pass no connectors — wallets are managed by Privy, not injected.
 // Without this, wagmi auto-injects Coinbase Smart Wallet which doesn't support

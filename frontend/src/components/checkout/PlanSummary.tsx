@@ -1,5 +1,5 @@
 import { Zap } from 'lucide-react'
-import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../../config/chains'
+import { useChain } from '../../contexts/ChainContext'
 import type { CheckoutMetadata } from '../../types/checkout'
 import { formatIntervalLabel } from '../../lib/utils'
 import { PlanPreviewCard } from '../shared/PlanPreviewCard'
@@ -26,6 +26,7 @@ function resolveLogoUrl(logo: string, metadataUrl: string): string {
 
 export function PlanSummary({ metadata, metadataUrl, amount, interval, onContinue, cancelUrl }: PlanSummaryProps) {
   const { plan, merchant, display } = metadata
+  const { chainConfig } = useChain()
 
   // Pre-resolve the logo so PlanPreviewCard gets an absolute URL
   const resolvedLogoUrl = merchant.logo ? resolveLogoUrl(merchant.logo, metadataUrl) : undefined
@@ -52,7 +53,7 @@ export function PlanSummary({ metadata, metadataUrl, amount, interval, onContinu
         </div>
         <div className="flex justify-between">
           <span>Network</span>
-          <span className="font-medium text-foreground">{CHAIN_CONFIGS[DEFAULT_CHAIN].name}</span>
+          <span className="font-medium text-foreground">{chainConfig.name}</span>
         </div>
       </div>
 

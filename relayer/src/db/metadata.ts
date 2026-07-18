@@ -38,6 +38,10 @@ export interface PlanMetadata {
     requiredFields?: SubscriberField[]
     optionalFields?: SubscriberField[]
   }
+  /** Optional chains (e.g. 'tempo', 'arcTestnet') the merchant has enabled for
+   *  this plan. EVM chains are always available regardless. Stored verbatim in
+   *  the plan metadata JSON. */
+  supportedChains?: string[]
 }
 
 export type PlanStatus = 'draft' | 'active' | 'archived'

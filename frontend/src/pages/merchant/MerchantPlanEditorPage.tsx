@@ -8,6 +8,8 @@ import { PricingCard } from '../../components/shared/PricingCard'
 import { useMerchantPlan } from '../../hooks/useMerchantPlan'
 import { useWallet } from '../../hooks/useWallet'
 import { createPlan, updatePlan, uploadLogo, checkWhitelist, MIN_CHARGE_AMOUNT } from '../../lib/relayer'
+import { EVM_CHECKOUT_CHAINS, OPTIONAL_CHECKOUT_CHAINS } from '../../config/planChains'
+import { CHAIN_CONFIGS } from '../../config/chains'
 import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 import { Loader2, Save, Rocket, Upload, X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import type { Route } from '../../hooks/useRoute'
@@ -70,6 +72,9 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
   const [cap, setCap] = React.useState('')
   const [color, setColor] = React.useState('')
   const [badge, setBadge] = React.useState('')
+  // Optional (non-EVM-default) chains the merchant has enabled for this plan.
+  // EVM chains are always available and not listed here.
+  const [supportedChains, setSupportedChains] = React.useState<string[]>([])
 
   // Logo upload state
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null)
@@ -108,6 +113,9 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
     if (display) {
       setColor((display.color as string) || '')
       setBadge((display.badge as string) || '')
+    }
+    if (Array.isArray(m.supportedChains)) {
+      setSupportedChains(m.supportedChains as string[])
     }
   }, [existingPlan])
 
@@ -159,6 +167,7 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
           ...(badge.trim() && { badge: badge.trim() }),
         },
       }),
+      ...(supportedChains.length > 0 && { supportedChains }),
     }
 
     try {
@@ -462,6 +471,50 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
                   value={cap}
                   onChange={(e) => setCap(e.target.value)}
                 />
+
+                {/* Payment chains — EVM always on; optional chains opt-in */}
+                <div className="space-y-2 pt-1">
+                  <label className="text-[12px] md:text-sm font-medium leading-none text-foreground">
+                    Payment chains
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Payers can subscribe on any of these. EVM chains are always available. Enable Tempo or Arc only if your account is set up to receive on them.
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {EVM_CHECKOUT_CHAINS.map((key) => (
+                      <span
+                        key={key}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-input bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                        title="Always available"
+                      >
+                        {CHAIN_CONFIGS[key].name}
+                        <Check className="h-3 w-3 text-success" />
+                      </span>
+                    ))}
+                    {OPTIONAL_CHECKOUT_CHAINS.map((key) => {
+                      const on = supportedChains.includes(key)
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() =>
+                            setSupportedChains((prev) =>
+                              on ? prev.filter((k) => k !== key) : [...prev, key]
+                            )
+                          }
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                            on
+                              ? 'border-primary/30 bg-primary/10 text-primary'
+                              : 'border-input bg-background text-foreground hover:bg-muted/50'
+                          }`}
+                        >
+                          {CHAIN_CONFIGS[key].name}
+                          {on && <Check className="h-3 w-3" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </>
             )}
           </CardContent>

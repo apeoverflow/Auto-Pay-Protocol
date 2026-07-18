@@ -10,7 +10,8 @@
  */
 import * as React from 'react'
 import { createPublicClient, http, type PublicClient } from 'viem'
-import { CHAIN_CONFIGS, DEFAULT_CHAIN } from '../config/chains'
+import { CHAIN_CONFIGS } from '../config/chains'
+import { resolveActiveChainKey } from '../config/activeChain'
 import { tempoCreateWallet } from '../lib/tempo-api'
 
 import { usePrivy } from '@privy-io/react-auth'
@@ -44,7 +45,7 @@ const TempoWalletContext = React.createContext<TempoWalletState>(defaultState)
 function TempoWalletInner({ children }: { children: React.ReactNode }) {
   const { ready, authenticated, login, logout, getAccessToken, user } = usePrivy()
 
-  const chainConfig = CHAIN_CONFIGS[DEFAULT_CHAIN]
+  const chainConfig = CHAIN_CONFIGS.tempo
   const rpcUrl = chainConfig?.chain.rpcUrls.default.http[0] || 'https://rpc.tempo.xyz'
 
   const [wallet, setWallet] = React.useState<{ walletId: string; address: string } | null>(null)
@@ -121,7 +122,7 @@ function TempoWalletNoop({ children }: { children: React.ReactNode }) {
 }
 
 export function TempoWalletProvider({ children }: { children: React.ReactNode }) {
-  const isTempo = DEFAULT_CHAIN === 'tempo'
+  const isTempo = resolveActiveChainKey() === 'tempo'
   if (!isTempo) return <TempoWalletNoop>{children}</TempoWalletNoop>
   return <TempoWalletInner>{children}</TempoWalletInner>
 }
@@ -131,5 +132,5 @@ export function useTempoWallet() {
 }
 
 export function isTempoBuild(): boolean {
-  return DEFAULT_CHAIN === 'tempo'
+  return resolveActiveChainKey() === 'tempo'
 }
