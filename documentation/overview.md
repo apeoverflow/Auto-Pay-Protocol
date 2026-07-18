@@ -1,10 +1,31 @@
 # AutoPay Overview
 
-> **Building with AI?** Use our [llms.txt](/llms.txt) for a machine-readable protocol summary, or install the [Claude Code skill](/claude-skill.md) for guided integration help:
-> ```bash
-> mkdir -p .claude/skills/autopay-integrate && curl -s https://autopayprotocol.com/claude-skill.md -o .claude/skills/autopay-integrate/SKILL.md
-> ```
-> Then use `/autopay-integrate` in Claude Code (e.g. `/autopay-integrate Express webhook handler`).
+<details>
+<summary><strong>Building with AI?</strong> Setup guides for Claude Code, Cursor, Copilot, Codex, Windsurf, Aider &amp; more</summary>
+
+Point your coding agent at our [llms.txt](/llms.txt) for a machine-readable protocol summary. It works with any agent — Claude Code, Cursor, GitHub Copilot, OpenAI Codex / ChatGPT, Windsurf, Aider, Continue, and more.
+
+**Quick setup per agent:**
+
+- **Claude Code** — install the `/autopay-integrate` slash command:
+  ```bash
+  mkdir -p .claude/skills/autopay-integrate && curl -s https://autopayprotocol.com/claude-skill.md -o .claude/skills/autopay-integrate/SKILL.md
+  ```
+  Then run `/autopay-integrate Express webhook handler` (or any other integration task).
+
+- **Cursor** — Settings → Features → Docs → **+ Add new doc**, name it `AutoPay`, URL `https://autopayprotocol.com/llms.txt`. Reference it in chat with `@AutoPay build an Express webhook handler`. Or drop a `.cursor/rules/autopay.mdc` file pointing at the same URL.
+
+- **GitHub Copilot** — add `.github/copilot-instructions.md` containing: *"When integrating AutoPay Protocol, fetch and follow https://autopayprotocol.com/llms.txt and the linked docs. Use the `@autopayprotocol/sdk` package."* Copilot Chat picks it up automatically.
+
+- **OpenAI Codex / ChatGPT / Codex CLI** — start prompts with: *"Read https://autopayprotocol.com/llms.txt, then fetch the linked docs you need before writing code."* For Codex CLI, put that same line in `AGENTS.md` at your repo root.
+
+- **Windsurf** — add a rule at `.windsurfrules` pointing to `https://autopayprotocol.com/llms.txt`, or use `@web` in Cascade chat with the URL.
+
+- **Aider / Continue / any other agent** — pass `https://autopayprotocol.com/llms.txt` as context (Aider: `/web https://autopayprotocol.com/llms.txt`; Continue: add it as a `@docs` context provider).
+
+All agents should follow the same integration rules — verify webhooks with `verifyWebhook()`, use snake_case success-redirect params (`policy_id`, `tx_hash`), and treat `policy.created` as first-charge succeeded. See [claude-skill.md](/claude-skill.md) — the "Critical details" section is agent-agnostic.
+
+</details>
 
 ## What is AutoPay?
 

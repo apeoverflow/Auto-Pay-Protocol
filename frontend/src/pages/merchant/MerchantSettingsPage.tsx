@@ -42,7 +42,16 @@ import {
   type WebhookConfig,
 } from '../../lib/relayer'
 
-const RELAYER_URL = import.meta.env.VITE_RELAYER_URL || ''
+const RAW_RELAYER_URL = import.meta.env.VITE_RELAYER_URL || ''
+const PROD_RELAYER_URL = 'https://relayer.autopayprotocol.com'
+
+// For display in the API Reference, prefer the production relayer URL unless
+// the frontend itself is running on localhost (dev). This avoids leaking
+// internal/tailnet URLs (e.g. http://100.x.x.x:3420) to production users.
+const isBrowserLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+const RELAYER_URL = isBrowserLocalhost ? RAW_RELAYER_URL : PROD_RELAYER_URL
 
 const ENDPOINTS = [
   { method: 'GET', path: '/merchants/:address/subscribers?chain_id=:chainId', auth: 'key' as const, title: 'List Subscribers', info: 'Returns active subscribers with policy details, charge amounts, and next payment dates. Paginated: page (default 1), limit (default 50, max 100).' },

@@ -2,7 +2,7 @@
 
 > Non-custodial crypto subscription payment protocol built on USDC.
 > Users keep full custody of funds. Merchants receive automatic recurring payments.
-> Works alongside Stripe, not instead of it. Multi-chain (Flow EVM, Base, Tempo).
+> Works alongside Stripe, not instead of it. Multi-chain (Base, Flow EVM, Arbitrum, Polkadot Hub, Tempo).
 > Protocol fee: 2.5% per charge. SDK: `@autopayprotocol/sdk` on npm.
 
 AutoPay lets merchants accept recurring USDC payments without building payment infrastructure. Users approve USDC spending to the PolicyManager smart contract, create a subscription policy (merchant, amount, interval, spending cap), and a relayer charges them automatically each billing cycle. The first charge executes immediately on subscription creation.
@@ -53,10 +53,12 @@ Funds never leave the user's wallet until charged. Users can revoke policies at 
 
 ## Contract Addresses
 
-- Flow EVM (747): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC `0xF1815bd50389c46847f0Bda824eC8da914045D14`
 - Base (8453): PolicyManager `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a`, USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
-- Tempo (4217): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC.e `0x20c000000000000000000000b9537d11c60e8b50`
-- Base Sepolia (84532): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+- Flow EVM (747): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC `0xF1815bd50389c46847f0Bda824eC8da914045D14`
+- Arbitrum One (42161): PolicyManager `0xCE3550099De882607B50d6F57d4ECd3985dcd521`, USDC `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`
+- Polkadot Hub (420420419): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC `0x0000053900000000000000000000000001200000`
+- Tempo (4217): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC.e `0x20c000000000000000000000b9537d11c60e8b50` (bridged via Stargate/LayerZero — LiFi not yet supported)
+- Base Sepolia (84532, testnet): PolicyManager `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345`, USDC `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 
 ## SDK Quick Reference
 
@@ -80,20 +82,25 @@ if (event.type === 'charge.succeeded') {
 }
 ```
 
-## Claude Code Integration
+## AI Coding Agent Integration
 
-Install the AutoPay skill for Claude Code to get context-aware integration help:
+This llms.txt file is designed to be consumed by any AI coding agent. Point your agent at `https://autopayprotocol.com/llms.txt` and it will discover all the documentation it needs.
 
-```bash
-mkdir -p .claude/skills/autopay-integrate && curl -s https://autopayprotocol.com/claude-skill.md -o .claude/skills/autopay-integrate/SKILL.md
+- **Claude Code**: `mkdir -p .claude/skills/autopay-integrate && curl -s https://autopayprotocol.com/claude-skill.md -o .claude/skills/autopay-integrate/SKILL.md`, then use `/autopay-integrate <task>`.
+- **Cursor**: Settings → Docs → Add `https://autopayprotocol.com/llms.txt` as `AutoPay`, then use `@AutoPay <task>` in chat. Or add `.cursor/rules/autopay.mdc` referencing the URL.
+- **GitHub Copilot**: Create `.github/copilot-instructions.md` telling Copilot to fetch `https://autopayprotocol.com/llms.txt` and use `@autopayprotocol/sdk` for any AutoPay work.
+- **OpenAI Codex / ChatGPT / Codex CLI**: Add `Read https://autopayprotocol.com/llms.txt before writing AutoPay code` to `AGENTS.md` or the system prompt.
+- **Windsurf**: Add the URL to `.windsurfrules`, or use `@web https://autopayprotocol.com/llms.txt` in Cascade.
+- **Aider**: `/web https://autopayprotocol.com/llms.txt` to pull the index into context.
+- **Continue**: Add `https://autopayprotocol.com/llms.txt` as a `@docs` context provider.
+
+Example prompts (work in any agent once configured):
+
 ```
-
-Then use `/autopay-integrate` in Claude Code:
-
-```
-/autopay-integrate Express webhook handler
-/autopay-integrate Next.js checkout with existing plan
-/autopay-integrate Python Flask subscription server
+Build an Express webhook handler for AutoPay
+Create a Next.js checkout page with an existing plan
+Write a Python Flask subscription server
+Add AutoPay to my Fastify server with payment-gated routes
 ```
 
 ## Optional
