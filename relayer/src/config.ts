@@ -111,9 +111,39 @@ export function loadConfig(): RelayerConfig {
       timeoutMs: 10000, // 10 seconds
       maxRetries: 3,
     },
+    emailSender: parseEmailSenderConfig(),
+    publicBaseUrl: getOptionalEnv('PUBLIC_BASE_URL', 'https://relayer.autopayprotocol.com').replace(/\/$/, ''),
+    frontendUrl: getOptionalEnv('FRONTEND_URL', 'https://autopayprotocol.com').replace(/\/$/, ''),
     port: parseInt(getOptionalEnv('PORT', '3001'), 10),
     logLevel: getOptionalEnv('LOG_LEVEL', 'info'),
   }
+}
+
+/**
+ * Email sender / low-approval-notification config. All env vars optional
+ * with production-safe defaults.
+ *
+ *   EMAIL_SENDER_ENABLED         'true' | 'false'  (default true — actual send
+ *                                still gated by RESEND_API_KEY presence)
+ *   EMAIL_SENDER_INTERVAL_MS     poll interval             (default 30_000)
+ *   EMAIL_SENDER_BATCH_SIZE      rows claimed per tick     (default 20)
+ *   EMAIL_SENDER_LEASE_SECONDS   claim lease duration      (default 60)
+ *   EMAIL_SENDER_BACKOFF_MIN     comma-separated minutes   (default 1,5,15)
+ *   EMAIL_SENDER_MAX_ATTEMPTS    give up after N attempts  (default 3)
+ */
+function parseEmailSenderConfig(): RelayerConfig['emailSender'] {
+  const enabled = (process.env.EMAIL_SENDER_ENABLED ?? 'true').toLowerCase() !== 'false'
+  const runIntervalMs = parseInt(process.env.EMAIL_SENDER_INTERVAL_MS ?? '30000', 10)
+  const batchSize = parseInt(process.env.EMAIL_SENDER_BATCH_SIZE ?? '20', 10)
+  const leaseSeconds = parseInt(process.env.EMAIL_SENDER_LEASE_SECONDS ?? '60', 10)
+  const backoffMinutes = (process.env.EMAIL_SENDER_BACKOFF_MIN ?? '1,5,15')
+    .split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0)
+  const maxAttempts = parseInt(process.env.EMAIL_SENDER_MAX_ATTEMPTS ?? '3', 10)
+
+  if (backoffMinutes.length === 0) {
+    throw new Error('EMAIL_SENDER_BACKOFF_MIN must contain at least one positive number')
+  }
+  return { enabled, runIntervalMs, batchSize, leaseSeconds, backoffMinutes, maxAttempts }
 }
 
 export function getEnabledChains(_config: RelayerConfig): ChainConfig[] {

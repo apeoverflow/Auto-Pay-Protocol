@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide walks you through setting up and running the AutoPay relayer on your local machine for development and testing. The relayer indexes policy events from the consolidation chains (Base Mainnet and Flow EVM), executes charges when subscriptions are due, and sends webhooks to merchants.
+This guide walks you through setting up and running the AutoPay relayer on your local machine for development and testing. The relayer indexes policy events from the consolidation chains (Base, Arbitrum, Flow EVM, Polkadot Hub, and Tempo), executes charges when subscriptions are due, and sends webhooks to merchants.
 
 ---
 
@@ -10,7 +10,7 @@ This guide walks you through setting up and running the AutoPay relayer on your 
 
 - **Node.js** 20+
 - **Docker** (for PostgreSQL) or a managed Postgres instance
-- **A funded wallet** with native tokens for gas on the consolidation chains (ETH on Base, FLOW on Flow EVM)
+- **A funded wallet** with native tokens for gas on the consolidation chains (ETH on Base/Arbitrum, FLOW on Flow EVM, DOT on Polkadot Hub, USD on Tempo)
 
 ---
 
@@ -83,22 +83,23 @@ LOG_LEVEL=info
 RETRY_PRESET=standard
 
 # Optional: restrict to specific chains (default: all enabled in chains.json)
-# ENABLED_CHAINS=flowEvm,base
+# ENABLED_CHAINS=base,arbitrum,flowEvm,polkadotHub,tempo
 ```
 
 For IPFS metadata archival (optional):
 
 ```bash
-# Storacha credentials (IPFS + Filecoin)
-STORACHA_PRINCIPAL_KEY=...
-STORACHA_DELEGATION_PROOF=...
+# Pinata (IPFS pinning) — DB stays authoritative; a background retry
+# worker backfills CIDs if Pinata is temporarily unreachable.
+PINATA_JWT=...
+# IPFS_GATEWAY=https://gateway.pinata.cloud
 ```
 
 See the [Configuration Reference](./relayer-configuration.md) for all available options.
 
 ### 4. Fund Your Relayer Wallet
 
-The relayer wallet pays gas for `charge()` transactions. Fund it with native tokens for each enabled consolidation chain (ETH on Base, FLOW on Flow EVM).
+The relayer wallet pays gas for `charge()` transactions. Fund it with native tokens for each enabled consolidation chain (ETH on Base/Arbitrum, FLOW on Flow EVM, DOT on Polkadot Hub, USD on Tempo).
 
 To find your relayer wallet address, start the relayer and check the logs:
 
@@ -280,13 +281,13 @@ docker start autopay-db
 
 ### "Insufficient funds for gas"
 
-Your relayer wallet needs native tokens for gas. Check the startup logs for your wallet address and fund it on each enabled consolidation chain (ETH on Base, FLOW on Flow EVM).
+Your relayer wallet needs native tokens for gas. Check the startup logs for your wallet address and fund it on each enabled consolidation chain (ETH on Base/Arbitrum, FLOW on Flow EVM, DOT on Polkadot Hub, USD on Tempo).
 
 ### "Rate limited" or "Too many requests"
 
 Some RPCs have rate limits. The relayer handles this with delays and batch sizing, but if you see issues:
 - Use a private RPC endpoint
-- Flow EVM uses a batch size of 9,000 blocks; Base uses 10 blocks (Alchemy free tier limit)
+- Flow EVM uses a batch size of 9,000 blocks; Base uses 10 blocks (Alchemy free tier limit); Arbitrum, Polkadot Hub, and Tempo have their own tuned defaults in `chains.json`
 
 ### Relayer Not Picking Up Events
 

@@ -45,6 +45,16 @@ export interface RelayerConfig {
     timeoutMs: number
     maxRetries: number
   }
+  emailSender: {
+    enabled: boolean
+    runIntervalMs: number
+    batchSize: number
+    leaseSeconds: number
+    backoffMinutes: number[]
+    maxAttempts: number
+  }
+  publicBaseUrl: string
+  frontendUrl: string
   merchantAddresses: Set<string> | null // null = process all merchants
   port: number
   logLevel: string

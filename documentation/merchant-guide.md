@@ -71,13 +71,13 @@ You need an Ethereum-compatible wallet address to receive payments. This can be:
 - A hardware wallet (Ledger, Trezor)
 - A software wallet (MetaMask, Coinbase Wallet)
 - A multisig (Safe)
-- Any address you control on the consolidation chain (Base or Flow EVM)
+- Any address you control on one of the supported consolidation chains (Base, Arbitrum, Flow EVM, Polkadot Hub, or Tempo)
 
 > **Important:** Make sure you control the private key to this address. All payments are sent directly here.
 
 ### Step 2: Connect to the Dashboard
 
-1. Visit the AutoPay app (`autopayprotocol.com` for Base, `flow.autopayprotocol.com` for Flow EVM)
+1. Visit the AutoPay app — `autopayprotocol.com` (Base/Arbitrum default), `flow.autopayprotocol.com`, `polkadot.autopayprotocol.com`, or `tempo.autopayprotocol.com`. You can switch chains at any time via the chain selector in the header.
 2. Connect your merchant wallet
 3. Switch to **Merchant** mode using the toggle in the header
 
@@ -430,7 +430,7 @@ You cannot change the price of existing subscriptions - the charge amount is loc
 <details>
 <summary>What chains are supported?</summary>
 
-AutoPay deploys to **consolidation chains** (EVM chains where subscriptions settle). Currently live on **Base Mainnet** (primary) and **Flow EVM Mainnet**. Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Polygon, Optimism, Avalanche, and more) via the built-in [LiFi](https://li.fi) bridge widget.
+AutoPay deploys to **consolidation chains** (EVM chains where subscriptions settle). Currently live on **Base Mainnet** (primary), **Arbitrum One**, **Flow EVM Mainnet**, **Polkadot Hub**, and **Tempo Mainnet**. All chains are reachable from the in-app chain selector. Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Polygon, Optimism, Avalanche, and more) via the built-in [LiFi](https://li.fi) bridge widget. Tempo uses Stargate (LayerZero) since LiFi doesn't yet support it.
 
 </details>
 

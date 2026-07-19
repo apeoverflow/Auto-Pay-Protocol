@@ -24,6 +24,7 @@ import {
   PrivacyPage,
   LeaderboardPage,
   PaymentsPage,
+  EmailVerifiedPage,
 } from './pages'
 import { TermsAcceptanceModal } from './components/shared/TermsAcceptanceModal'
 import {
@@ -185,6 +186,18 @@ function App() {
         {seoHead}
         <div className="route-layer">
           <TermsPage onBack={() => navigate(isLoggedIn ? '/dashboard' : '/')} />
+        </div>
+      </div>
+    )
+  }
+
+  // Fullscreen: Email-verification confirmation (linked from transactional email)
+  if (activeRoute === '/email-verified') {
+    return (
+      <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        {seoHead}
+        <div className="route-layer">
+          <EmailVerifiedPage />
         </div>
       </div>
     )

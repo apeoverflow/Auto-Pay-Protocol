@@ -436,4 +436,62 @@ program
     }
   })
 
+// ==================== Projection Commands ====================
+
+program
+  .command('projections:backfill')
+  .description('Recompute payer_projections rows for every payer with policies on a chain')
+  .option('--chain <chain>', 'Chain to backfill', 'flowEvm')
+  .action(async (options) => {
+    const config = loadConfig()
+    const chainConfig = config.chains[options.chain]
+    if (!chainConfig) {
+      logger.error(`Unknown chain: ${options.chain}`)
+      process.exit(1)
+    }
+
+    logger.info({ chain: options.chain, chainId: chainConfig.chainId }, 'Backfilling projections...')
+
+    const { recomputeAll } = await import('../src/db/projections.js')
+    const { payersProcessed } = await recomputeAll(config.databaseUrl, chainConfig.chainId)
+
+    console.log(`\n✅ Backfilled projections for ${payersProcessed} payer(s) on ${chainConfig.name}.\n`)
+  })
+
+program
+  .command('projections:show')
+  .description('Show a payer\'s stored projection and verify it against policies')
+  .requiredOption('--chain <chain>', 'Chain key (e.g. flowEvm, base)')
+  .requiredOption('--payer <address>', 'Payer address')
+  .action(async (options) => {
+    const config = loadConfig()
+    const chainConfig = config.chains[options.chain]
+    if (!chainConfig) {
+      logger.error(`Unknown chain: ${options.chain}`)
+      process.exit(1)
+    }
+
+    const { verifyPayer, getProjection } = await import('../src/db/projections.js')
+    const stored = await getProjection(config.databaseUrl, chainConfig.chainId, options.payer)
+    const check = await verifyPayer(config.databaseUrl, chainConfig.chainId, options.payer)
+
+    console.log('\n=== Payer Projection ===\n')
+    console.log(`Chain:                ${chainConfig.name} (${chainConfig.chainId})`)
+    console.log(`Payer:                ${options.payer.toLowerCase()}`)
+    console.log(`Active policies:      ${check.activePolicyCount}`)
+    console.log(`Stored projection:    ${stored ? formatUsdc(stored.projected12moMicro) : '(none)'}`)
+    console.log(`Live from policies:   ${formatUsdc(check.fromPolicies)}`)
+    console.log(`Match:                ${check.match ? '✅ YES' : '❌ NO — run projections:backfill'}`)
+    if (stored) {
+      console.log(`Last updated:         ${stored.updatedAt.toISOString()}`)
+    }
+    console.log()
+  })
+
+function formatUsdc(micro: bigint): string {
+  const whole = micro / 1_000_000n
+  const frac = (micro % 1_000_000n).toString().padStart(6, '0').slice(0, 2)
+  return `${whole.toString()}.${frac} USDC (${micro.toString()} µUSDC)`
+}
+
 program.parse()

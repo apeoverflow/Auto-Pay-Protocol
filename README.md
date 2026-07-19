@@ -10,14 +10,14 @@
 
 **Non-custodial crypto subscription payments for humans and AI agents. 50% cheaper than Stripe.**
 
-AutoPay is a decentralized subscription payment protocol built on USDC. Users and autonomous agents maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Payments settle on **Arbitrum**, **Base** ([autopayprotocol.com](https://autopayprotocol.com)), and **Flow EVM** ([flow.autopayprotocol.com](https://flow.autopayprotocol.com)), with cross-chain funding from 30+ chains via LiFi.
+AutoPay is a decentralized subscription payment protocol built on USDC. Users and autonomous agents maintain full custody of their funds while enabling merchants to collect recurring payments automatically. Payments settle on **Base** ([autopayprotocol.com](https://autopayprotocol.com)), **Arbitrum One**, **Flow EVM** ([flow.autopayprotocol.com](https://flow.autopayprotocol.com)), **Polkadot Hub** ([polkadot.autopayprotocol.com](https://polkadot.autopayprotocol.com)), and **Tempo** ([tempo.autopayprotocol.com](https://tempo.autopayprotocol.com)). All chains are reachable from the in-app chain selector. Cross-chain funding is powered by LiFi (30+ chains); Tempo uses Stargate/LayerZero.
 
 ## Features
 
 - **Non-Custodial**: Funds stay in user wallets until charged. No intermediary custody.
 - **Policy-Based**: Users set spending limits, intervals, and caps. Full control.
 - **Adjustable Caps**: Payers can raise, lower, or remove a policy's lifetime spending cap on-chain at any time without cancelling and resubscribing.
-- **Multi-Chain Funding**: Bridge USDC from any chain via LiFi. Settlements on Arbitrum, Base, or Flow EVM.
+- **Multi-Chain Funding**: Bridge USDC from any chain via LiFi. Settlements on Base, Arbitrum, Flow EVM, Polkadot Hub, or Tempo.
 - **Agent-Native**: AI agents can discover, subscribe to, and pay for services autonomously via the Agent SDK, MCP server, or HTTP 402 discovery.
 - **Simple UX**: Users only need USDC. No complex token management.
 - **Low Fees**: 2.5% protocol fee vs 5%+ for traditional processors.
@@ -32,7 +32,7 @@ AutoPay is a decentralized subscription payment protocol built on USDC. Users an
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  1. User connects wallet (MetaMask, Rabby, etc.)                │
-│  2. User bridges USDC to Base or Flow EVM (if needed)           │
+│  2. User bridges USDC to a consolidation chain (if needed)      │
 │  3. User approves USDC to PolicyManager                         │
 │  4. User creates policy (merchant, amount, interval, cap)       │
 │  5. Relayer calls charge() when payment is due                  │
@@ -90,7 +90,7 @@ AutoPay is a decentralized subscription payment protocol built on USDC. Users an
 | Agent SDK | TypeScript, viem, EIP-191 signed tokens |
 | MCP Server | Model Context Protocol for Claude and other AI agents |
 | Middleware | Express middleware for service providers |
-| Settlement | Arbitrum, Base, Flow EVM |
+| Settlement | Base, Arbitrum, Flow EVM, Polkadot Hub, Tempo |
 
 ## Project Structure
 
@@ -112,7 +112,7 @@ Auto-Pay-Protocol/
 │       ├── executor/      # Charge execution logic
 │       ├── webhooks/      # Merchant notifications
 │       ├── api/           # Health, metadata & logo endpoints
-│       ├── lib/           # Storacha (IPFS), logo storage backends
+│       ├── lib/           # Pinata (IPFS) + retry worker, logo storage backends
 │       └── db/            # Postgres client & queries
 ├── packages/
 │   ├── agent-sdk/         # Agent subscription SDK (AutoPayAgent)
@@ -256,15 +256,21 @@ function cancelFailedPolicy(bytes32 policyId) external;
 | Chain | Chain ID | USDC | PolicyManager |
 |-------|----------|------|---------------|
 | Base | 8453 | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a` |
+| Arbitrum One | 42161 | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` | `0xCE3550099De882607B50d6F57d4ECd3985dcd521` |
 | Flow EVM Mainnet | 747 | `0xF1815bd50389c46847f0Bda824eC8da914045D14` | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| Polkadot Hub | 420420419 | `0x0000053900000000000000000000000001200000` | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| Tempo Mainnet | 4217 | `0x20c000000000000000000000b9537d11c60e8b50` (USDC.e) | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
 | Base Sepolia (testnet) | 84532 | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
 
 ## Roadmap
 
 - [x] Product requirements and architecture
 - [x] Smart contract design and implementation
-- [x] Contract deployed to Flow EVM Mainnet
 - [x] Contract deployed to Base Mainnet
+- [x] Contract deployed to Arbitrum One
+- [x] Contract deployed to Flow EVM Mainnet
+- [x] Contract deployed to Polkadot Hub
+- [x] Contract deployed to Tempo Mainnet
 - [x] Contract deployed to Base Sepolia (testnet)
 - [x] Frontend with RainbowKit wallet connection
 - [x] LiFi cross-chain bridge integration
@@ -272,7 +278,7 @@ function cancelFailedPolicy(bytes32 policyId) external;
 - [x] Merchant SDK (`@autopayprotocol/sdk`)
 - [x] End-to-end local testing
 - [x] Production relayer deployment
-- [x] Merchant IPFS metadata (Storacha with IPFS + Filecoin pinning)
+- [x] Merchant IPFS metadata (Pinata IPFS pinning; DB is source of truth with background retry worker)
 - [x] Logo upload and storage (Supabase Storage)
 - [x] Merchant Dashboard
 - [x] Merchant onboarding

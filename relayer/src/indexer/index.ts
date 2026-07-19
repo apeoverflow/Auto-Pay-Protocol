@@ -10,6 +10,7 @@ import { insertPolicy, revokePolicy, updatePolicyAfterCharge, getPolicy, markPol
 import { chargeHandledByExecutor } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { insertSubscriberData } from '../db/subscribers.js'
+import { recomputePayer } from '../db/projections.js'
 import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('indexer')
@@ -97,6 +98,7 @@ export async function runIndexerOnce(
             parsed.event,
             timestamp
           )
+          await recomputePayerSafe(databaseUrl, chainConfig.chainId, parsed.event.payer)
           // Ensure subscriber_data row exists (fallback for when the checkout
           // page's fire-and-forget POST /subscribers fails or races the indexer)
           try {
@@ -153,6 +155,7 @@ export async function runIndexerOnce(
             parsed.event,
             timestamp
           )
+          await recomputePayerSafe(databaseUrl, chainConfig.chainId, parsed.event.payer)
           // Queue webhook
           await queueWebhook(databaseUrl, parsed.event.policyId, 'policy.revoked', {
             event: 'policy.revoked',
@@ -252,6 +255,7 @@ export async function runIndexerOnce(
             parsed.event.policyId,
             timestamp
           )
+          await recomputePayerSafe(databaseUrl, chainConfig.chainId, parsed.event.payer)
           // Queue webhook
           await queueWebhook(databaseUrl, parsed.event.policyId, 'policy.cancelled_by_failure', {
             event: 'policy.cancelled_by_failure',
@@ -342,6 +346,20 @@ export async function startIndexerLoop(
   }
 
   logger.info({ chainId: chainConfig.chainId }, 'Indexer loop stopped')
+}
+
+/**
+ * Recompute a payer's 12-month projection without letting a failure stop
+ * indexer progress. Projections can always be reconstructed via the
+ * `projections:backfill` CLI, so best-effort with a warning is the right
+ * blast radius here.
+ */
+async function recomputePayerSafe(databaseUrl: string, chainId: number, payer: string): Promise<void> {
+  try {
+    await recomputePayer(databaseUrl, chainId, payer)
+  } catch (err) {
+    logger.warn({ chainId, payer, err }, 'Failed to recompute payer projection (non-fatal)')
+  }
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {

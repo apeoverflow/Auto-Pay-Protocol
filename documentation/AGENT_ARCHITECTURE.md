@@ -76,7 +76,7 @@ graph LR
 | **On-chain enforcement** | Spending caps, intervals, and max retries are enforced by the contract |
 | **Agent-initiated** | Agent creates and cancels subscriptions; relayer only executes scheduled charges |
 | **No identity** | Wallet address is the only identifier. No KYC, no accounts, no API keys |
-| **Multi-chain** | PolicyManager deployed on Flow EVM (747), Base (8453), and Base Sepolia (84532) |
+| **Multi-chain** | PolicyManager deployed on Base (8453), Arbitrum One (42161), Flow EVM (747), Polkadot Hub (420420419), Tempo (4217), and Base Sepolia (84532) |
 
 ---
 
@@ -168,7 +168,7 @@ sequenceDiagram
 | Cancel | `PM.revokePolicy(policyId)` | ~40,000 gas | Once per subscription |
 | Check status | `PM.policies(policyId)` | 0 (view call) | Every verification |
 
-Gas costs on Base: ~5-20 cents per write. On Flow EVM: <1 cent per write.
+Gas costs vary by chain: Base ~5-20¢ per write, Arbitrum ~1-5¢, Flow EVM <1¢, Polkadot Hub <1¢, Tempo <1¢ (denominated in USD).
 
 ### Off-Chain Operations (Free)
 
@@ -449,10 +449,28 @@ sequenceDiagram
         "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
       },
       {
+        "chainId": 42161,
+        "name": "Arbitrum One",
+        "policyManager": "0xCE3550099De882607B50d6F57d4ECd3985dcd521",
+        "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+      },
+      {
         "chainId": 747,
         "name": "Flow EVM",
         "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345",
         "usdc": "0xF1815bd50389c46847f0Bda824eC8da914045D14"
+      },
+      {
+        "chainId": 420420419,
+        "name": "Polkadot Hub",
+        "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345",
+        "usdc": "0x0000053900000000000000000000000001200000"
+      },
+      {
+        "chainId": 4217,
+        "name": "Tempo",
+        "policyManager": "0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345",
+        "usdc": "0x20c000000000000000000000b9537d11c60e8b50"
       }
     ],
     "relayerUrl": "https://relayer.autopayprotocol.com"
@@ -542,7 +560,7 @@ sequenceDiagram
 | **SDK** | `@x402/fetch`, `@x402/express` | `@autopayprotocol/agent-sdk`, `@autopayprotocol/mcp` |
 | **Transparent fetch wrapper** | `wrapFetchWithPayment` | `wrapFetchWithSubscription` |
 | **MCP server** | Via x402 MCP tools | `@autopayprotocol/mcp` (8 tools) |
-| **Supported chains** | Base, Ethereum, Optimism, Polygon, Arbitrum, Avalanche, Solana | Flow EVM, Base, Base Sepolia |
+| **Supported chains** | Base, Ethereum, Optimism, Polygon, Arbitrum, Avalanche, Solana | Base, Arbitrum, Flow EVM, Polkadot Hub, Tempo, Base Sepolia |
 | **Best for** | One-off lookups, unpredictable usage, micropayments | Ongoing access, predictable costs, high-frequency use |
 
 ### Cost Comparison
@@ -666,8 +684,11 @@ async function handleRequest(req, res) {
 
 | Chain | Chain ID | PolicyManager | USDC |
 |-------|----------|---------------|------|
-| Flow EVM | 747 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0xF1815bd50389c46847f0Bda824eC8da914045D14` |
 | Base | 8453 | `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a` | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Arbitrum One | 42161 | `0xCE3550099De882607B50d6F57d4ECd3985dcd521` | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
+| Flow EVM | 747 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0xF1815bd50389c46847f0Bda824eC8da914045D14` |
+| Polkadot Hub | 420420419 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0x0000053900000000000000000000000001200000` |
+| Tempo | 4217 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0x20c000000000000000000000b9537d11c60e8b50` (USDC.e) |
 | Base Sepolia | 84532 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
 ## Key Constants

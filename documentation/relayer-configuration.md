@@ -12,9 +12,13 @@ The AutoPay relayer is configured entirely through environment variables. This r
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string |
 | `RELAYER_PRIVATE_KEY` | Yes | - | Wallet private key (must start with `0x`) |
-| `FLOW_EVM_RPC` | No | `https://mainnet.evm.nodes.onflow.org` | Flow EVM Mainnet RPC URL |
 | `BASE_RPC` | No | `https://mainnet.base.org` | Base Mainnet RPC URL |
-| `ENABLED_CHAINS` | No | *(all enabled in chains.json)* | Override enabled chains (e.g., `flowEvm,base`) |
+| `ARBITRUM_RPC` | No | `https://arb1.arbitrum.io/rpc` | Arbitrum One RPC URL |
+| `FLOW_EVM_RPC` | No | `https://mainnet.evm.nodes.onflow.org` | Flow EVM Mainnet RPC URL |
+| `POLKADOT_HUB_RPC` | No | `https://eth-rpc.polkadot.io/` | Polkadot Hub RPC URL |
+| `TEMPO_RPC` | No | `https://rpc.tempo.xyz` | Tempo Mainnet RPC URL |
+| `BASE_SEPOLIA_RPC` | No | `https://sepolia.base.org` | Base Sepolia (testnet) RPC URL |
+| `ENABLED_CHAINS` | No | *(all enabled in chains.json)* | Override enabled chains (e.g., `base,arbitrum,flowEvm,polkadotHub,tempo`) |
 | `PORT` | No | `3001` | API server port |
 | `LOG_LEVEL` | No | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `RETRY_PRESET` | No | `standard` | Retry preset: `aggressive`, `standard`, `conservative`, `custom` |
@@ -24,9 +28,11 @@ The AutoPay relayer is configured entirely through environment variables. This r
 | `MERCHANT_ADDRESSES` | No | - | Comma-separated merchant addresses to filter by |
 | `SUPABASE_URL` | No | - | Supabase project URL (required for logo uploads) |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | - | Supabase service role key (required for logo uploads) |
-| `STORACHA_PRINCIPAL_KEY` | No | - | Ed25519 DID key for Storacha (IPFS + Filecoin) |
-| `STORACHA_DELEGATION_PROOF` | No | - | Base64-encoded delegation CAR for Storacha |
-| `IPFS_GATEWAY` | No | `https://w3s.link` | IPFS gateway for resolving CIDs |
+| `PINATA_JWT` | No | - | Pinata API JWT for IPFS pinning. DB stays authoritative; missing uploads are backfilled by the background retry worker. |
+| `IPFS_GATEWAY` | No | `https://gateway.pinata.cloud` | IPFS gateway for resolving CIDs |
+| `IPFS_RETRY_ENABLED` | No | `true` | Enable/disable the background IPFS retry worker |
+| `IPFS_RETRY_INTERVAL_MS` | No | `300000` | How often the retry worker scans for un-pinned metadata (ms) |
+| `IPFS_MAX_UPLOAD_ATTEMPTS` | No | `8` | Stops auto-retrying a plan after this many failures |
 | `STATS_API_KEY` | No | - | Global API key for stats/subscriber endpoints (alternative to signature auth) |
 | `AUTH_ENABLED` | No | `false` | Enable EIP-191 signature auth for plan management |
 
@@ -41,12 +47,16 @@ DATABASE_URL=postgres://autopay:password@localhost:5432/autopay
 # Relayer wallet private key (must have native tokens for gas)
 RELAYER_PRIVATE_KEY=0x...
 
-# RPC URLs (both consolidation chains are enabled by default)
-FLOW_EVM_RPC=https://mainnet.evm.nodes.onflow.org
+# RPC URLs (all enabled consolidation chains fall back to public RPCs in chains.json)
 BASE_RPC=https://mainnet.base.org
+ARBITRUM_RPC=https://arb1.arbitrum.io/rpc
+FLOW_EVM_RPC=https://mainnet.evm.nodes.onflow.org
+POLKADOT_HUB_RPC=https://eth-rpc.polkadot.io/
+TEMPO_RPC=https://rpc.tempo.xyz
+# BASE_SEPOLIA_RPC=https://sepolia.base.org
 
 # Optional: Override which chains to process (default: all enabled in chains.json)
-# ENABLED_CHAINS=flowEvm,base
+# ENABLED_CHAINS=base,arbitrum,flowEvm,polkadotHub,tempo
 
 # Optional: Health server port
 PORT=3001
@@ -72,12 +82,14 @@ RETRY_PRESET=standard
 # SUPABASE_URL=https://your-project.supabase.co
 # SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 
-# Optional: Storacha (IPFS + Filecoin) for immutable plan metadata
-# When configured, plan activation uploads metadata to IPFS (blocking).
-# Without these, plans activate without IPFS CID (self-hosted fallback).
-# STORACHA_PRINCIPAL_KEY=...
-# STORACHA_DELEGATION_PROOF=...
-# IPFS_GATEWAY=https://w3s.link
+# Optional: Pinata for IPFS pinning of plan metadata & reports.
+# DB is authoritative; uploads are non-blocking. A background retry worker
+# (relayer/src/lib/ipfs-retry.ts) backfills CIDs once Pinata is reachable.
+# PINATA_JWT=...
+# IPFS_GATEWAY=https://gateway.pinata.cloud
+# IPFS_RETRY_ENABLED=true
+# IPFS_RETRY_INTERVAL_MS=300000
+# IPFS_MAX_UPLOAD_ATTEMPTS=8
 
 # Optional: Enable EIP-191 signature auth for plan management
 # AUTH_ENABLED=true
@@ -89,7 +101,7 @@ RETRY_PRESET=standard
 
 A **consolidation chain** is any EVM chain where a PolicyManager contract is deployed and subscriptions settle. The relayer supports multiple consolidation chains simultaneously, each with its own config entry in `CHAIN_CONFIGS`.
 
-Currently enabled: **Base Mainnet** (primary) and **Flow EVM Mainnet**. Use the `ENABLED_CHAINS` env var to override which chains are processed (e.g., `ENABLED_CHAINS=baseSepolia` for staging).
+Currently live: **Base Mainnet** (primary), **Arbitrum One**, **Flow EVM Mainnet**, **Polkadot Hub**, and **Tempo Mainnet**. **Base Sepolia** is used for staging. Use the `ENABLED_CHAINS` env var to override which chains are processed (e.g., `ENABLED_CHAINS=baseSepolia` for staging, or `ENABLED_CHAINS=base,arbitrum` to run only two mainnets).
 
 ### Base Mainnet
 
@@ -106,6 +118,17 @@ Currently enabled: **Base Mainnet** (primary) and **Flow EVM Mainnet**. Use the 
 
 > **Note:** Base public RPC (`mainnet.base.org`) can be unreliable. Use Alchemy free tier for production. Note: it limits `eth_getLogs` to 10 blocks per request, which is why `batchSize` is set to 10.
 
+### Arbitrum One
+
+| Property | Value |
+|----------|-------|
+| Chain ID | `42161` |
+| RPC URL | `https://arb1.arbitrum.io/rpc` |
+| PolicyManager | `0xCE3550099De882607B50d6F57d4ECd3985dcd521` |
+| USDC | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
+| Native gas token | ETH |
+| LiFi funding | Supported |
+
 ### Flow EVM Mainnet
 
 | Property | Value |
@@ -118,6 +141,36 @@ Currently enabled: **Base Mainnet** (primary) and **Flow EVM Mainnet**. Use the 
 | Poll Interval | 15 seconds |
 | Batch Size | 9,000 blocks |
 | Confirmations | 2 blocks |
+| Native gas token | FLOW |
+| LiFi funding | Supported |
+
+### Polkadot Hub
+
+| Property | Value |
+|----------|-------|
+| Chain ID | `420420419` |
+| RPC URL | `https://eth-rpc.polkadot.io/` |
+| PolicyManager | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| USDC | `0x0000053900000000000000000000000001200000` |
+| Poll Interval | 6 seconds |
+| Batch Size | 1,000 blocks |
+| Confirmations | 2 blocks |
+| Native gas token | DOT |
+| LiFi funding | Not supported (fund natively) |
+
+### Tempo Mainnet
+
+| Property | Value |
+|----------|-------|
+| Chain ID | `4217` |
+| RPC URL | `https://rpc.tempo.xyz` |
+| PolicyManager | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| USDC.e | `0x20c000000000000000000000b9537d11c60e8b50` |
+| Poll Interval | 2 seconds |
+| Batch Size | 10,000 blocks |
+| Confirmations | 1 block |
+| Native gas token | USD (6 decimals) |
+| Cross-chain funding | Stargate (LayerZero) — LiFi not yet supported |
 
 ### Base Sepolia (staging)
 

@@ -4,6 +4,9 @@ import { getPoliciesByPayer } from '../db/policies.js'
 import { getChargesByMerchant, getChargesByIdsForMerchant, getChargesByIdsForPayer, setChargeReceiptCid } from '../db/charges.js'
 import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus, VALID_SUBSCRIBER_FIELDS } from '../db/metadata.js'
 import { insertSubscriberData, getSubscribersByMerchant } from '../db/subscribers.js'
+import { upsertPayerEmail } from '../db/payer-contacts.js'
+import { createVerificationToken, consumeVerificationToken } from '../db/payer-email-verifications.js'
+import { enqueueEmail } from '../db/email-outbox.js'
 import { createApiKey, validateApiKey, listApiKeys, revokeApiKey } from '../db/api-keys.js'
 import { generateShortId, createCheckoutLink, getCheckoutLink, getCheckoutLinksByPlan, deleteCheckoutLink, type CheckoutLinkRow } from '../db/checkout-links.js'
 import { generateMonthlyReport, type MonthlyReport } from '../reports/generate.js'
@@ -1454,8 +1457,69 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           planId ?? null, planMerchant ?? null, formData as Record<string, string>
         )
 
+        // If the payer supplied an email, register them for low-approval
+        // notifications and — if this email hasn't been verified before —
+        // enqueue a verification magic link. This is best-effort; a failure
+        // here MUST NOT fail the subscriber_data insert, which is the
+        // primary contract of this endpoint.
+        const submittedEmail = (formData as Record<string, string>).email
+        if (submittedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submittedEmail)) {
+          try {
+            await registerPayerContactAndMaybeVerify({
+              config,
+              chainId,
+              payer,
+              email: submittedEmail,
+              planId: planId ?? null,
+              planMerchant: planMerchant ?? null,
+            })
+          } catch (err) {
+            logger.warn({ err, chainId, payer }, 'Failed to register payer contact (non-fatal)')
+          }
+        }
+
         res.writeHead(201, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true }))
+        return
+      }
+
+      // Public magic-link verify endpoint: consumes a token, marks the
+      // payer's email verified, redirects to the frontend confirmation.
+      if (path === '/subscribers/verify' && req.method === 'GET') {
+        const clientIp = getClientIp(req)
+        const ipRate = authRateLimiter.check(clientIp)
+        if (!ipRate.allowed) { sendRateLimited(res, ipRate); return }
+
+        const token = params.get('token') ?? ''
+        if (!token || !/^[a-f0-9]{64}$/i.test(token)) {
+          redirectToFrontend(res, config, '/email-verified?status=invalid')
+          return
+        }
+
+        const consumed = await consumeVerificationToken(config.databaseUrl, token)
+        if (!consumed) {
+          // Either unknown, expired, or already used — collapse into one UX.
+          redirectToFrontend(res, config, '/email-verified?status=expired')
+          return
+        }
+
+        const { markEmailVerified } = await import('../db/payer-contacts.js')
+        const verified = await markEmailVerified(
+          config.databaseUrl, consumed.chainId, consumed.payer, consumed.email
+        )
+
+        if (verified) {
+          logger.info(
+            { chainId: consumed.chainId, payer: consumed.payer },
+            'Payer email verified via magic link'
+          )
+          redirectToFrontend(res, config, '/email-verified?status=ok')
+        } else {
+          // The row's current email no longer matches (payer changed address
+          // between token issuance and click). The token is spent, but the
+          // new address will need its own verification round.
+          redirectToFrontend(res, config, '/email-verified?status=stale')
+        }
         return
       }
 
@@ -3111,6 +3175,71 @@ async function handlePayerReceiptUpload(
     chainId
   )
   await processReceiptUploads(config, charges, chargeIds, res)
+}
+
+/**
+ * Registers or refreshes the payer's contact record and, if the email is
+ * unverified, enqueues a magic-link verification email. Best-effort — never
+ * throws to the caller (they log and continue).
+ *
+ * Called from POST /subscribers after subscriber_data has been written.
+ */
+async function registerPayerContactAndMaybeVerify(args: {
+  config: RelayerConfig
+  chainId: number
+  payer: string
+  email: string
+  planId: string | null
+  planMerchant: string | null
+}): Promise<void> {
+  const { config, chainId, payer, email, planId, planMerchant } = args
+
+  const { contact } = await upsertPayerEmail(config.databaseUrl, chainId, payer, email)
+
+  // Already verified — nothing more to do. (Handles the case where a
+  // payer subscribes to a second plan with the same email address.)
+  if (contact.emailVerifiedAt) return
+
+  // Best-effort plan/merchant name lookup for the email body.
+  let planName: string | undefined
+  let merchantName: string | undefined
+  if (planId && planMerchant) {
+    try {
+      const meta = await getPlanMetadata(config.databaseUrl, planId, planMerchant)
+      if (meta?.metadata) {
+        const m = meta.metadata as { plan?: { name?: string }; merchant?: { name?: string } }
+        planName = m.plan?.name
+        merchantName = m.merchant?.name
+      }
+    } catch {
+      // Plan metadata is optional context — silent skip.
+    }
+  }
+
+  const { token } = await createVerificationToken(config.databaseUrl, chainId, payer, email)
+  const verifyUrl = `${config.publicBaseUrl}/subscribers/verify?token=${token}`
+
+  await enqueueEmail(config.databaseUrl, {
+    dedupeKey: `verify:${token}`,
+    toAddress: contact.email!,
+    template: 'email_verify',
+    payload: { verifyUrl, planName, merchantName },
+  })
+
+  logger.info(
+    { chainId, payer: payer.toLowerCase(), planId, planMerchant },
+    'Enqueued verification email'
+  )
+}
+
+/**
+ * 302 redirect to a frontend path. Kept as a helper so verify/unsubscribe
+ * endpoints share a single implementation.
+ */
+function redirectToFrontend(res: ServerResponse, config: RelayerConfig, pathAndQuery: string): void {
+  const location = `${config.frontendUrl}${pathAndQuery.startsWith('/') ? pathAndQuery : `/${pathAndQuery}`}`
+  res.writeHead(302, { Location: location })
+  res.end()
 }
 
 export function startApiServer(server: Server, port: number): Promise<void> {

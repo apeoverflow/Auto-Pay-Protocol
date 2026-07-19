@@ -175,7 +175,7 @@ const result = await agent.bridgeUsdc({
 | `toAmount` | `string` | Formatted USDC received |
 | `durationMs` | `number` | Total bridge time |
 
-**Supported source chains:** Ethereum (1), Optimism (10), Polygon (137), Arbitrum (42161), Avalanche (43114), BSC (56), Base (8453), Flow EVM (747), Base Sepolia (84532).
+**Supported source chains for LiFi funding:** Ethereum (1), Optimism (10), Polygon (137), Arbitrum (42161), Avalanche (43114), BSC (56), Base (8453), Flow EVM (747), Polkadot Hub (420420419), Base Sepolia (84532). **Tempo (4217)** is a supported consolidation chain but must be funded via Stargate (LayerZero) — LiFi does not yet route to Tempo.
 
 #### `swapNativeToUsdc(params: SwapParams): Promise<SwapResult>`
 
@@ -354,7 +354,10 @@ The SDK ships with built-in chain configs (auto-generated from `chains.json`):
 | Chain | Key | Chain ID | PolicyManager | USDC |
 |-------|-----|----------|---------------|------|
 | Base | `base` | 8453 | `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a` | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Arbitrum One | `arbitrum` | 42161 | `0xCE3550099De882607B50d6F57d4ECd3985dcd521` | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
 | Flow EVM | `flowEvm` | 747 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0xF1815bd50389c46847f0Bda824eC8da914045D14` |
+| Polkadot Hub | `polkadotHub` | 420420419 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0x0000053900000000000000000000000001200000` |
+| Tempo | `tempo` | 4217 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0x20c000000000000000000000b9537d11c60e8b50` (USDC.e) |
 | Base Sepolia | `baseSepolia` | 84532 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
 All configs can be overridden via the `AgentConfig` constructor options (`rpcUrl`, `policyManager`, `usdc`).
@@ -373,4 +376,6 @@ Known USDC contract addresses on source chains (for bridging):
 | BSC | 56 | `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d` |
 | Base | 8453 | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
 | Flow EVM | 747 | `0xF1815bd50389c46847f0Bda824eC8da914045D14` |
+| Polkadot Hub | 420420419 | `0x0000053900000000000000000000000001200000` |
+| Tempo | 4217 | `0x20c000000000000000000000b9537d11c60e8b50` (USDC.e) |
 | Base Sepolia | 84532 | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |

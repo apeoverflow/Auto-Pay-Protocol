@@ -156,7 +156,7 @@ When you subscribe to a 10 USDC/month plan, you pay 10 USDC. The fee breakdown i
 | Merchant receives | 9.75 USDC |
 | Protocol fee (2.5%) | 0.25 USDC |
 
-The protocol fee is included in the charge amount - you don't pay extra on top of the stated price. You'll also need a small amount of the chain's native token for gas fees (FLOW on Flow EVM, ETH on Base), typically less than $0.01 per transaction.
+The protocol fee is included in the charge amount - you don't pay extra on top of the stated price. You'll also need a small amount of the chain's native token for gas fees (ETH on Base/Arbitrum, FLOW on Flow EVM, DOT on Polkadot Hub, USD on Tempo), typically less than $0.01 per transaction.
 
 ---
 
@@ -200,20 +200,20 @@ Yes. You can have as many active subscriptions as you want, to different merchan
 <details>
 <summary>What blockchain does this use?</summary>
 
-AutoPay deploys to **consolidation chains** (EVM chains where subscriptions settle). Currently live on **Base Mainnet** (primary) and **Flow EVM Mainnet**. You can bridge USDC from 30+ chains (Ethereum, Arbitrum, Polygon, Optimism, Avalanche, and more) using the built-in LiFi bridge widget.
+AutoPay deploys to **consolidation chains** (EVM chains where subscriptions settle). Currently live on **Base Mainnet** (primary), **Arbitrum One**, **Flow EVM Mainnet**, **Polkadot Hub**, and **Tempo Mainnet** — all reachable from the in-app chain selector. You can bridge USDC from 30+ chains (Ethereum, Arbitrum, Polygon, Optimism, Avalanche, and more) using the built-in LiFi bridge widget. Tempo uses Stargate (LayerZero) since LiFi doesn't yet support it.
 
 </details>
 
 <details>
 <summary>Do I need ETH or other tokens for gas?</summary>
 
-You'll need a tiny amount of the chain's native token for gas (FLOW on Flow EVM, ETH on Base). Gas costs are typically under $0.01 per transaction. Your main balance should be in USDC.
+You'll need a tiny amount of the chain's native token for gas (ETH on Base/Arbitrum, FLOW on Flow EVM, DOT on Polkadot Hub, USD on Tempo). Gas costs are typically under $0.01 per transaction. Your main balance should be in USDC.
 
 </details>
 
 <details>
 <summary>How do I see my on-chain transactions?</summary>
 
-Your activity feed shows transaction hashes that link to the block explorer for the consolidation chain (e.g. [Flowscan](https://evm.flowscan.io) for Flow EVM), where you can verify every charge independently.
+Your activity feed shows transaction hashes that link to the block explorer for the consolidation chain — [BaseScan](https://basescan.org) for Base, [Arbiscan](https://arbiscan.io) for Arbitrum, [Flowscan](https://evm.flowscan.io) for Flow EVM, [Blockscout](https://blockscout.polkadot.io) for Polkadot Hub, or [Tempo Explorer](https://explore.tempo.xyz) for Tempo — where you can verify every charge independently.
 
 </details>

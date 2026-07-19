@@ -149,14 +149,18 @@ The system has three main components:
 
 ### Current Network
 
-AutoPay deploys to **consolidation chains** (EVM chains where a PolicyManager contract is deployed and subscriptions settle). Each chain gets its own frontend deployment:
+AutoPay deploys to **consolidation chains** (EVM chains where a PolicyManager contract is deployed and subscriptions settle). Every supported chain is reachable from the in-app chain selector — subdomains below are convenience defaults, not the only entry point.
 
-| Deployment | Chain | Chain ID | Domain |
-|------------|-------|----------|--------|
-| **Base** (primary) | Base Mainnet | 8453 | `autopayprotocol.com` |
-| **Flow EVM** | Flow EVM Mainnet | 747 | `flow.autopayprotocol.com` |
+| Chain | Chain ID | Default domain | Status |
+|-------|----------|----------------|--------|
+| **Base Mainnet** (primary) | 8453 | `autopayprotocol.com` | Live |
+| **Arbitrum One** | 42161 | `autopayprotocol.com` | Live |
+| **Flow EVM Mainnet** | 747 | `flow.autopayprotocol.com` | Live |
+| **Polkadot Hub** | 420420419 | `polkadot.autopayprotocol.com` | Live |
+| **Tempo Mainnet** | 4217 | `tempo.autopayprotocol.com` | Live |
+| **Base Sepolia** (testnet) | 84532 | `staging.autopayprotocol.com` | Live |
 
-Cross-chain funding is powered by [LiFi](https://li.fi). Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) to the consolidation chain where their subscription settles.
+Cross-chain funding is powered by [LiFi](https://li.fi). Subscribers can bridge USDC from 30+ chains (Ethereum, Arbitrum, Base, Polygon, Optimism, Avalanche, and more) to the consolidation chain where their subscription settles. Tempo uses Stargate (LayerZero) instead — LiFi does not yet support it.
 
 ---
 

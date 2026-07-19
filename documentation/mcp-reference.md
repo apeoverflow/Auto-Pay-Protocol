@@ -295,7 +295,10 @@ The server maintains subscription state in memory. Subscriptions are cached acro
 | Chain | Key | Chain ID | PolicyManager |
 |-------|-----|----------|---------------|
 | Base | `base` | 8453 | `0x037A24595E96B10d9FB2c7c2668FE5e7F354c86a` |
+| Arbitrum One | `arbitrum` | 42161 | `0xCE3550099De882607B50d6F57d4ECd3985dcd521` |
 | Flow EVM | `flowEvm` | 747 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| Polkadot Hub | `polkadotHub` | 420420419 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
+| Tempo | `tempo` | 4217 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
 | Base Sepolia | `baseSepolia` | 84532 | `0x5EDAF928C94A249C5Ce1eaBaD0fE799CD294f345` |
 
 ## Error Handling

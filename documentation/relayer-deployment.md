@@ -54,12 +54,12 @@ Go to your relayer service > **Variables** tab > **New Variable**:
 | `RETRY_PRESET` | `standard` |
 | `MERCHANT_ADDRESSES` | *(optional)* Comma-separated merchant addresses |
 
-For IPFS/Filecoin metadata archival (optional):
+For IPFS pinning of plan metadata & reports (optional — DB is source of truth; a background retry worker backfills CIDs if Pinata is temporarily unreachable):
 
 | Variable | Value |
 |----------|-------|
-| `STORACHA_PRINCIPAL_KEY` | Ed25519 DID key |
-| `STORACHA_DELEGATION_PROOF` | Base64-encoded delegation CAR |
+| `PINATA_JWT` | Pinata API JWT |
+| `IPFS_GATEWAY` | *(optional)* Default `https://gateway.pinata.cloud` |
 
 For logo uploads via Supabase Storage (optional):
 
@@ -105,7 +105,7 @@ curl https://YOUR-RAILWAY-URL/health
 
 ### Step 9: Fund Relayer Wallet
 
-Check deployment logs for your wallet address and fund it with native tokens for gas on each enabled consolidation chain (ETH on Base, FLOW on Flow EVM).
+Check deployment logs for your wallet address and fund it with native tokens for gas on each enabled consolidation chain (ETH on Base/Arbitrum, FLOW on Flow EVM, DOT on Polkadot Hub, USD on Tempo).
 
 ### Step 10: Verify CLI Access
 
@@ -229,13 +229,13 @@ Use a process manager like `pm2` or `systemd` to keep it running.
 - [ ] PostgreSQL set up with backups (Supabase, Neon, RDS, or self-hosted)
 - [ ] `RELAYER_PRIVATE_KEY` stored securely (not in plain text env files)
 - [ ] Private/dedicated RPC endpoints configured (especially Base, where the public RPC is unreliable)
-- [ ] Relayer wallet funded with native tokens for gas on each chain (ETH on Base, FLOW on Flow EVM)
+- [ ] Relayer wallet funded with native tokens for gas on each chain (ETH on Base/Arbitrum, FLOW on Flow EVM, DOT on Polkadot Hub, USD on Tempo)
 - [ ] Auto-restart on failure (`restart: unless-stopped` in Docker, or `pm2`/`systemd`)
 - [ ] Health monitoring configured (see below)
 - [ ] Log aggregation set up for debugging
 - [ ] Database migrations applied (`npm run cli -- db:migrate`)
 - [ ] Logo storage configured (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` for logo uploads)
-- [ ] Storacha credentials set (optional, for IPFS metadata archival)
+- [ ] `PINATA_JWT` set (optional, for IPFS metadata + report pinning; DB stays authoritative)
 - [ ] CORS and auth configured for production (`AUTH_ENABLED=true`)
 
 ---
