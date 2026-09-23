@@ -258,16 +258,16 @@ program
 
 program
   .command('metadata:upload-ipfs')
-  .description('Upload active plan metadata to IPFS via Storacha (backfill missing CIDs)')
+  .description('Upload active plan metadata to IPFS (backfill missing CIDs)')
   .option('--id <id>', 'Upload a specific plan only')
   .action(async (options) => {
     const config = loadConfig()
     const { listPlansWithoutIpfsCid } = await import('../src/db/metadata.js')
     const { uploadPlanToIPFS } = await import('../src/lib/ipfs-upload.js')
-    const { isStorachaEnabled } = await import('../src/lib/storacha.js')
+    const { isIpfsEnabled } = await import('../src/lib/ipfs.js')
 
-    if (!isStorachaEnabled()) {
-      console.log('\n❌ Storacha not configured. Set STORACHA_PRINCIPAL_KEY and STORACHA_DELEGATION_PROOF.\n')
+    if (!isIpfsEnabled()) {
+      console.log('\n❌ IPFS provider not configured. Set PINATA_JWT to enable archival.\n')
       process.exit(1)
     }
 
@@ -320,7 +320,7 @@ program
 
 program
   .command('reports:generate')
-  .description('Generate monthly reports for merchants and upload to Filecoin via Storacha')
+  .description('Generate monthly reports for merchants and upload to IPFS')
   .option('--chain <chain>', 'Chain to generate reports for', 'flowEvm')
   .option('--period <YYYY-MM>', 'Report period (default: previous month)')
   .option('--merchant <address>', 'Generate for a specific merchant only')
@@ -332,9 +332,9 @@ program
       process.exit(1)
     }
 
-    const { isStorachaEnabled } = await import('../src/lib/storacha.js')
+    const { isIpfsEnabled } = await import('../src/lib/ipfs.js')
     const { generateAndUploadReport, generateAndSaveReport } = await import('../src/reports/upload.js')
-    const useIpfs = isStorachaEnabled()
+    const useIpfs = isIpfsEnabled()
     const { listMerchants } = await import('../src/db/merchants.js')
 
     // Determine period (default: previous month)

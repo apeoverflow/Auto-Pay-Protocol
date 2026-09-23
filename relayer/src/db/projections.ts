@@ -50,12 +50,12 @@ export async function recomputePayer(
   const [row] = await db<Array<{ projected_12mo_micro: string; active_policy_count: number }>>`
     WITH agg AS (
       SELECT
-        COALESCE(SUM(
+        COALESCE(TRUNC(SUM(
           LEAST(
             CAST(charge_amount AS NUMERIC) * ${SECONDS_PER_YEAR}::NUMERIC / GREATEST(interval_seconds, 1)::NUMERIC,
             GREATEST(CAST(spending_cap AS NUMERIC) - CAST(total_spent AS NUMERIC), 0)
           )
-        ), 0)::NUMERIC AS projected_12mo_micro,
+        )), 0)::NUMERIC AS projected_12mo_micro,
         COUNT(*)::INT AS active_policy_count
       FROM policies
       WHERE chain_id = ${chainId}
@@ -184,12 +184,12 @@ export async function verifyPayer(
 
   const [live] = await db<Array<{ projected: string; cnt: number }>>`
     SELECT
-      COALESCE(SUM(
+      COALESCE(TRUNC(SUM(
         LEAST(
           CAST(charge_amount AS NUMERIC) * ${SECONDS_PER_YEAR}::NUMERIC / GREATEST(interval_seconds, 1)::NUMERIC,
           GREATEST(CAST(spending_cap AS NUMERIC) - CAST(total_spent AS NUMERIC), 0)
         )
-      ), 0)::TEXT AS projected,
+      )), 0)::TEXT AS projected,
       COUNT(*)::INT AS cnt
     FROM policies
     WHERE chain_id = ${chainId} AND payer = ${payerLower} AND active = true

@@ -12,6 +12,7 @@ import { queueWebhook } from '../db/webhooks.js'
 import { insertSubscriberData } from '../db/subscribers.js'
 import { recomputePayer } from '../db/projections.js'
 import { createLogger } from '../utils/logger.js'
+import { sleep } from '../utils/sleep.js'
 
 const logger = createLogger('indexer')
 
@@ -362,16 +363,3 @@ async function recomputePayerSafe(databaseUrl: string, chainId: number, payer: s
   }
 }
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve()
-      return
-    }
-    const timeout = setTimeout(resolve, ms)
-    signal?.addEventListener('abort', () => {
-      clearTimeout(timeout)
-      resolve()
-    }, { once: true })
-  })
-}

@@ -13,6 +13,7 @@ import { CHAIN_CONFIGS } from '../../config/chains'
 import { useSignMessageCompat } from '../../hooks/useSignMessageCompat'
 import { Loader2, Save, Rocket, Upload, X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import type { Route } from '../../hooks/useRoute'
+import type { SubscriberFieldKey } from '../../types/checkout'
 
 const INTERVALS = [
   { value: 'seconds', label: 'Every Second' },
@@ -28,10 +29,39 @@ const INTERVALS = [
 const STEPS = [
   { id: 'plan', label: 'Plan' },
   { id: 'merchant', label: 'Merchant' },
+  { id: 'checkout', label: 'Checkout' },
   { id: 'billing', label: 'Billing' },
 ] as const
 
 type StepId = (typeof STEPS)[number]['id']
+
+// Subscriber-info field configuration for the "Checkout" step.
+// Order chosen to put the highest-signal field (email — required for
+// low-approval alerts) first.
+type FieldMode = 'off' | 'optional' | 'required'
+const CHECKOUT_FIELD_KEYS: SubscriberFieldKey[] = ['email', 'name', 'discord', 'telegram', 'twitter', 'mobile']
+const CHECKOUT_FIELD_LABELS: Record<SubscriberFieldKey, string> = {
+  email: 'Email',
+  name: 'Full name',
+  discord: 'Discord handle',
+  telegram: 'Telegram handle',
+  twitter: 'X / Twitter',
+  mobile: 'Mobile number',
+}
+// Email gets an explicit hint because it unlocks the low-approval
+// notification pipeline — merchants should understand the value.
+const CHECKOUT_FIELD_HINTS: Partial<Record<SubscriberFieldKey, string>> = {
+  email: 'Verified emails receive low-approval warnings and appear in your subscribers API.',
+}
+const FIELD_MODES: FieldMode[] = ['off', 'optional', 'required']
+const FIELD_MODE_LABELS: Record<FieldMode, string> = {
+  off: 'Off',
+  optional: 'Optional',
+  required: 'Required',
+}
+const EMPTY_FIELD_CONFIG: Record<SubscriberFieldKey, FieldMode> = {
+  email: 'off', name: 'off', discord: 'off', telegram: 'off', twitter: 'off', mobile: 'off',
+}
 
 interface MerchantPlanEditorPageProps {
   navigate: (to: Route, search?: string) => void
@@ -75,6 +105,9 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
   // Optional (non-EVM-default) chains the merchant has enabled for this plan.
   // EVM chains are always available and not listed here.
   const [supportedChains, setSupportedChains] = React.useState<string[]>([])
+  // Checkout subscriber-info fields (tri-state per field).
+  const [checkoutFields, setCheckoutFields] =
+    React.useState<Record<SubscriberFieldKey, FieldMode>>({ ...EMPTY_FIELD_CONFIG })
 
   // Logo upload state
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null)
@@ -117,6 +150,19 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
     if (Array.isArray(m.supportedChains)) {
       setSupportedChains(m.supportedChains as string[])
     }
+    // Hydrate checkout field config. Any key in requiredFields wins over
+    // optionalFields if the two accidentally overlap.
+    const checkout = m.checkout as { requiredFields?: SubscriberFieldKey[]; optionalFields?: SubscriberFieldKey[] } | undefined
+    if (checkout) {
+      const next: Record<SubscriberFieldKey, FieldMode> = { ...EMPTY_FIELD_CONFIG }
+      for (const k of checkout.optionalFields ?? []) {
+        if (CHECKOUT_FIELD_KEYS.includes(k)) next[k] = 'optional'
+      }
+      for (const k of checkout.requiredFields ?? []) {
+        if (CHECKOUT_FIELD_KEYS.includes(k)) next[k] = 'required'
+      }
+      setCheckoutFields(next)
+    }
   }, [existingPlan])
 
   const handleSubmit = async (status: 'draft' | 'active') => {
@@ -128,10 +174,11 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
       return
     }
 
-    // Enforce minimum charge amount
+    // Enforce minimum charge amount — Billing is now step index 3
+    // (inserted "Checkout" step at index 2).
     if (amount && minAmount > 0 && parseFloat(amount) < minAmount) {
       setError(`Minimum subscription amount is $${minAmount} USDC.`)
-      setCurrentStep(2)
+      setCurrentStep(3)
       return
     }
 
@@ -170,6 +217,18 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
       ...(supportedChains.length > 0 && { supportedChains }),
     }
 
+    // Serialise checkout-field config into metadata.checkout iff any field
+    // is turned on. Empty {} would round-trip as "no config" on the next
+    // load, so we skip it entirely when nothing is set.
+    const requiredFields = CHECKOUT_FIELD_KEYS.filter((k) => checkoutFields[k] === 'required')
+    const optionalFields = CHECKOUT_FIELD_KEYS.filter((k) => checkoutFields[k] === 'optional')
+    if (requiredFields.length > 0 || optionalFields.length > 0) {
+      body.checkout = {
+        ...(requiredFields.length > 0 && { requiredFields }),
+        ...(optionalFields.length > 0 && { optionalFields }),
+      }
+    }
+
     try {
       if (isEdit && editId) {
         await updatePlan(address, editId, body, signMessageAsync)
@@ -193,6 +252,7 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
     switch (stepId) {
       case 'plan': return !!(planName || description)
       case 'merchant': return !!merchantName
+      case 'checkout': return CHECKOUT_FIELD_KEYS.some((k) => checkoutFields[k] !== 'off')
       case 'billing': return !!amount
     }
   }
@@ -429,8 +489,60 @@ export function MerchantPlanEditorPage({ navigate }: MerchantPlanEditorPageProps
               </>
             )}
 
-            {/* Step 3: Billing */}
+            {/* Step 3: Checkout — subscriber info to collect */}
             {currentStep === 2 && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-foreground">
+                    What should we collect from subscribers at checkout?
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Overridable per-checkout via <code className="rounded bg-muted px-1 py-0.5 text-[10px]">?fields=</code> in the URL.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {CHECKOUT_FIELD_KEYS.map((key) => {
+                    const mode = checkoutFields[key]
+                    const hint = CHECKOUT_FIELD_HINTS[key]
+                    return (
+                      <div
+                        key={key}
+                        className="flex flex-col gap-1 rounded-lg border border-input bg-background p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-foreground">{CHECKOUT_FIELD_LABELS[key]}</div>
+                          {hint && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>
+                          )}
+                        </div>
+                        <div className="inline-flex rounded-md border border-input bg-muted/30 p-0.5 self-start sm:self-auto">
+                          {FIELD_MODES.map((m) => {
+                            const active = mode === m
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => setCheckoutFields((prev) => ({ ...prev, [key]: m }))}
+                                className={`px-3 py-1 rounded text-[11px] font-medium transition-colors ${
+                                  active
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                {FIELD_MODE_LABELS[m]}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Billing */}
+            {currentStep === 3 && (
               <>
                 <div>
                   <Input

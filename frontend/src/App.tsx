@@ -25,6 +25,7 @@ import {
   LeaderboardPage,
   PaymentsPage,
   EmailVerifiedPage,
+  NotificationsOffPage,
 } from './pages'
 import { TermsAcceptanceModal } from './components/shared/TermsAcceptanceModal'
 import {
@@ -198,6 +199,18 @@ function App() {
         {seoHead}
         <div className="route-layer">
           <EmailVerifiedPage />
+        </div>
+      </div>
+    )
+  }
+
+  // Fullscreen: Unsubscribe confirmation (linked from low-approval emails)
+  if (activeRoute === '/notifications-off') {
+    return (
+      <div className="relative min-h-screen w-screen overflow-x-hidden overflow-y-auto">
+        {seoHead}
+        <div className="route-layer">
+          <NotificationsOffPage />
         </div>
       </div>
     )

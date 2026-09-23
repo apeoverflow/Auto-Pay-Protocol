@@ -57,6 +57,10 @@ export interface PlanMetadataRow {
   status: PlanStatus
   created_at: Date
   updated_at: Date
+  // IPFS retry-cap bookkeeping (migration 028)
+  ipfs_upload_attempts: number
+  ipfs_last_error: string | null
+  ipfs_next_attempt_at: Date
 }
 
 /**
@@ -178,12 +182,100 @@ export async function setPlanIpfsCid(
 ): Promise<void> {
   const db = getDb(databaseUrl)
 
+  // Success also clears the retry-cap bookkeeping: attempts reset to 0
+  // and last error cleared, so a plan can recover from prior failures if
+  // the merchant PATCHes its content (or if a transient provider issue
+  // clears up but only after the cap was exceeded — an operator running
+  // `metadata:upload-ipfs --id` manually will re-enable the retry loop).
   await db`
-    UPDATE plan_metadata SET ipfs_cid = ${ipfsCid}, updated_at = NOW()
+    UPDATE plan_metadata
+    SET ipfs_cid = ${ipfsCid},
+        ipfs_upload_attempts = 0,
+        ipfs_last_error = NULL,
+        updated_at = NOW()
     WHERE id = ${id} AND merchant_address = ${merchantAddress.toLowerCase()}
   `
 
   logger.info({ id, merchantAddress, ipfsCid }, 'Set plan IPFS CID')
+}
+
+/**
+ * Called by handleUpdatePlan / handlePatchPlan when the merchant has
+ * modified plan content and a fresh IPFS upload is required.
+ *
+ * NULLs the stored ipfs_cid so:
+ *   (a) the response and any subsequent /metadata/... consumers see the
+ *       new content only when it's ALSO been archived (no stale CID leak),
+ *   (b) the ipfs-retry worker's SELECT (`WHERE ipfs_cid IS NULL`) picks
+ *       the plan up if the inline upload attempt fails,
+ *   (c) previous failure state (attempts, last_error) is reset so the
+ *       new content gets its own fresh retry budget.
+ *
+ * Only clears when content has actually changed — the retry worker
+ * doesn't need this to fire on every unrelated PATCH (e.g. status flip).
+ */
+export async function clearPlanIpfsCidForReupload(
+  databaseUrl: string,
+  id: string,
+  merchantAddress: string
+): Promise<void> {
+  const db = getDb(databaseUrl)
+  await db`
+    UPDATE plan_metadata
+    SET ipfs_cid = NULL,
+        ipfs_upload_attempts = 0,
+        ipfs_last_error = NULL,
+        ipfs_next_attempt_at = NOW()
+    WHERE id = ${id} AND merchant_address = ${merchantAddress.toLowerCase()}
+  `
+}
+
+/**
+ * Retry-cap bookkeeping: called by the ipfs-retry worker after each
+ * failed upload. Increments attempts and schedules the next retry with
+ * exponential backoff clamped to `maxBackoffMs`. Callers pass the current
+ * attempt count so we don't need to re-SELECT.
+ */
+export async function markPlanIpfsUploadFailed(
+  databaseUrl: string,
+  id: string,
+  merchantAddress: string,
+  priorAttempts: number,
+  error: string,
+  baseBackoffMs = 5 * 60_000,   // 5 min → 10 min → 20 min → 40 min → 80 min → ...
+  maxBackoffMs = 24 * 3600_000  // clamp at 24h
+): Promise<void> {
+  const db = getDb(databaseUrl)
+  const nextBackoffMs = Math.min(baseBackoffMs * 2 ** priorAttempts, maxBackoffMs)
+  const nextAttemptAt = new Date(Date.now() + nextBackoffMs)
+  await db`
+    UPDATE plan_metadata
+    SET ipfs_upload_attempts = ${priorAttempts + 1},
+        ipfs_last_error = ${error.slice(0, 2000)},
+        ipfs_next_attempt_at = ${nextAttemptAt}
+    WHERE id = ${id} AND merchant_address = ${merchantAddress.toLowerCase()}
+  `
+}
+
+/**
+ * Candidates for the ipfs-retry worker: active, no CID, retry time
+ * reached, under the attempts cap.
+ */
+export async function listPlansForIpfsRetry(
+  databaseUrl: string,
+  maxAttempts: number,
+  limit: number
+): Promise<Array<PlanMetadataRow & { ipfs_upload_attempts: number }>> {
+  const db = getDb(databaseUrl)
+  return db<Array<PlanMetadataRow & { ipfs_upload_attempts: number }>>`
+    SELECT * FROM plan_metadata
+    WHERE status = 'active'
+      AND ipfs_cid IS NULL
+      AND ipfs_upload_attempts < ${maxAttempts}
+      AND ipfs_next_attempt_at <= NOW()
+    ORDER BY ipfs_next_attempt_at ASC
+    LIMIT ${limit}
+  `
 }
 
 export async function getPlanMetadata(

@@ -112,6 +112,7 @@ export function loadConfig(): RelayerConfig {
       maxRetries: 3,
     },
     emailSender: parseEmailSenderConfig(),
+    approvalMonitor: parseApprovalMonitorConfig(),
     publicBaseUrl: getOptionalEnv('PUBLIC_BASE_URL', 'https://relayer.autopayprotocol.com').replace(/\/$/, ''),
     frontendUrl: getOptionalEnv('FRONTEND_URL', 'https://autopayprotocol.com').replace(/\/$/, ''),
     port: parseInt(getOptionalEnv('PORT', '3001'), 10),
@@ -144,6 +145,35 @@ function parseEmailSenderConfig(): RelayerConfig['emailSender'] {
     throw new Error('EMAIL_SENDER_BACKOFF_MIN must contain at least one positive number')
   }
   return { enabled, runIntervalMs, batchSize, leaseSeconds, backoffMinutes, maxAttempts }
+}
+
+/**
+ * Approval-monitor config. Feature-flagged; requires RESEND_API_KEY
+ * anyway because the sender it feeds is itself gated on Resend.
+ *
+ *   APPROVAL_MONITOR_ENABLED       'true' | 'false'  (default true)
+ *   APPROVAL_MONITOR_INTERVAL_MS   poll interval          (default 3_600_000 / 1h)
+ *   APPROVAL_MONITOR_BATCH_SIZE    payers per tick        (default 500)
+ *   APPROVAL_MONITOR_THRESHOLD_BPS trip threshold in bps  (default 1000 / 10%)
+ *   APPROVAL_MONITOR_BACKOFF_DAYS  comma-separated days   (default "0,3,5,15,30,30")
+ *                                  supports fractional days for testing
+ *                                  (e.g. "0,0.002,0.005" for minute-scale)
+ */
+function parseApprovalMonitorConfig(): RelayerConfig['approvalMonitor'] {
+  const enabled = (process.env.APPROVAL_MONITOR_ENABLED ?? 'true').toLowerCase() !== 'false'
+  const runIntervalMs = parseInt(process.env.APPROVAL_MONITOR_INTERVAL_MS ?? '3600000', 10)
+  const batchSize = parseInt(process.env.APPROVAL_MONITOR_BATCH_SIZE ?? '500', 10)
+  const thresholdBps = parseInt(process.env.APPROVAL_MONITOR_THRESHOLD_BPS ?? '1000', 10)
+  const backoffDays = (process.env.APPROVAL_MONITOR_BACKOFF_DAYS ?? '0,3,5,15,30,30')
+    .split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n >= 0)
+
+  if (backoffDays.length === 0) {
+    throw new Error('APPROVAL_MONITOR_BACKOFF_DAYS must contain at least one non-negative number')
+  }
+  if (thresholdBps < 0 || thresholdBps > 10000) {
+    throw new Error('APPROVAL_MONITOR_THRESHOLD_BPS must be between 0 and 10000')
+  }
+  return { enabled, runIntervalMs, batchSize, thresholdBps, backoffDays }
 }
 
 export function getEnabledChains(_config: RelayerConfig): ChainConfig[] {

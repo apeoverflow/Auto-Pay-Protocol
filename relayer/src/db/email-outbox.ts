@@ -27,6 +27,15 @@ const logger = createLogger('db:email-outbox')
 
 export type OutboxTemplate = 'email_verify' | 'low_approval' | 'approval_recovered'
 
+/**
+ * Postgres.js sql handle — either a pool connection (`getDb(...)`) or a
+ * transaction handle from `sql.begin(async (tx) => ...)`. Structural type
+ * (rather than importing the concrete `postgres.Sql` / `postgres.TransactionSql`
+ * shapes) lets callers pass either without cast wrangling.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type SqlLike = any
+
 export interface OutboxRow {
   id: number
   dedupeKey: string
@@ -37,6 +46,45 @@ export interface OutboxRow {
   createdAt: Date
 }
 
+interface EnqueueParams {
+  dedupeKey: string
+  toAddress: string
+  template: OutboxTemplate
+  payload: Record<string, unknown>
+  nextAttemptAt?: Date
+}
+
+/**
+ * Core enqueue against an sql-or-tx handle. Callers inside a transaction
+ * (approval monitor's CAS+enqueue block) pass the tx to get atomic
+ * semantics; callers outside a transaction use `enqueueEmail` which
+ * grabs a pool connection.
+ */
+export async function enqueueEmailWithSql(
+  sql: SqlLike,
+  params: EnqueueParams
+): Promise<boolean> {
+  const rows = await sql`
+    INSERT INTO email_outbox (
+      dedupe_key, to_address, template, payload, next_attempt_at
+    ) VALUES (
+      ${params.dedupeKey},
+      ${params.toAddress},
+      ${params.template},
+      ${sql.json(params.payload)},
+      ${params.nextAttemptAt ?? new Date()}
+    )
+    ON CONFLICT (dedupe_key) DO NOTHING
+    RETURNING id
+  `
+  const inserted = rows.length > 0
+  logger.debug(
+    { dedupeKey: params.dedupeKey, template: params.template, inserted },
+    inserted ? 'Enqueued email' : 'Email already in outbox (dedupe hit)'
+  )
+  return inserted
+}
+
 /**
  * Enqueue an email. Returns true if a new row was inserted, false if an
  * existing row with the same dedupe_key was already present (which is the
@@ -44,36 +92,9 @@ export interface OutboxRow {
  */
 export async function enqueueEmail(
   databaseUrl: string,
-  params: {
-    dedupeKey: string
-    toAddress: string
-    template: OutboxTemplate
-    payload: Record<string, unknown>
-    nextAttemptAt?: Date
-  }
+  params: EnqueueParams
 ): Promise<boolean> {
-  const db = getDb(databaseUrl)
-
-  const rows = await db<Array<{ id: number }>>`
-    INSERT INTO email_outbox (
-      dedupe_key, to_address, template, payload, next_attempt_at
-    ) VALUES (
-      ${params.dedupeKey},
-      ${params.toAddress},
-      ${params.template},
-      ${db.json(params.payload as unknown as Parameters<typeof db.json>[0])},
-      ${params.nextAttemptAt ?? new Date()}
-    )
-    ON CONFLICT (dedupe_key) DO NOTHING
-    RETURNING id
-  `
-
-  const inserted = rows.length > 0
-  logger.debug(
-    { dedupeKey: params.dedupeKey, template: params.template, inserted },
-    inserted ? 'Enqueued email' : 'Email already in outbox (dedupe hit)'
-  )
-  return inserted
+  return enqueueEmailWithSql(getDb(databaseUrl), params)
 }
 
 /**

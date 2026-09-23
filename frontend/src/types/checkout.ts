@@ -45,4 +45,33 @@ export interface CheckoutMetadata {
   /** Optional chains (e.g. 'tempo', 'arcTestnet') the merchant has enabled for
    *  this plan. EVM chains are always available regardless. */
   supportedChains?: string[]
+  /** Merchant-configured subscriber-info collection at checkout. When the
+   *  ?fields= URL param is absent, CheckoutPage derives fields from here.
+   *  Both lists must be disjoint and drawn from SubscriberFieldKey. */
+  checkout?: {
+    requiredFields?: SubscriberFieldKey[]
+    optionalFields?: SubscriberFieldKey[]
+  }
+}
+
+/** Convert a plan's stored checkout config into the CheckoutField[] shape
+ *  the SubscriberInfoStep expects. Used by CheckoutPage.tsx as a fallback
+ *  when no explicit ?fields= URL override was provided. */
+export function fieldsFromMetadataCheckout(
+  cfg: CheckoutMetadata['checkout'] | undefined
+): CheckoutField[] | undefined {
+  if (!cfg) return undefined
+  const seen = new Set<SubscriberFieldKey>()
+  const out: CheckoutField[] = []
+  for (const key of cfg.requiredFields ?? []) {
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ key, required: true })
+  }
+  for (const key of cfg.optionalFields ?? []) {
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ key, required: false })
+  }
+  return out.length > 0 ? out : undefined
 }

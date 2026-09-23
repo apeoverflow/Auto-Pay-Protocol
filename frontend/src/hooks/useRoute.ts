@@ -28,6 +28,7 @@ export type Route =
   | '/terms'
   | '/privacy'
   | '/email-verified'
+  | '/notifications-off'
 
 type RouteLayout = 'landing' | 'auth' | 'dashboard' | 'fullscreen'
 
@@ -77,7 +78,7 @@ const NAV_TO_ROUTE: Record<NavItem, Route> = {
 }
 
 const VALID_ROUTES: Route[] = [
-  '/', '/app', '/dashboard', '/subscriptions', '/activity', '/payments', '/bridge', '/settings', '/demo', '/docs', '/checkout', '/pay', '/leaderboard', '/terms', '/privacy', '/email-verified',
+  '/', '/app', '/dashboard', '/subscriptions', '/activity', '/payments', '/bridge', '/settings', '/demo', '/docs', '/checkout', '/pay', '/leaderboard', '/terms', '/privacy', '/email-verified', '/notifications-off',
   '/merchant', '/merchant/plans', '/merchant/plans/new', '/merchant/plans/edit', '/merchant/receipts', '/merchant/reports', '/merchant/subscribers', '/merchant/settings',
   '/admin/fees',
 ]
@@ -94,7 +95,7 @@ function pathToRoute(pathname: string): Route {
 export function getRouteLayout(route: Route): RouteLayout {
   if (route === '/') return 'landing'
   if (route === '/app') return 'auth'
-  if (route === '/docs' || route === '/checkout' || route === '/pay' || route === '/leaderboard' || route === '/terms' || route === '/privacy' || route === '/email-verified') return 'fullscreen'
+  if (route === '/docs' || route === '/checkout' || route === '/pay' || route === '/leaderboard' || route === '/terms' || route === '/privacy' || route === '/email-verified' || route === '/notifications-off') return 'fullscreen'
   return 'dashboard'
 }
 

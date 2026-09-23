@@ -127,6 +127,23 @@ export async function createCheckoutLink(
 
 // --- Subscriber list (auth-protected) ---
 
+export interface MerchantSubscriberContact {
+  /** Only populated when emailVerified === true. Merchants never see
+   *  unverified addresses via this API. */
+  email: string | null
+  emailVerified: boolean
+  notificationsOptedOut: boolean
+  /** 0 when healthy; 1..N when a low-approval sequence is in progress. */
+  notificationStage: number
+  /** Convenience alias for `notificationStage > 0`. */
+  lowApproval: boolean
+  /** When the current low-approval streak began (ISO), null when healthy. */
+  lowApprovalSince: string | null
+  /** Last USDC allowance the monitor observed (µUSDC as string). */
+  lastAllowanceMicro: string | null
+  lastCheckedAt: string | null
+}
+
 export interface MerchantSubscriber {
   policyId: string
   chainId: number
@@ -137,6 +154,10 @@ export interface MerchantSubscriber {
   chargeAmount: string
   intervalSeconds: number
   createdAt: string
+  contact: MerchantSubscriberContact
+  /** Materialised 12-month projected billing across all active policies
+   *  for this payer (µUSDC as string). */
+  projected12moMicro: string | null
 }
 
 export interface MerchantSubscribersResponse {
@@ -146,7 +167,8 @@ export interface MerchantSubscribersResponse {
   limit: number
 }
 
-export async function fetchMerchantSubscribers(
+async function fetchSubscribersInternal(
+  suffix: '' | '/at-risk',
   address: string,
   signMessage: SignMessageFn,
   chainId?: number,
@@ -156,7 +178,7 @@ export async function fetchMerchantSubscribers(
 ): Promise<MerchantSubscribersResponse> {
   const { baseUrl, apiKey } = resolveRelayer(address)
 
-  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/subscribers`)
+  const url = new URL(`${baseUrl}/merchants/${encodeURIComponent(address)}/subscribers${suffix}`)
   if (chainId != null) url.searchParams.set('chain_id', String(chainId))
   if (planId) url.searchParams.set('plan_id', planId)
   url.searchParams.set('page', String(page))
@@ -181,6 +203,34 @@ export async function fetchMerchantSubscribers(
   }
 
   return (await res.json()) as MerchantSubscribersResponse
+}
+
+export async function fetchMerchantSubscribers(
+  address: string,
+  signMessage: SignMessageFn,
+  chainId?: number,
+  planId?: string,
+  page = 1,
+  limit = 50,
+): Promise<MerchantSubscribersResponse> {
+  return fetchSubscribersInternal('', address, signMessage, chainId, planId, page, limit)
+}
+
+/**
+ * Same shape as `fetchMerchantSubscribers`, restricted to payers whose
+ * USDC allowance is currently below the low-approval threshold. Useful
+ * for merchant-side "your customer is about to churn" dashboards or for
+ * sending merchant-branded save-my-sub emails independent of AutoPay's.
+ */
+export async function fetchAtRiskSubscribers(
+  address: string,
+  signMessage: SignMessageFn,
+  chainId?: number,
+  planId?: string,
+  page = 1,
+  limit = 50,
+): Promise<MerchantSubscribersResponse> {
+  return fetchSubscribersInternal('/at-risk', address, signMessage, chainId, planId, page, limit)
 }
 
 // --- Custom relayer config (localStorage) ---

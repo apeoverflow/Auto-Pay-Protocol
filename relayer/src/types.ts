@@ -5,6 +5,7 @@ export interface ChainConfig {
   name: string
   rpcUrl: string
   policyManagerAddress: `0x${string}`
+  usdcAddress: `0x${string}`
   startBlock: number
   pollIntervalMs: number
   batchSize: number
@@ -52,6 +53,13 @@ export interface RelayerConfig {
     leaseSeconds: number
     backoffMinutes: number[]
     maxAttempts: number
+  }
+  approvalMonitor: {
+    enabled: boolean
+    runIntervalMs: number
+    batchSize: number
+    thresholdBps: number
+    backoffDays: number[]
   }
   publicBaseUrl: string
   frontendUrl: string
@@ -144,6 +152,8 @@ export type WebhookEventType =
   | 'policy.revoked'
   | 'policy.cancelled_by_failure'
   | 'policy.completed'
+  | 'subscriber.low_approval'
+  | 'subscriber.approval_recovered'
 
 export interface WebhookPayload {
   event: WebhookEventType
@@ -161,6 +171,12 @@ export interface WebhookPayload {
     spendingCap?: string
     metadataUrl?: string
     endTime?: number
+    // subscriber.low_approval / subscriber.approval_recovered
+    notificationStage?: number
+    currentAllowance?: string
+    projected12mo?: string
+    threshold?: string
+    lowApprovalSince?: string
   }
 }
 

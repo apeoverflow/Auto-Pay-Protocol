@@ -2,9 +2,9 @@ import { createServer, type Server, type IncomingMessage, type ServerResponse } 
 import { getDb, getStatus } from '../db/index.js'
 import { getPoliciesByPayer } from '../db/policies.js'
 import { getChargesByMerchant, getChargesByIdsForMerchant, getChargesByIdsForPayer, setChargeReceiptCid } from '../db/charges.js'
-import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, type PlanMetadata, type PlanStatus, VALID_SUBSCRIBER_FIELDS } from '../db/metadata.js'
+import { getPlanMetadata, getPlanMetadataByMerchant, listAllPlanMetadata, insertPlanMetadata, updatePlanMetadata, deletePlanMetadata, clearPlanIpfsCidForReupload, type PlanMetadata, type PlanStatus, VALID_SUBSCRIBER_FIELDS } from '../db/metadata.js'
 import { insertSubscriberData, getSubscribersByMerchant } from '../db/subscribers.js'
-import { upsertPayerEmail } from '../db/payer-contacts.js'
+import { upsertPayerEmail, findByOptOutToken, setOptedOut } from '../db/payer-contacts.js'
 import { createVerificationToken, consumeVerificationToken } from '../db/payer-email-verifications.js'
 import { enqueueEmail } from '../db/email-outbox.js'
 import { createApiKey, validateApiKey, listApiKeys, revokeApiKey } from '../db/api-keys.js'
@@ -15,7 +15,7 @@ import { randomUUID } from 'crypto'
 import { getEnabledChains, type RelayerConfig } from '../config.js'
 import { createLogger } from '../utils/logger.js'
 import { uploadPlanToIPFS } from '../lib/ipfs-upload.js'
-import { isStorachaEnabled, ipfsGatewayUrl } from '../lib/storacha.js'
+import { isIpfsEnabled, ipfsGatewayUrl } from '../lib/ipfs.js'
 import { generateAndUploadReport, generateAndSaveReport } from '../reports/upload.js'
 import { buildReceipt, uploadChargeReceipt } from '../reports/receipt.js'
 import { handleNonceRequest, authenticateMerchant, destroyAuthStore } from './auth.js'
@@ -764,7 +764,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           const verified = await authenticateMerchant(req, res, address)
           if (!verified) return
         }
-        if (!isStorachaEnabled()) {
+        if (!isIpfsEnabled()) {
           res.writeHead(503, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'IPFS uploads are not configured. Set STORACHA_PRINCIPAL_KEY and STORACHA_DELEGATION_PROOF.' }))
           return
@@ -837,7 +837,7 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           const verified = await authenticateMerchant(req, res, address)
           if (!verified) return
         }
-        if (!isStorachaEnabled()) {
+        if (!isIpfsEnabled()) {
           res.writeHead(503, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'IPFS uploads are not configured. Set STORACHA_PRINCIPAL_KEY and STORACHA_DELEGATION_PROOF.' }))
           return
@@ -910,9 +910,9 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
           res.end(JSON.stringify({ error: 'period must be in YYYY-MM format' }))
           return
         }
-        // Merchant can opt into IPFS upload per-report; defaults to true when Storacha is configured
+        // Merchant can opt into IPFS upload per-report; defaults to true when IPFS is configured
         const wantsIpfs = body.uploadToIpfs !== false
-        const useIpfs = wantsIpfs && isStorachaEnabled()
+        const useIpfs = wantsIpfs && isIpfsEnabled()
         try {
           const { cid } = useIpfs
             ? await generateAndUploadReport(config.databaseUrl, chainId, address, period)
@@ -1483,6 +1483,31 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         return
       }
 
+      // Public unsubscribe endpoint. Any subsequent monitor tick sees
+      // `notifications_opted_out=true` and short-circuits in the state
+      // machine. Idempotent — clicking again just re-opts-out.
+      if (path === '/subscribers/unsubscribe' && req.method === 'GET') {
+        const clientIp = getClientIp(req)
+        const ipRate = authRateLimiter.check(clientIp)
+        if (!ipRate.allowed) { sendRateLimited(res, ipRate); return }
+
+        const token = params.get('token') ?? ''
+        if (!token || !/^[a-f0-9]{64}$/i.test(token)) {
+          redirectToFrontend(res, config, '/notifications-off?status=invalid')
+          return
+        }
+
+        const found = await findByOptOutToken(config.databaseUrl, token)
+        if (!found) {
+          redirectToFrontend(res, config, '/notifications-off?status=invalid')
+          return
+        }
+        await setOptedOut(config.databaseUrl, found.chainId, found.payer, true)
+        logger.info({ chainId: found.chainId, payer: found.payer }, 'Payer opted out of low-approval notifications')
+        redirectToFrontend(res, config, '/notifications-off?status=ok')
+        return
+      }
+
       // Public magic-link verify endpoint: consumes a token, marks the
       // payer's email verified, redirects to the frontend confirmation.
       if (path === '/subscribers/verify' && req.method === 'GET') {
@@ -1523,10 +1548,15 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
         return
       }
 
-      // Merchant subscribers list (auth-protected — uses signature or API key)
-      const merchantSubscribersMatch = path.match(/^\/merchants\/([^/]+)\/subscribers$/)
+      // Merchant subscribers list (auth-protected — uses signature or API key).
+      // Two paths:
+      //   /merchants/:address/subscribers          — all subs for this merchant
+      //   /merchants/:address/subscribers/at-risk  — same, filtered to
+      //                                              notification_stage > 0
+      const merchantSubscribersMatch = path.match(/^\/merchants\/([^/]+)\/subscribers(\/at-risk)?$/)
       if (merchantSubscribersMatch && req.method === 'GET') {
         const address = merchantSubscribersMatch[1]
+        const onlyAtRisk = merchantSubscribersMatch[2] === '/at-risk'
         if (!isValidAddress(address)) {
           res.writeHead(400, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'Invalid merchant address' }))
@@ -1547,28 +1577,62 @@ export async function createApiServer(config: RelayerConfig): Promise<Server> {
             if (!verified) return
           }
         }
-        const chainId = params.get('chain_id')
+        const chainIdParam = params.get('chain_id')
         const planId = params.get('plan_id') || undefined
         const page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1)
         const limit = Math.min(100, Math.max(1, parseInt(params.get('limit') || '50', 10) || 50))
 
         const { subscribers, total } = await getSubscribersByMerchant(
-          config.databaseUrl, address, chainId ? parseInt(chainId, 10) : undefined, planId, page, limit
+          config.databaseUrl, address,
+          {
+            chainId: chainIdParam ? parseInt(chainIdParam, 10) : undefined,
+            planId,
+            onlyAtRisk,
+            page,
+            limit,
+          }
         )
 
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({
-          subscribers: subscribers.map((s) => ({
-            policyId: s.policy_id,
-            chainId: s.chain_id,
-            payer: s.payer,
-            planId: s.plan_id,
-            formData: s.form_data,
-            active: s.active,
-            chargeAmount: s.charge_amount,
-            intervalSeconds: s.interval_seconds,
-            createdAt: s.created_at,
-          })),
+          subscribers: subscribers.map((s) => {
+            // Verified-only email exposure: if the payer went through the
+            // new verify flow but DIDN'T verify, we never surface their
+            // email to the merchant — neither through the `contact` block
+            // nor as a raw form-data leak (a merchant could otherwise
+            // harvest unverified addresses by making email a required
+            // checkout field).
+            //
+            // Legacy subscribers (no payer_contacts row at all, predating
+            // migration 027) are preserved as-is — the merchant was
+            // already receiving their formData.email pre-deployment and
+            // suddenly stripping it would silently break integrations.
+            const isVerified = !!s.email_verified_at
+            const formData = { ...s.form_data }
+            if (s.has_contact_row && !isVerified && 'email' in formData) delete formData.email
+            return {
+              policyId: s.policy_id,
+              chainId: s.chain_id,
+              payer: s.payer,
+              planId: s.plan_id,
+              formData,
+              active: s.active,
+              chargeAmount: s.charge_amount,
+              intervalSeconds: s.interval_seconds,
+              createdAt: s.created_at,
+              contact: {
+                email: isVerified ? s.contact_email : null,
+                emailVerified: isVerified,
+                notificationsOptedOut: s.notifications_opted_out,
+                notificationStage: s.notification_stage,
+                lowApproval: s.notification_stage > 0,
+                lowApprovalSince: s.low_approval_since,
+                lastAllowanceMicro: s.last_allowance_micro,
+                lastCheckedAt: s.last_checked_at,
+              },
+              projected12moMicro: s.projected_12mo_micro,
+            }
+          }),
           total,
           page,
           limit,
@@ -2477,47 +2541,30 @@ async function handleCreatePlan(
 
   const id = customId ?? randomUUID()
 
-  // If requesting active and Storacha is configured, insert as draft first,
-  // then promote to active only after IPFS upload succeeds.
-  const needsIpfs = status === 'active' && isStorachaEnabled()
-  const insertStatus: PlanStatus = needsIpfs ? 'draft' : status
-
-  // Atomic insert — returns false if ID already exists (no race condition)
-  const inserted = await insertPlanMetadata(config.databaseUrl, id, merchantAddress, metadata, insertStatus)
+  // DB is the primary source of truth — the plan is stored at the caller's
+  // requested status immediately. IPFS archival is best-effort: on failure
+  // we log a warning, leave `ipfs_cid = NULL`, and rely on the background
+  // ipfs-retry worker (or the `metadata:upload-ipfs` CLI) to populate it
+  // when the provider recovers. This preserves the "always active if the
+  // merchant asked for active" invariant even when IPFS is down.
+  const inserted = await insertPlanMetadata(config.databaseUrl, id, merchantAddress, metadata, status)
   if (!inserted) {
     res.writeHead(409, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ error: `Plan ID "${id}" already exists` }))
     return
   }
 
-  logger.info({ id, merchantAddress, status: needsIpfs ? 'draft (pending IPFS)' : status }, 'Created plan')
+  logger.info({ id, merchantAddress, status }, 'Created plan')
 
-  // If activation requires IPFS, attempt upload then promote to active
   let ipfsCid: string | null = null
-  let finalStatus: PlanStatus = needsIpfs ? 'draft' : status
-  if (needsIpfs) {
+  if (status === 'active' && isIpfsEnabled()) {
     try {
       ipfsCid = await uploadPlanToIPFS(config.databaseUrl, id, merchantAddress, metadata, buildLogoResolver())
     } catch (err) {
-      logger.error({ id, err }, 'IPFS upload failed; plan saved as draft')
-      res.writeHead(503, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({
-        error: 'IPFS upload failed. Plan saved as draft — activate via PATCH.',
-        id, status: 'draft', detail: String(err),
-      }))
-      return
-    }
-    try {
-      await updatePlanMetadata(config.databaseUrl, id, merchantAddress, metadata, 'active')
-      finalStatus = 'active'
-    } catch (err) {
-      logger.error({ id, err }, 'Status promotion failed after IPFS upload; plan is draft with CID')
-      res.writeHead(503, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({
-        error: 'IPFS upload succeeded but status promotion failed. Plan is draft with CID — retry PATCH to activate.',
-        id, status: 'draft', ipfsCid, detail: String(err),
-      }))
-      return
+      // Non-fatal — the retry worker will re-attempt. Response includes
+      // `ipfsCid: null` so the merchant SDK can distinguish "archived" vs
+      // "pending archival".
+      logger.warn({ id, err: String(err) }, 'IPFS upload failed at plan creation; will retry in background')
     }
   }
 
@@ -2525,7 +2572,7 @@ async function handleCreatePlan(
   res.end(JSON.stringify({
     id,
     merchantAddress,
-    status: finalStatus,
+    status,
     metadata,
     ipfsCid,
     ipfsMetadataUrl: computeIpfsMetadataUrl(ipfsCid),
@@ -2646,65 +2693,36 @@ async function handleUpdatePlan(
 
   // Determine IPFS upload strategy:
   // - needsIpfs: upload required (no CID yet, or content changed on active plan)
-  // - needsPromotionOnly: CID exists and is current, just promote status
-  const contentChanged = existing.ipfs_cid && JSON.stringify(metadata) !== JSON.stringify(existing.metadata)
-  const needsIpfs = targetStatus === 'active' && (!existing.ipfs_cid || contentChanged) && isStorachaEnabled()
-  const needsPromotionOnly = targetStatus === 'active' && !!existing.ipfs_cid && !contentChanged && existing.status !== 'active'
+  // Non-blocking IPFS: save at the requested status immediately. If we need
+  // a fresh CID (either content changed or none exists yet), attempt upload
+  // best-effort — the retry worker fixes it later on failure.
+  const contentChanged = !!existing.ipfs_cid && JSON.stringify(metadata) !== JSON.stringify(existing.metadata)
+  const wantsFreshCid = targetStatus === 'active' && (!existing.ipfs_cid || contentChanged) && isIpfsEnabled()
 
-  // Save metadata with safe status — defer activation when IPFS upload or promotion is pending
-  const safeStatus: PlanStatus = (needsIpfs || needsPromotionOnly) ? existing.status : targetStatus
-  const updated = await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, metadata, safeStatus)
+  const updated = await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, metadata, targetStatus)
   if (!updated) {
     res.writeHead(404, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ error: 'Plan not found or was deleted during update' }))
     return
   }
 
-  logger.info({ planId, merchantAddress, status: safeStatus }, 'Updated plan metadata')
+  logger.info({ planId, merchantAddress, status: targetStatus }, 'Updated plan metadata')
 
-  let ipfsCid: string | null = existing.ipfs_cid
-  let finalStatus: PlanStatus = safeStatus
-  if (needsIpfs) {
+  // If content changed, clear the stale CID BEFORE attempting upload. On
+  // failure, the row now has ipfs_cid=NULL and the retry worker picks it
+  // up. Without this, DB (new content) and IPFS (stale CID → old content)
+  // would silently diverge and never re-converge — the retry SELECT filters
+  // `WHERE ipfs_cid IS NULL` and would skip a stale-but-non-null row.
+  if (wantsFreshCid && contentChanged) {
+    await clearPlanIpfsCidForReupload(config.databaseUrl, planId, merchantAddress)
+  }
+
+  let ipfsCid: string | null = wantsFreshCid && contentChanged ? null : existing.ipfs_cid
+  if (wantsFreshCid) {
     try {
       ipfsCid = await uploadPlanToIPFS(config.databaseUrl, planId, merchantAddress, metadata, buildLogoResolver())
     } catch (err) {
-      logger.error({ planId, err }, 'IPFS upload failed; metadata saved but status not promoted')
-      res.writeHead(503, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({
-        error: 'IPFS upload failed. Metadata saved but status was not changed.',
-        status: safeStatus, detail: String(err),
-      }))
-      return
-    }
-    // If already active, no promotion needed — just update CID
-    if (existing.status === 'active') {
-      finalStatus = 'active'
-    } else {
-      try {
-        await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, metadata, 'active')
-        finalStatus = 'active'
-      } catch (err) {
-        logger.error({ planId, err }, 'Status promotion failed after IPFS upload')
-        res.writeHead(503, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({
-          error: 'IPFS upload succeeded but status promotion failed. Retry PATCH to activate.',
-          status: safeStatus, ipfsCid, detail: String(err),
-        }))
-        return
-      }
-    }
-  } else if (needsPromotionOnly) {
-    try {
-      await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, metadata, 'active')
-      finalStatus = 'active'
-    } catch (err) {
-      logger.error({ planId, err }, 'Status promotion failed')
-      res.writeHead(503, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({
-        error: 'Status promotion failed. Retry PATCH to activate.',
-        status: safeStatus, ipfsCid: existing.ipfs_cid, detail: String(err),
-      }))
-      return
+      logger.warn({ planId, err: String(err) }, 'IPFS upload failed on update; will retry in background')
     }
   }
 
@@ -2712,7 +2730,7 @@ async function handleUpdatePlan(
   res.end(JSON.stringify({
     id: planId,
     updated: true,
-    status: finalStatus,
+    status: targetStatus,
     ipfsCid,
     ipfsMetadataUrl: computeIpfsMetadataUrl(ipfsCid),
   }, null, 2))
@@ -2800,67 +2818,55 @@ async function handlePatchPlan(
     }
   }
 
-  // Determine IPFS upload strategy:
-  // - needsIpfs: upload required (no CID yet, or content changed on active plan)
-  // - needsPromotionOnly: CID exists and is current, just promote status
-  const contentChanged = existing.ipfs_cid && JSON.stringify(merged) !== JSON.stringify(existing.metadata)
-  const needsIpfs = targetStatus === 'active' && (!existing.ipfs_cid || contentChanged) && isStorachaEnabled()
-  const needsPromotionOnly = targetStatus === 'active' && !!existing.ipfs_cid && !contentChanged && existing.status !== 'active'
+  // Validate the INCOMING checkout patch only, not the merged result.
+  // If we validated `merged.checkout`, a plan carrying pre-existing
+  // invalid checkout data (from before this validator existed) would
+  // reject every subsequent PATCH — even a benign status flip —
+  // because the stale merged.checkout still fails the schema. Scoping
+  // the validation to `patchFields.checkout` means we enforce the schema
+  // on what the merchant is actually changing, while leaving them a path
+  // to reach a fixed state.
+  if (patchFields.checkout !== undefined) {
+    if (typeof patchFields.checkout !== 'object' || patchFields.checkout === null || Array.isArray(patchFields.checkout)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'checkout must be an object' }))
+      return
+    }
+    const checkoutValidation = validateCheckoutFields(patchFields.checkout as Record<string, unknown>)
+    if (!checkoutValidation.valid) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: checkoutValidation.error }))
+      return
+    }
+  }
 
-  // Save metadata with safe status — defer activation when IPFS upload or promotion is pending
-  const safeStatus: PlanStatus = (needsIpfs || needsPromotionOnly) ? existing.status : targetStatus
-  const updated = await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, merged, safeStatus)
+  // Non-blocking IPFS: save at the requested status immediately. Fresh CID
+  // uploaded best-effort — retry worker mops up failures.
+  const contentChanged = !!existing.ipfs_cid && JSON.stringify(merged) !== JSON.stringify(existing.metadata)
+  const wantsFreshCid = targetStatus === 'active' && (!existing.ipfs_cid || contentChanged) && isIpfsEnabled()
+
+  const updated = await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, merged, targetStatus)
   if (!updated) {
     res.writeHead(404, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ error: 'Plan not found or was deleted during update' }))
     return
   }
 
-  logger.info({ planId, merchantAddress, status: safeStatus }, 'Patched plan metadata')
+  logger.info({ planId, merchantAddress, status: targetStatus }, 'Patched plan metadata')
 
-  let ipfsCid: string | null = existing.ipfs_cid
-  let finalStatus: PlanStatus = safeStatus
-  if (needsIpfs) {
+  // See handleUpdatePlan for the rationale — clear the stale CID before
+  // attempting the fresh upload so a failure leaves the row visible to
+  // the retry worker (SELECT filters WHERE ipfs_cid IS NULL).
+  if (wantsFreshCid && contentChanged) {
+    await clearPlanIpfsCidForReupload(config.databaseUrl, planId, merchantAddress)
+  }
+
+  let ipfsCid: string | null = wantsFreshCid && contentChanged ? null : existing.ipfs_cid
+  if (wantsFreshCid) {
     try {
       ipfsCid = await uploadPlanToIPFS(config.databaseUrl, planId, merchantAddress, merged, buildLogoResolver())
     } catch (err) {
-      logger.error({ planId, err }, 'IPFS upload failed; metadata saved but status not promoted')
-      res.writeHead(503, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({
-        error: 'IPFS upload failed. Metadata saved but status was not changed.',
-        status: safeStatus, detail: String(err),
-      }))
-      return
-    }
-    // If already active, no promotion needed — just update CID
-    if (existing.status === 'active') {
-      finalStatus = 'active'
-    } else {
-      try {
-        await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, merged, 'active')
-        finalStatus = 'active'
-      } catch (err) {
-        logger.error({ planId, err }, 'Status promotion failed after IPFS upload')
-        res.writeHead(503, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({
-          error: 'IPFS upload succeeded but status promotion failed. Retry PATCH to activate.',
-          status: safeStatus, ipfsCid, detail: String(err),
-        }))
-        return
-      }
-    }
-  } else if (needsPromotionOnly) {
-    try {
-      await updatePlanMetadata(config.databaseUrl, planId, merchantAddress, merged, 'active')
-      finalStatus = 'active'
-    } catch (err) {
-      logger.error({ planId, err }, 'Status promotion failed')
-      res.writeHead(503, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({
-        error: 'Status promotion failed. Retry PATCH to activate.',
-        status: safeStatus, ipfsCid: existing.ipfs_cid, detail: String(err),
-      }))
-      return
+      logger.warn({ planId, err: String(err) }, 'IPFS upload failed on patch; will retry in background')
     }
   }
 
@@ -2868,7 +2874,7 @@ async function handlePatchPlan(
   res.end(JSON.stringify({
     id: planId,
     updated: true,
-    status: finalStatus,
+    status: targetStatus,
     metadata: merged,
     ipfsCid,
     ipfsMetadataUrl: computeIpfsMetadataUrl(ipfsCid),

@@ -8,6 +8,7 @@ import {
   MIN_INTERVAL_SECONDS, MIN_CHARGE_AMOUNT,
 } from '../db/points.js'
 import type { RelayerConfig } from '../types.js'
+import { sleep } from '../utils/sleep.js'
 
 const logger = createLogger('points-worker')
 
@@ -26,11 +27,7 @@ export async function startPointsWorkerLoop(
       logger.error({ err }, 'Points worker error')
     }
 
-    // Wait 60 seconds or until aborted
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, 60_000)
-      signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
-    })
+    await sleep(60_000, signal)
   }
 
   logger.info('Points worker stopped')

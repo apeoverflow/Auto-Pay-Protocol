@@ -25,6 +25,25 @@ export interface SubscriberWithPolicy {
   charge_amount: string
   interval_seconds: number
   created_at: Date
+  // From payer_contacts (LEFT JOIN — null when no contact row exists yet)
+  contact_email: string | null
+  email_verified_at: Date | null
+  notifications_opted_out: boolean
+  notification_stage: number
+  low_approval_since: Date | null
+  last_allowance_micro: string | null
+  last_checked_at: Date | null
+  /**
+   * Discriminator: true when a payer_contacts row exists for this
+   * (chain_id, payer), false when the LEFT JOIN yielded no match.
+   * Used by the merchant subscribers endpoint to distinguish "legacy
+   * subscriber (predates verify flow)" from "post-verify-flow subscriber
+   * who didn't verify" — only the latter should have formData.email
+   * redacted for the merchant.
+   */
+  has_contact_row: boolean
+  // From payer_projections
+  projected_12mo_micro: string | null
 }
 
 export async function insertSubscriberData(
@@ -57,39 +76,56 @@ export async function insertSubscriberData(
 export async function getSubscribersByMerchant(
   databaseUrl: string,
   merchant: string,
-  chainId?: number,
-  planId?: string,
-  page = 1,
-  limit = 50
+  opts: {
+    chainId?: number
+    planId?: string
+    /** When true, restrict to rows currently in low-approval state (notification_stage > 0). */
+    onlyAtRisk?: boolean
+    page?: number
+    limit?: number
+  } = {}
 ): Promise<{ subscribers: SubscriberWithPolicy[]; total: number }> {
   const db = getDb(databaseUrl)
   const addr = merchant.toLowerCase()
+  const page = opts.page ?? 1
+  const limit = opts.limit ?? 50
   const offset = (page - 1) * limit
 
-  const selectFields = `
-    s.policy_id, s.chain_id, s.payer, s.plan_id, s.form_data,
-    COALESCE(p.active, false) AS active,
-    COALESCE(p.charge_amount, '0') AS charge_amount,
-    COALESCE(p.interval_seconds, 0) AS interval_seconds,
-    s.created_at`
-
-  // Build chain filter conditionally — omit to aggregate across all chains
-  const chainFilter = chainId != null ? db`AND s.chain_id = ${chainId}` : db``
-  const planFilter = planId ? db`AND s.plan_id = ${planId}` : db``
+  // Build filters conditionally — omitted filters collapse to empty fragments.
+  const chainFilter = opts.chainId != null ? db`AND s.chain_id = ${opts.chainId}` : db``
+  const planFilter = opts.planId ? db`AND s.plan_id = ${opts.planId}` : db``
+  const atRiskFilter = opts.onlyAtRisk ? db`AND COALESCE(pc.notification_stage, 0) > 0` : db``
 
   const [subscribers, countResult] = await Promise.all([
     db<SubscriberWithPolicy[]>`
-      SELECT ${db.unsafe(selectFields)}
+      SELECT
+        s.policy_id, s.chain_id, s.payer, s.plan_id, s.form_data,
+        COALESCE(p.active, false) AS active,
+        COALESCE(p.charge_amount, '0') AS charge_amount,
+        COALESCE(p.interval_seconds, 0) AS interval_seconds,
+        s.created_at,
+        pc.email AS contact_email,
+        pc.email_verified_at,
+        (pc.payer IS NOT NULL) AS has_contact_row,
+        COALESCE(pc.notifications_opted_out, false) AS notifications_opted_out,
+        COALESCE(pc.notification_stage, 0) AS notification_stage,
+        pc.low_approval_since,
+        pc.last_allowance_micro::TEXT AS last_allowance_micro,
+        pc.last_checked_at,
+        pp.projected_12mo_micro::TEXT AS projected_12mo_micro
       FROM subscriber_data s
-      LEFT JOIN policies p ON s.policy_id = p.id AND s.chain_id = p.chain_id
-      WHERE s.merchant = ${addr} ${chainFilter} ${planFilter}
+      LEFT JOIN policies p          ON s.policy_id = p.id AND s.chain_id = p.chain_id
+      LEFT JOIN payer_contacts pc   ON pc.chain_id = s.chain_id AND pc.payer = s.payer
+      LEFT JOIN payer_projections pp ON pp.chain_id = s.chain_id AND pp.payer = s.payer
+      WHERE s.merchant = ${addr} ${chainFilter} ${planFilter} ${atRiskFilter}
       ORDER BY s.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `,
     db`
       SELECT count(*)::int AS total
       FROM subscriber_data s
-      WHERE s.merchant = ${addr} ${chainFilter} ${planFilter}
+      LEFT JOIN payer_contacts pc ON pc.chain_id = s.chain_id AND pc.payer = s.payer
+      WHERE s.merchant = ${addr} ${chainFilter} ${planFilter} ${atRiskFilter}
     `,
   ])
 

@@ -1,4 +1,4 @@
-import { uploadJSON, isStorachaEnabled } from '../lib/storacha.js'
+import { uploadJSON, isIpfsEnabled } from '../lib/ipfs.js'
 import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('reports:receipt')
@@ -68,4 +68,6 @@ export async function uploadChargeReceipt(receipt: ChargeReceipt): Promise<strin
   return cid
 }
 
-export { isStorachaEnabled }
+export { isIpfsEnabled }
+/** @deprecated use isIpfsEnabled */
+export { isIpfsEnabled as isStorachaEnabled }

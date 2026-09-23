@@ -1,18 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PlanMetadata } from '../../src/db/metadata.js'
 
-// Mock storacha module
-vi.mock('../../src/lib/storacha.js', () => ({
-  isStorachaEnabled: vi.fn(),
+// Mock the IPFS facade — consumers of ipfs-upload never import the
+// underlying provider (pinata) directly.
+vi.mock('../../src/lib/ipfs.js', () => ({
+  isIpfsEnabled: vi.fn(),
   uploadJSON: vi.fn(),
+  ipfsGatewayUrl: (cid: string) => `https://gateway.pinata.cloud/ipfs/${cid}`,
+  IPFS_PROVIDER: 'pinata',
 }))
 
-// Mock DB metadata module
 vi.mock('../../src/db/metadata.js', () => ({
   setPlanIpfsCid: vi.fn(),
 }))
 
-// Mock logger
 vi.mock('../../src/utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),
@@ -34,25 +35,25 @@ describe('uploadPlanToIPFS', () => {
     vi.clearAllMocks()
   })
 
-  it('throws when Storacha is not configured', async () => {
-    const { isStorachaEnabled } = await import('../../src/lib/storacha.js')
+  it('throws when IPFS provider is not configured', async () => {
+    const { isIpfsEnabled } = await import('../../src/lib/ipfs.js')
     const { setPlanIpfsCid } = await import('../../src/db/metadata.js')
     const { uploadPlanToIPFS } = await import('../../src/lib/ipfs-upload.js')
 
-    vi.mocked(isStorachaEnabled).mockReturnValue(false)
+    vi.mocked(isIpfsEnabled).mockReturnValue(false)
 
     await expect(
       uploadPlanToIPFS('postgres://test', 'plan-1', '0x1234567890abcdef1234567890abcdef12345678', sampleMetadata)
-    ).rejects.toThrow('Storacha is not configured')
+    ).rejects.toThrow('IPFS provider is not configured')
     expect(setPlanIpfsCid).not.toHaveBeenCalled()
   })
 
   it('uploads metadata and returns CID on success', async () => {
-    const { isStorachaEnabled, uploadJSON } = await import('../../src/lib/storacha.js')
+    const { isIpfsEnabled, uploadJSON } = await import('../../src/lib/ipfs.js')
     const { setPlanIpfsCid } = await import('../../src/db/metadata.js')
     const { uploadPlanToIPFS } = await import('../../src/lib/ipfs-upload.js')
 
-    vi.mocked(isStorachaEnabled).mockReturnValue(true)
+    vi.mocked(isIpfsEnabled).mockReturnValue(true)
     vi.mocked(uploadJSON).mockResolvedValue('bafybeimockCID456')
     vi.mocked(setPlanIpfsCid).mockResolvedValue(undefined)
 
@@ -64,11 +65,11 @@ describe('uploadPlanToIPFS', () => {
   })
 
   it('throws when uploadJSON fails', async () => {
-    const { isStorachaEnabled, uploadJSON } = await import('../../src/lib/storacha.js')
+    const { isIpfsEnabled, uploadJSON } = await import('../../src/lib/ipfs.js')
     const { setPlanIpfsCid } = await import('../../src/db/metadata.js')
     const { uploadPlanToIPFS } = await import('../../src/lib/ipfs-upload.js')
 
-    vi.mocked(isStorachaEnabled).mockReturnValue(true)
+    vi.mocked(isIpfsEnabled).mockReturnValue(true)
     vi.mocked(uploadJSON).mockRejectedValue(new Error('Network error'))
 
     await expect(
@@ -78,11 +79,11 @@ describe('uploadPlanToIPFS', () => {
   })
 
   it('throws when setPlanIpfsCid fails', async () => {
-    const { isStorachaEnabled, uploadJSON } = await import('../../src/lib/storacha.js')
+    const { isIpfsEnabled, uploadJSON } = await import('../../src/lib/ipfs.js')
     const { setPlanIpfsCid } = await import('../../src/db/metadata.js')
     const { uploadPlanToIPFS } = await import('../../src/lib/ipfs-upload.js')
 
-    vi.mocked(isStorachaEnabled).mockReturnValue(true)
+    vi.mocked(isIpfsEnabled).mockReturnValue(true)
     vi.mocked(uploadJSON).mockResolvedValue('bafybeimockCID789')
     vi.mocked(setPlanIpfsCid).mockRejectedValue(new Error('DB connection failed'))
 
@@ -92,11 +93,11 @@ describe('uploadPlanToIPFS', () => {
   })
 
   it('resolves relative logo via logoResolver before upload', async () => {
-    const { isStorachaEnabled, uploadJSON } = await import('../../src/lib/storacha.js')
+    const { isIpfsEnabled, uploadJSON } = await import('../../src/lib/ipfs.js')
     const { setPlanIpfsCid } = await import('../../src/db/metadata.js')
     const { uploadPlanToIPFS } = await import('../../src/lib/ipfs-upload.js')
 
-    vi.mocked(isStorachaEnabled).mockReturnValue(true)
+    vi.mocked(isIpfsEnabled).mockReturnValue(true)
     vi.mocked(uploadJSON).mockResolvedValue('bafyLogo')
     vi.mocked(setPlanIpfsCid).mockResolvedValue(undefined)
 
@@ -110,19 +111,18 @@ describe('uploadPlanToIPFS', () => {
     await uploadPlanToIPFS('postgres://test', 'plan-1', '0xabc', metaWithLogo, resolver)
 
     expect(resolver).toHaveBeenCalledWith('abc123.png')
-    // Verify the uploaded metadata has the resolved absolute URL
     const uploadedData = vi.mocked(uploadJSON).mock.calls[0][0] as PlanMetadata
     expect(uploadedData.merchant?.logo).toBe('https://storage.example.com/logos/abc123.png')
-    // Original should not be mutated
+    // Original must not be mutated
     expect(metaWithLogo.merchant?.logo).toBe('abc123.png')
   })
 
   it('skips logo resolution for absolute URLs', async () => {
-    const { isStorachaEnabled, uploadJSON } = await import('../../src/lib/storacha.js')
+    const { isIpfsEnabled, uploadJSON } = await import('../../src/lib/ipfs.js')
     const { setPlanIpfsCid } = await import('../../src/db/metadata.js')
     const { uploadPlanToIPFS } = await import('../../src/lib/ipfs-upload.js')
 
-    vi.mocked(isStorachaEnabled).mockReturnValue(true)
+    vi.mocked(isIpfsEnabled).mockReturnValue(true)
     vi.mocked(uploadJSON).mockResolvedValue('bafyAbsolute')
     vi.mocked(setPlanIpfsCid).mockResolvedValue(undefined)
 

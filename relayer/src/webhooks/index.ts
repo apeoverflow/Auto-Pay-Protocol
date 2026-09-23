@@ -3,6 +3,7 @@ import { getPendingWebhooks, markWebhookSent, markWebhookFailed } from '../db/we
 import { getMerchantWebhookConfig } from '../db/merchants.js'
 import { deliverWebhook } from './delivery.js'
 import { createLogger } from '../utils/logger.js'
+import { sleep } from '../utils/sleep.js'
 
 const logger = createLogger('webhooks')
 
@@ -119,16 +120,3 @@ export async function startWebhookSenderLoop(
   logger.info('Webhook sender loop stopped')
 }
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve()
-      return
-    }
-    const timeout = setTimeout(resolve, ms)
-    signal?.addEventListener('abort', () => {
-      clearTimeout(timeout)
-      resolve()
-    }, { once: true })
-  })
-}

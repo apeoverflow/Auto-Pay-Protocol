@@ -5,6 +5,7 @@ import { getPoliciesDueForCharge, updatePolicyAfterCharge, markPolicyNeedsAttent
 import { createChargeRecord, markChargeSuccess, markChargeFailed, incrementChargeAttempt, deleteChargeRecord, getCharge } from '../db/charges.js'
 import { queueWebhook } from '../db/webhooks.js'
 import { createLogger } from '../utils/logger.js'
+import { sleep } from '../utils/sleep.js'
 
 const logger = createLogger('executor')
 
@@ -435,16 +436,3 @@ export async function startExecutorLoop(
   logger.info('Executor loop stopped')
 }
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve()
-      return
-    }
-    const timeout = setTimeout(resolve, ms)
-    signal?.addEventListener('abort', () => {
-      clearTimeout(timeout)
-      resolve()
-    }, { once: true })
-  })
-}

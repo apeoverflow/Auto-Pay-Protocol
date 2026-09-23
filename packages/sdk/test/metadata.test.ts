@@ -255,3 +255,123 @@ describe('createMetadata', () => {
     expect(result.valid).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Checkout-fields (metadata.checkout) validation + createMetadata support
+// ---------------------------------------------------------------------------
+
+describe('validateMetadata — checkout config', () => {
+  const base = {
+    version: '1.0',
+    plan: { name: 'Pro', description: 'x' },
+    merchant: { name: 'Acme' },
+  }
+
+  it('accepts a plan with checkout.requiredFields only', () => {
+    expect(validateMetadata({ ...base, checkout: { requiredFields: ['email'] } }).valid).toBe(true)
+  })
+
+  it('accepts a plan with checkout.optionalFields only', () => {
+    expect(validateMetadata({ ...base, checkout: { optionalFields: ['discord', 'twitter'] } }).valid).toBe(true)
+  })
+
+  it('accepts a plan with both required and optional (disjoint)', () => {
+    const result = validateMetadata({
+      ...base,
+      checkout: { requiredFields: ['email'], optionalFields: ['discord'] },
+    })
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects unknown field keys', () => {
+    const result = validateMetadata({
+      ...base,
+      checkout: { requiredFields: ['email', 'ssn'] },
+    })
+    expect(result.valid).toBe(false)
+    expect(result.errors.join(' ')).toContain('ssn')
+  })
+
+  it('rejects a key appearing in BOTH required and optional', () => {
+    const result = validateMetadata({
+      ...base,
+      checkout: { requiredFields: ['email'], optionalFields: ['email'] },
+    })
+    expect(result.valid).toBe(false)
+    expect(result.errors.join(' ')).toContain('email')
+    expect(result.errors.join(' ')).toContain('BOTH')
+  })
+
+  it('rejects checkout that is not an object', () => {
+    expect(validateMetadata({ ...base, checkout: ['email'] }).valid).toBe(false)
+    expect(validateMetadata({ ...base, checkout: null }).valid).toBe(false)
+  })
+
+  it('rejects requiredFields that is not an array', () => {
+    const result = validateMetadata({ ...base, checkout: { requiredFields: 'email' } })
+    expect(result.valid).toBe(false)
+    expect(result.errors.join(' ')).toContain('requiredFields')
+  })
+
+  it('accepts a valid supportedChains list', () => {
+    expect(validateMetadata({ ...base, supportedChains: ['tempo', 'polkadotHub'] }).valid).toBe(true)
+  })
+
+  it('rejects supportedChains with non-string entries', () => {
+    const result = validateMetadata({ ...base, supportedChains: ['tempo', 42] })
+    expect(result.valid).toBe(false)
+    expect(result.errors.join(' ')).toContain('supportedChains')
+  })
+})
+
+describe('createMetadata — checkout config', () => {
+  it('omits checkout when neither required nor optional provided', () => {
+    const m = createMetadata({ planName: 'P', planDescription: 'd', merchantName: 'M' })
+    expect(m.checkout).toBeUndefined()
+  })
+
+  it('emits checkout.requiredFields when provided', () => {
+    const m = createMetadata({
+      planName: 'P', planDescription: 'd', merchantName: 'M',
+      requiredFields: ['email'],
+    })
+    expect(m.checkout).toEqual({ requiredFields: ['email'] })
+  })
+
+  it('emits both required and optional when both provided', () => {
+    const m = createMetadata({
+      planName: 'P', planDescription: 'd', merchantName: 'M',
+      requiredFields: ['email'],
+      optionalFields: ['discord', 'twitter'],
+    })
+    expect(m.checkout).toEqual({
+      requiredFields: ['email'],
+      optionalFields: ['discord', 'twitter'],
+    })
+  })
+
+  it('omits supportedChains when empty', () => {
+    const m = createMetadata({
+      planName: 'P', planDescription: 'd', merchantName: 'M',
+      supportedChains: [],
+    })
+    expect(m.supportedChains).toBeUndefined()
+  })
+
+  it('emits supportedChains when non-empty', () => {
+    const m = createMetadata({
+      planName: 'P', planDescription: 'd', merchantName: 'M',
+      supportedChains: ['tempo'],
+    })
+    expect(m.supportedChains).toEqual(['tempo'])
+  })
+
+  it('round-trips: createMetadata output passes validateMetadata', () => {
+    const m = createMetadata({
+      planName: 'P', planDescription: 'd', merchantName: 'M',
+      requiredFields: ['email'], optionalFields: ['name'],
+      supportedChains: ['tempo'],
+    })
+    expect(validateMetadata(m).valid).toBe(true)
+  })
+})

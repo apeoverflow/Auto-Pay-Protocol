@@ -2,6 +2,9 @@ import { Resend } from 'resend'
 import type { RelayerConfig } from '../types.js'
 import { claimPendingEmails, markEmailFailed, markEmailSent, type OutboxRow } from '../db/email-outbox.js'
 import { verifyEmail, type VerifyEmailParams } from './templates/verify.js'
+import { lowApprovalEmail, type LowApprovalEmailPayload } from './templates/low-approval.js'
+import { approvalRecoveredEmail, type ApprovalRecoveredEmailPayload } from './templates/approval-recovered.js'
+import { sleep } from '../utils/sleep.js'
 import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('email-sender')
@@ -33,11 +36,9 @@ function renderOutboxRow(row: OutboxRow): {
     case 'email_verify':
       return verifyEmail(row.payload as unknown as VerifyEmailParams)
     case 'low_approval':
-      // Populated in stage 3.
-      return null
+      return lowApprovalEmail(row.payload as unknown as LowApprovalEmailPayload)
     case 'approval_recovered':
-      // Populated in stage 3.
-      return null
+      return approvalRecoveredEmail(row.payload as unknown as ApprovalRecoveredEmailPayload)
     default: {
       const _exhaustive: never = row.template
       return _exhaustive
@@ -129,7 +130,7 @@ export async function runEmailSenderOnce(config: RelayerConfig): Promise<number>
 /**
  * Long-running sender loop. Feature-flagged: absent RESEND_API_KEY or
  * `emailSender.enabled=false` means the loop logs once and returns
- * (matching the Storacha pattern).
+ * (matching the isIpfsEnabled feature-flag pattern).
  */
 export async function startEmailSenderLoop(
   config: RelayerConfig,
@@ -159,15 +160,4 @@ export async function startEmailSenderLoop(
   }
 
   logger.info('Email sender loop stopped')
-}
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal.aborted) return resolve()
-    const timeout = setTimeout(resolve, ms)
-    signal.addEventListener('abort', () => {
-      clearTimeout(timeout)
-      resolve()
-    }, { once: true })
-  })
 }

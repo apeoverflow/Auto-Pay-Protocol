@@ -1,6 +1,22 @@
-import type { CheckoutMetadata, BillingInterval } from './types'
+import type { CheckoutMetadata, BillingInterval, SubscriberFieldKey } from './types'
 
 const VALID_BILLING_INTERVALS: BillingInterval[] = ['seconds', 'minutes', 'daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly']
+
+const VALID_SUBSCRIBER_FIELDS: SubscriberFieldKey[] = ['email', 'name', 'discord', 'telegram', 'twitter', 'mobile']
+
+function validateFieldList(list: unknown, listName: string, errors: string[]): SubscriberFieldKey[] {
+  if (!Array.isArray(list)) {
+    errors.push(`"${listName}" must be an array of subscriber field keys if provided`)
+    return []
+  }
+  const invalid = list.filter((k) => typeof k !== 'string' || !VALID_SUBSCRIBER_FIELDS.includes(k as SubscriberFieldKey))
+  if (invalid.length > 0) {
+    errors.push(`"${listName}" contains invalid keys: ${invalid.join(', ')}. Allowed: ${VALID_SUBSCRIBER_FIELDS.join(', ')}`)
+  }
+  return list.filter((k): k is SubscriberFieldKey =>
+    typeof k === 'string' && VALID_SUBSCRIBER_FIELDS.includes(k as SubscriberFieldKey)
+  )
+}
 
 export interface MetadataValidationResult {
   valid: boolean
@@ -126,6 +142,39 @@ export function validateMetadata(data: unknown): MetadataValidationResult {
     }
   }
 
+  // checkout (optional) — subscriber-info fields to collect at checkout.
+  // requiredFields and optionalFields must be disjoint: a key is either
+  // required OR optional, not both. Enforcing this here (as well as
+  // server-side) surfaces plan-editor bugs at build time in SDK users'
+  // pipelines instead of at runtime.
+  if (obj.checkout !== undefined) {
+    // typeof [] === 'object', so we have to reject arrays explicitly.
+    if (typeof obj.checkout !== 'object' || obj.checkout === null || Array.isArray(obj.checkout)) {
+      errors.push('"checkout" must be an object if provided')
+    } else {
+      const checkout = obj.checkout as Record<string, unknown>
+      const required = checkout.requiredFields !== undefined
+        ? validateFieldList(checkout.requiredFields, 'checkout.requiredFields', errors)
+        : []
+      const optional = checkout.optionalFields !== undefined
+        ? validateFieldList(checkout.optionalFields, 'checkout.optionalFields', errors)
+        : []
+      const overlap = required.filter((k) => optional.includes(k))
+      if (overlap.length > 0) {
+        errors.push(`"checkout" fields ${overlap.join(', ')} appear in BOTH requiredFields and optionalFields — must be in only one`)
+      }
+    }
+  }
+
+  // supportedChains (optional) — array of chain keys the merchant enabled
+  // for this plan. Values are chain slugs (strings) — we don't validate
+  // against the full chain list here since the SDK is chain-registry-agnostic.
+  if (obj.supportedChains !== undefined) {
+    if (!Array.isArray(obj.supportedChains) || !obj.supportedChains.every((c) => typeof c === 'string')) {
+      errors.push('"supportedChains" must be an array of strings if provided')
+    }
+  }
+
   return { valid: errors.length === 0, errors }
 }
 
@@ -160,6 +209,16 @@ export function createMetadata(options: {
   currency?: string
   color?: string
   badge?: string
+  /**
+   * Subscriber-info fields to collect at checkout. Required fields block
+   * checkout progress until filled; optional fields can be skipped.
+   * Verified emails unlock low-approval warning emails from AutoPay AND
+   * expose the verified address to your merchant subscribers API.
+   */
+  requiredFields?: SubscriberFieldKey[]
+  optionalFields?: SubscriberFieldKey[]
+  /** Optional non-EVM chains this plan supports. */
+  supportedChains?: string[]
 }): CheckoutMetadata {
   const metadata: CheckoutMetadata = {
     version: '1.0',
@@ -191,6 +250,18 @@ export function createMetadata(options: {
     metadata.display = {}
     if (options.color) metadata.display.color = options.color
     if (options.badge) metadata.display.badge = options.badge
+  }
+
+  const hasRequired = options.requiredFields && options.requiredFields.length > 0
+  const hasOptional = options.optionalFields && options.optionalFields.length > 0
+  if (hasRequired || hasOptional) {
+    metadata.checkout = {}
+    if (hasRequired) metadata.checkout.requiredFields = options.requiredFields
+    if (hasOptional) metadata.checkout.optionalFields = options.optionalFields
+  }
+
+  if (options.supportedChains && options.supportedChains.length > 0) {
+    metadata.supportedChains = options.supportedChains
   }
 
   return metadata

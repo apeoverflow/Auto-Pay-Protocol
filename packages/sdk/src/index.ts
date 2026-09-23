@@ -11,11 +11,17 @@ export type {
   PolicyRevokedEvent,
   PolicyCancelledByFailureEvent,
   PolicyCompletedEvent,
+  SubscriberLowApprovalEvent,
+  SubscriberApprovalRecoveredEvent,
   CheckoutMetadata,
+  SubscriberFieldKey,
   BillingInterval,
   FeeBreakdown,
   PlanCheckoutOptions,
   ResolvedPlan,
+  MerchantSubscriber,
+  MerchantSubscriberContact,
+  MerchantSubscribersResponse,
 } from './types'
 
 // Errors

@@ -7,7 +7,7 @@ import { isTempoBuild } from '../contexts/TempoWalletContext'
 import { useChain } from '../contexts/ChainContext'
 import { USDC_DECIMALS, UNLIMITED_APPROVAL_THRESHOLD } from '../config'
 import { ALL_CHECKOUT_CHAINS } from '../config/planChains'
-import type { CheckoutMetadata } from '../types/checkout'
+import { fieldsFromMetadataCheckout, type CheckoutMetadata, type CheckoutField } from '../types/checkout'
 import {
   LoadingStep,
   ErrorStep,
@@ -51,7 +51,16 @@ export function CheckoutPage() {
   // (matches the approval picker's Unlimited default).
   const [userSpendingCap, setUserSpendingCap] = React.useState<string | undefined>(undefined)
 
-  const hasSubscriberFields = !!(params?.fields && params.fields.length > 0)
+  // Fields to collect at checkout: explicit `?fields=` URL param wins, so
+  // merchants can override per-checkout. When absent, fall back to the
+  // plan's metadata.checkout config (set in the plan editor). This lets a
+  // merchant require email once at the plan level without adding
+  // `?fields=email:r` to every checkout URL.
+  const effectiveFields: CheckoutField[] | undefined = React.useMemo(() => {
+    if (params?.fields && params.fields.length > 0) return params.fields
+    return fieldsFromMetadataCheckout(metadata?.checkout)
+  }, [params?.fields, metadata?.checkout])
+  const hasSubscriberFields = !!(effectiveFields && effectiveFields.length > 0)
 
   // Estimated gas fee in USDC (Arc native currency is USDC; paymaster covers it but we show for transparency)
   const GAS_ESTIMATE_USDC = 0.01
@@ -344,9 +353,9 @@ export function CheckoutPage() {
               />
             </>
           )}
-          {step === 'subscriber_info' && params?.fields && (
+          {step === 'subscriber_info' && effectiveFields && params && (
             <SubscriberInfoStep
-              fields={params.fields}
+              fields={effectiveFields}
               onContinue={(formData) => setSubscriberFormData(formData)}
               cancelUrl={params.cancelUrl}
             />

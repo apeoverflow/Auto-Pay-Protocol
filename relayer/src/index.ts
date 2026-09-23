@@ -6,8 +6,10 @@ import { startExecutorLoop } from './executor/index.js'
 import { startWebhookSenderLoop } from './webhooks/index.js'
 import { startPointsWorkerLoop } from './points/worker.js'
 import { startEmailSenderLoop } from './emails/sender.js'
+import { startApprovalMonitorLoop } from './monitors/approval.js'
+import { startIpfsRetryLoop } from './lib/ipfs-retry.js'
 import { createApiServer, startApiServer, stopApiServer } from './api/index.js'
-import { isStorachaEnabled } from './lib/storacha.js'
+import { isIpfsEnabled, IPFS_PROVIDER } from './lib/ipfs.js'
 import { createLogger } from './utils/logger.js'
 import { privateKeyToAccount } from 'viem/accounts'
 import { setMaxListeners } from 'node:events'
@@ -28,9 +30,9 @@ export async function startRelayer() {
     logger.warn('⚠️  AUTH_ENABLED is not set to "true" — all plan and receipt write endpoints are OPEN without authentication. Set AUTH_ENABLED=true in production.')
   }
 
-  // Warn if Storacha (IPFS) is not configured — receipt uploads will be skipped
-  if (!isStorachaEnabled()) {
-    logger.warn('STORACHA_PRINCIPAL_KEY and/or STORACHA_DELEGATION_PROOF not set — charge receipt IPFS uploads are DISABLED. Receipts will not be archived to IPFS/Filecoin.')
+  // Warn if IPFS provider is not configured — receipt uploads will be skipped
+  if (!isIpfsEnabled()) {
+    logger.warn(`IPFS provider (${IPFS_PROVIDER}) not configured — set PINATA_JWT to enable plan-metadata and charge-receipt archival. DB remains the source of truth for plans; archival is best-effort.`)
   }
 
   // Log merchant filter status
@@ -89,7 +91,17 @@ export async function startRelayer() {
   // Start transactional email sender loop
   const emailSenderPromise = startEmailSenderLoop(config, abortController.signal)
 
-  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise, pointsPromise, emailSenderPromise])
+  // Start approval-monitor loops (one per chain — reads allowances, decides on
+  // low-approval notifications). Feature-flagged; skips if disabled.
+  const approvalMonitorPromises = enabledChains.map((chainConfig) =>
+    startApprovalMonitorLoop(config, chainConfig, abortController.signal)
+  )
+
+  // Best-effort IPFS backfill for plans that failed archival at create/update.
+  // No-op when IPFS provider isn't configured. DB stays authoritative regardless.
+  const ipfsRetryPromise = startIpfsRetryLoop(config, abortController.signal)
+
+  const allServices = Promise.all([...indexerPromises, executorPromise, webhookPromise, pointsPromise, emailSenderPromise, ...approvalMonitorPromises, ipfsRetryPromise])
 
   // Handle shutdown signals
   const shutdown = async () => {

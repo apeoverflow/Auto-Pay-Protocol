@@ -1,5 +1,5 @@
 import { generateMonthlyReport, type MonthlyReport } from './generate.js'
-import { uploadJSON } from '../lib/storacha.js'
+import { uploadJSON } from '../lib/ipfs.js'
 import { saveReport } from '../db/reports.js'
 import { createLogger } from '../utils/logger.js'
 
@@ -7,7 +7,7 @@ const logger = createLogger('reports:upload')
 
 /**
  * Generate a monthly report and save it to the DB only (no IPFS upload).
- * Use this when Storacha is not configured.
+ * Use this when the IPFS provider is not configured.
  */
 export async function generateAndSaveReport(
   databaseUrl: string,
@@ -40,7 +40,7 @@ export async function generateAndUploadReport(
 
   const report = await generateMonthlyReport(databaseUrl, chainId, addr, period)
 
-  const cidStr = await uploadJSON(report)
+  const cidStr = await uploadJSON(report, { name: `report:${addr}:${chainId}:${period}` })
 
   await saveReport(databaseUrl, addr, chainId, period, cidStr, report)
 
